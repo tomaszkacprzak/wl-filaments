@@ -1,0 +1,9 @@
+range_Dxy : [6,18]
+range_M : [1e14,1e16]
+range_z : [0.2, 0.6]
+n_bcc_halo_files : 15
+filename_halos : 'halos_bcc.fits'
+filename_pairs : 'pairs_bcc.fits'
+filename_shears : 'shears_bcc_g.fits'
+boundary_mpc : 4
+n_pairs : 100
