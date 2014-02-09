@@ -7,3 +7,5 @@ filename_pairs : 'pairs_bcc.fits'
 filename_shears : 'shears_bcc_g.fits'
 boundary_mpc : 4
 n_pairs : 100
+create_ellip : False
+shear_type : single # single or stacked

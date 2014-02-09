@@ -14,12 +14,23 @@ cospars = cosmology.cosmoparams()
 dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz'] ,
                 'formats' : ['i8']*4 + ['f8']*21 }
 
-dtype_shears = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','ra_deg','dec_deg','g1','g2','scinv','weight','z','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
-dtype_shears_reduced = { 'names' : ['ra_deg','dec_deg','g1','g2','g1_orig','g2_orig','scinv'] , 'formats' : ['f8']*7 }
+dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','ra_deg','dec_deg','g1','g2','scinv','weight','z','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
+dtype_shears_single = { 'names' : ['ra_deg','dec_deg','g1','g2','g1_orig','g2_orig','scinv'] , 'formats' : ['f8']*7 }
 
-logging.basicConfig(level=logging.DEBUG,format='%(message)s')
-logger = logging.getLogger("filaments_tools") 
-logger.setLevel(logging.INFO)
+# logging.basicConfig(level=logging.INFO,format='%(message)s')
+# logger = logging.getLogger("filaments_tools") 
+
+logger = logging.getLogger("fil..tools") 
+logger.setLevel(logging.INFO)  
+log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
+logger.propagate = False
+
+
+
+config = {}
 
 boundary_mpc=4
 tag='g'
@@ -159,9 +170,9 @@ def rotate_vector(rotation_angle,shear_ra,shear_de):
 
 def rotate_shear(rotation_angle,shear_ra,shear_de,shear_g1,shear_g2):
 
-    shear_pos = (shear_ra + 1j*shear_de)*np.exp(-1j*rotation_angle)
-    shear_ra_rot = shear_pos.real 
-    shear_de_rot = shear_pos.imag
+    # shear_pos = (shear_ra + 1j*shear_de)*np.exp(-1j*rotation_angle)
+    # shear_ra_rot = shear_pos.real 
+    # shear_de_rot = shear_pos.imag
     shear_g = (shear_g1 + 1j*shear_g2)*np.exp(-2j*rotation_angle)
     shear_g1_rot = shear_g.real
     shear_g2_rot = shear_g.imag
@@ -339,7 +350,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
 
 def add_phys_dist(filename_halos):
 
-    big_catalog = tabletools.loadTable(filename_halos,logger=logger)
+    big_catalog = tabletools.loadTable(filename_halos,log=logger)
 
     logger.info('getting euclidian coords')
     box_coords = cosmology.get_euclidian_coords(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
@@ -375,7 +386,7 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
     for ipair,vpair in enumerate(halo_pairs[:n_pairs]):
 
-        filename_current_pair = '%s.%03d.fits' % (filename_shears,ipair)
+        filename_current_pair = filename_shears.replace('.fits', '.%03d.fits' % ipair)
 
         halo1 = halo_pairs1[ipair]
         halo2 = halo_pairs2[ipair]
@@ -395,7 +406,12 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
         filename_fig = '%s.%s.%03d.png' % (filename_shears,tag,ipair)
 
-        plot_pair(halo1,halo2,vpair,halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig)
+        if config['shear_type'] == 'stacked':
+            plot_pair(halo1,halo2,vpair,halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig)
+        elif config['shear_type'] == 'single':
+            plot_pair(halo1,halo2,vpair,halo1['ra'], halo1['dec'], halo1['ra'], halo1['dec'], pair_shears['ra_deg'], pair_shears['dec_deg'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig)
+        else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
+
 
         gal_density = get_galaxy_density(pair_shears['ra_deg'],pair_shears['dec_deg'])
         logger.info('gal_density %2.2f' % gal_density)

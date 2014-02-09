@@ -4,14 +4,24 @@ import pylab as pl
 import scipy.interpolate as interp
 import cosmology
 import tabletools
-import yaml, argparse, sys, logging 
+import yaml, argparse, sys, logging , time
 from sklearn.neighbors import BallTree as BallTree
 import galsim
 import filaments_tools
 
-logging.basicConfig(level=logging.DEBUG,format='%(message)s')
-logger = logging.getLogger("get_halo_pairs") 
-logger.setLevel(logging.DEBUG)
+# logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s %(message)s',datefmt='%Y-%m-%d %H:%M:%S',level=logging.INFO)
+# logger = logging.getLogger("filaments_bcc") 
+
+logger = logging.getLogger("filam..bcc") 
+logger.setLevel(logging.INFO)  
+log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setFormatter(log_formatter)
+logger.addHandler(stream_handler)
+logger.propagate = False
+
+
+
 
 # dtype_shearbase = { 'names' : ['id','n_gals', 'file', 'min_ra','max_ra','min_dec','max_dec'] , 'formats' : ['i8']*2 + ['a1024']*1 + ['f8']*4 }
 dtype_shearbase = { 'names' : ['id','n_gals', 'file','x','y','z'] , 'formats' : ['i8']*2 + ['a1024']*1 + ['f8']*3 }
@@ -22,6 +32,10 @@ filename_shearbase = 'shear_base.txt'
 shear1_col = 's1'
 shear2_col = 's2'
 tag = 'g'
+
+def fix_case(arr):
+
+    arr.dtype.names = [n.lower() for n in arr.dtype.names]
 
 def get_pairs(filename_pairs = 'pairs_bcc.fits',filename_halos='halos_bcc.fits',range_Dxy=[6,10]):
 
@@ -59,6 +73,7 @@ def select_halos(range_z=[0.1,0.6],range_M=[1e14,1e16],filename_halos='halos_bcc
     big_catalog = np.concatenate(big_catalog)
     index=range(0,len(big_catalog))
     big_catalog = tabletools.appendColumn(big_catalog,'id',index,dtype='i8')
+    fix_case( big_catalog )
 
     logger.info('number of halos %d', len(big_catalog))
     tabletools.saveTable(filename_halos,big_catalog)
@@ -173,14 +188,22 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         de = lenscat_stamp['dec'][:,None]
         g1 = shear_g1_stamp[:,None]
         g2 = shear_g2_stamp[:,None]
+        g1_orig = lenscat_stamp[shear1_col][:,None]
+        g2_orig = lenscat_stamp[shear2_col][:,None]
         weight = ra*0 + 1. # set all rows to 1 
         n_gals = ra*0 + 1. # set all rows to 1
         scinv = scinv[:,None]
         z = lenscat_stamp['z'][:,None]
 
         # dtype_shears = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','ra_deg','dec_deg','g1','g2','scinv','weight','z','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
-        pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,ra,de,g1,g2,scinv,weight,z,n_gals],axis=1)
-        pairs_shear = tabletools.array2recarray(pairs_shear,filaments_tools.dtype_shears)        
+
+        if config['shear_type'] == 'stacked':
+            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,ra,de,g1,g2,scinv,weight,z,n_gals],axis=1)
+            pairs_shear = tabletools.array2recarray(pairs_shear,filaments_tools.dtype_shears_stacked)        
+        elif config['shear_type'] == 'single':
+            pairs_shear = np.concatenate([ra,de,g1,g2,g1_orig,g2_orig,scinv],axis=1)
+            pairs_shear = tabletools.array2recarray(pairs_shear,filaments_tools.dtype_shears_single)        
+        else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
 
         halos_coords = {}
         halos_coords['halo1_u_rot_mpc'] = halo1_u_rot_mpc   
@@ -208,7 +231,7 @@ def main():
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
-    # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
+    parser.add_argument('-c', '--filename_config', default='filaments_config.yaml',type=str, action='store', help='name of the yaml config file')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     args = parser.parse_args()
@@ -218,34 +241,42 @@ def main():
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[args.verbosity]
-    logging.basicConfig(format="%(message)s", level=logging_level, stream=sys.stdout)
-    logger = logging.getLogger("filaments_bcc") 
     logger.setLevel(logging_level)
+    logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
+
+    global config 
+    config = yaml.load(open(args.filename_config))
+    filaments_tools.config = config
+
+    range_M = map(float,config['range_M'])
+    range_Dxy = map(float,config['range_Dxy'])
+    range_z = map(float,config['range_z'])
+    n_pairs = config['n_pairs']
+    filename_halos=config['filename_halos']
+    filename_pairs = config['filename_pairs']
+    filename_shears = config['filename_shears']
+    
     # get_shear_files_catalog()
-
-    # get noiseless shears
-    logger.info('getting noiseless shear catalogs')
-    filename_halos='halos_bcc.fits'
-    # filename_all_halos='halos_bcc_all.fits'
-    filename_pairs = 'pairs_bcc.fits'
-    filename_shears = 'shears_bcc_g.fits'
-    select_halos(filename_halos=filename_halos,range_M=[2e14,1e16],n_bcc_halo_files=15)
+    select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
     filaments_tools.add_phys_dist(filename_halos=filename_halos)
-    get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=[6,10])
-    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-    # filaments_tools.boundary_mpc="3x4"
-    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=100)
+    get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    filaments_tools.boundary_mpc=config['boundary_mpc']
 
-    # get noisy shears
-    # logger.info('getting noisy shear catalogs')
-    # filename_shears = 'shears_bcc_e.fits'
-    # global shear1_col , shear2_col , tag
-    # shear1_col = 'e1'
-    # shear2_col = 'e2'
-    # tag='e'
-    # filaments_tools.tag='e'
-    # filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=100)
+    # logger.info('getting noiseless shear catalogs')
+    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
 
+    # if create_ellip:
+    #     logger.info('getting noisy shear catalogs')
+    #     filename_shears = filename_shears.replace('_g','_e')
+    #     global shear1_col , shear2_col , tag
+    #     shear1_col = 'e1'
+    #     shear2_col = 'e2'
+    #     filaments_tools.tag='e'
+    #     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
+
+
+    logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 main()
