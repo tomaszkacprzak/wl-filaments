@@ -33,13 +33,22 @@ def get_comoving_dist_line_of_sight(z):
     """
     @return in Mpc
     """
+    if isinstance(z,float):
+        if z==0.:
+            return 0.
 
     n_grid_z = 1000
     try:
         maxz = max(z)
     except TypeError, te:
+        # print 'TypeError', z
         maxz = z
-        
+
+
+    if maxz < 0.001:
+        print 'small z' , maxz , type(maxz), z
+        import pdb;pdb.set_trace()
+
     grid_z = np.linspace(0,maxz,n_grid_z)
     dz = grid_z[1]
     E = np.sqrt(cospars.omega_m * (1+grid_z)**3 + cospars.omega_k * (1+grid_z)**2 + cospars.omega_lambda)
@@ -222,8 +231,15 @@ def rad_to_mpc(ra_rad,de_rad,z):
 
     return ra_mpc , de_mpc
 
+def mpc_to_arcmin(ra_mpc,de_mpc,z):
+    
+    ang_diam_dist = get_ang_diam_dist(z)
+    ra_rad = ra_mpc/ang_diam_dist
+    de_rad = de_mpc/ang_diam_dist
+    
+    ra_arcmin , de_arcmin  = rad_to_arcmin(ra_rad,de_rad)
 
-
+    return ra_arcmin, de_arcmin
 
 
 

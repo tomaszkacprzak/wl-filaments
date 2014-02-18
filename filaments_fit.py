@@ -8,6 +8,7 @@ import yaml, argparse, sys, logging
 from sklearn.neighbors import BallTree as BallTree
 import galsim
 import filaments_tools
+import emcee
 
 
 logging.basicConfig(filename='filament_fit.log',level=logging.DEBUG,format='%(message)s')
@@ -20,12 +21,6 @@ cospars = cosmology.cosmoparams()
 def mass_concentr_relation():
 
     pass
-
-def get_concentr(M,z):
-
-    # Duffy et al 2008 from King and Mead 2011
-    concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cospars.h)**(-0.081)
-    return concentr
 
 def grid_search(pair_info,shears_info):
 
@@ -53,11 +48,7 @@ def grid_search(pair_info,shears_info):
                     # filaments_tools.plot_pair(pair_info['u1_arcmin'],pair_info['v1_arcmin'],pair_info['u2_arcmin'],pair_info['v2_arcmin'],shears_info['u_arcmin'],shears_info['v_arcmin'],model_g1,model_g2,idp=0,nuse=10,tag='test',show=True,close=True)
 
 
-def likelihood(model_g1,model_g2,data_g1,data_g2,sigma_g):
 
-    chi2 = np.sum( ((model_g1 - data_g1)/sigma_g) **2) + np.sum( ((model_g2 - data_g2)/sigma_g) **2)
-
-    return chi2
     
 
 def draw_model(M1,M2,F,R,shears_info,pair_info):
@@ -81,7 +72,7 @@ def draw_model(M1,M2,F,R,shears_info,pair_info):
     return  model_g1 , model_g2 
 
 
-def filament_model(shear_u_arcmin,shear_v_arcmin,scinv,u1_arcmin,u2_arcmin,kappa0,radius_arcmin):
+def filament_model(shear_u_arcmin,shear_v_arcmin,u1_arcmin,u2_arcmin,kappa0,radius_arcmin):
 
     r = np.abs(shear_v_arcmin)
 
@@ -115,6 +106,89 @@ def test_model(shears_info,pair_info):
 
 
 
+
+
+
+
+
+
+
+
+
+class fitter():
+
+    shear_g1 = None
+    shear_g2 = None
+    shear_u_arcmin = None
+    shear_v_arcmin = None
+    shear_z = None
+    pairs_u1_arcmin = None
+    pairs_v1_arcmin = None
+    pairs_u2_arcmin = None
+    pairs_v2_arcmin = None
+    pairs_z1 = None
+    pairs_z2 = None
+    sigma_g = 0.2
+    data_g1 = None
+    data_g2 = None
+
+    def draw_model(params):
+
+        # def draw_model(M1,M2,F,R,shears_info,pair_info):
+
+        M1 = params[0]
+        M2 = params[1]
+        filament_radius = params[2]
+        filament_kappa = params[3]
+
+        c1 = self.get_concentr(M1,self.pairs_z1)
+        c2 = self.get_concentr(M2,self.pairs_z2)
+        halo1_pos = galsim.PositionD(x=self.pairs_u1_arcmin*60.,y=self.pairs_v1_arcmin*60.)
+        halo2_pos = galsim.PositionD(x=self.pairs_u2_arcmin*60.,y=self.pairs_v2_arcmin*60.)
+        shear_pos = ( self.shears_u_arcmin*60. , self.shears_v_arcmin*60.) 
+
+        nfw1=galsim.NFWHalo(conc=c1, redshift=self.pairs_z1, mass=M1, omega_m = cosmology.cospars.omega_m, halo_pos=halo1_pos)
+        nfw2=galsim.NFWHalo(conc=c2, redshift=self.pairs_z2, mass=M2, omega_m = cosmology.cospars.omega_m, halo_pos=halo2_pos)
+        logger.debug('getting lensing')
+        h1g1 , h1g2 , _ =nfw1.getLensing(pos=shear_pos, z_s=self.shears_z)
+        h2g1 , h2g2 , _ =nfw2.getLensing(pos=shear_pos, z_s=self.shears_z)
+        fg1 , fg2 = filament_model(self.shears_u_arcmin,self.shears_v_arcmin,self.pairs_u1_arcmin,,self.pairs_u2_arcmin,filament_kappa,filament_radius)
+
+        model_g1 = h1g1 + h2g1 + fg1
+        model_g2 = h1g2 + h2g2 + fg2
+        return  model_g1 , model_g2 
+
+    def lnpostfun(p, args):
+
+        model_g1 , model_g2 = draw_model(p)
+        chi2 = log_posterior(model_g1,model_g2)
+
+    def log_posterior(model_g1,model_g2):
+
+        chi2 = np.sum( ((model_g1 - self.data_g1)/self.sigma_g) **2) + np.sum( ((model_g2 - self.data_g2)/self.sigma_g) **2)
+
+        return chi2
+
+    def run_mcmc():
+
+        n_dim = 5
+        n_walkers = 10
+
+        sampler = emcee.EnsembleSampler(nwalkers=n_walkers, dim=n_dim , lnpostfun=self.lnpostfun, a=2.0, args=[], threads=1, pool=None, live_dangerously=False)
+
+    def get_concentr(M,z):
+
+        # Duffy et al 2008 from King and Mead 2011
+        concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cospars.h)**(-0.081)
+        return concentr
+
+
+
+
+
+
+
+
 def main():
 
     description = 'filaments_fit'
@@ -143,8 +217,31 @@ def main():
 
     id_pair = 52
     shears_info = np.array(shears_hdus[id_pair+1].data)
+
+    import pdb;pdb.set_trace()
+
+    fitobj = fitter()
+    fitobj.shear_g1 =  shears_info['g1']
+    fitobj.shear_g2 =  shears_info['g2']
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.shear_z =  shears_info['shear_z']
+    fitobj.pairs_u1_arcmin =  shears_info['u1_arcmin']
+    fitobj.pairs_v1_arcmin =  shears_info['v1_arcmin']
+    fitobj.pairs_u2_arcmin =  shears_info['u2_arcmin']
+    fitobj.pairs_v2_arcmin =  shears_info['v2_arcmin']
+    fitobj.pairs_z1 =  pairs_info['z1']
+    fitobj.pairs_z2 =  pairs_info['z2']
+    fitobj.sigma_g =  0.2
+    fitobj.data_g1 =  shears_info['data_g1']
+    fitobj.data_g2 =  shears_info['data_g2']
+
+
     pair_info = pairs_table[id_pair]
-    grid_search(pair_info,shears_info)
+
+
+
+    # grid_search(pair_info,shears_info)
     # test_model(shears_info,pair_info)
 
 

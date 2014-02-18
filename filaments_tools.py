@@ -1,4 +1,4 @@
-import pyfits
+import pyfits, plotstools
 import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
@@ -14,8 +14,8 @@ cospars = cosmology.cosmoparams()
 dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz'] ,
                 'formats' : ['i8']*4 + ['f8']*21 }
 
-dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','ra_deg','dec_deg','g1','g2','scinv','weight','z','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
-dtype_shears_single = { 'names' : ['ra_deg','dec_deg','g1','g2','g1_orig','g2_orig','scinv'] , 'formats' : ['f8']*7 }
+dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1sc','g2sc','sc_sum',',weight','n_gals'] , 'formats' : ['f8']*8 + ['i8']*1 }
+dtype_shears_single = { 'names' : ['ra_deg','dec_deg','u_mpc','v_mpc','g1','g2', 'g1_orig','g2_orig','scinv'] , 'formats' : ['f8']*9 }
 
 # logging.basicConfig(level=logging.INFO,format='%(message)s')
 # logger = logging.getLogger("filaments_tools") 
@@ -32,7 +32,6 @@ logger.propagate = False
 
 config = {}
 
-boundary_mpc=4
 tag='g'
 
 def get_galaxy_density(shear_ra_deg,shear_de_deg):
@@ -57,9 +56,9 @@ def wrap_angle(ang_rad):
     return ang_rad
 
 
-def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,pair_z,lenscat=None):
+def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,shear_z,pair_z,lenscat=None):
 
-
+               
         pairs_ra_deg = np.mean([halo1_ra_deg,halo2_ra_deg])
         pairs_de_deg = np.mean([halo1_de_deg,halo2_de_deg])
 
@@ -81,6 +80,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo1_u_rad = halo1_u_rad * np.cos(pairs_de_rad)
         halo2_u_rad = halo2_u_rad * np.cos(pairs_de_rad)
         shear_u_rad = shear_u_rad * np.cos(pairs_de_rad)
+        # possibly shear rotation too here?
 
         rotation_angle = np.angle(halo1_u_rad + 1j*halo1_v_rad)
 
@@ -89,21 +89,30 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo2_u_rot_rad , halo2_v_rot_rad = rotate_vector(rotation_angle, halo2_u_rad , halo2_v_rad)   
         shear_g1_rot , shear_g2_rot = rotate_shear(rotation_angle, shear_u_rad, shear_v_rad, shear_g1, shear_g2)
 
-        
+
         # grid boudaries
 
-        # find the angle which corresponds to boundary_mpc at current redshift
-        if boundary_mpc == '3x4':
+        # find the angle which corresponds to config['boundary_mpc'] at current redshift
+        if config['boundary_mpc'] == '3x4':
             r_pair = np.abs(halo1_u_rot_rad - halo2_u_rot_rad)
             dtheta_x = r_pair * 1.6
             dtheta_y = r_pair * 2.1
             select = (shear_v_rot_rad < dtheta_y) * (shear_v_rot_rad > -dtheta_y) * (shear_u_rot_rad < dtheta_x) *  (shear_u_rot_rad > -dtheta_x)
+
+            range_u_mpc , range_v_mpc = cosmology.rad_to_mpc(2*dtheta_x,2*dtheta_y,pair_z)
+            range_u_arcmin , range_v_arcmin = cosmology.rad_to_arcmin(2*dtheta_x,2*dtheta_y)
+        
         else:
-            dtheta_x = boundary_mpc / cosmology.get_ang_diam_dist(pair_z)
-            dtheta_y = boundary_mpc / cosmology.get_ang_diam_dist(pair_z)
+            dtheta_x = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
+            dtheta_y = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
             select = (shear_v_rot_rad < dtheta_y) * (shear_v_rot_rad > -dtheta_y) * (shear_u_rot_rad < (halo1_u_rot_rad + dtheta_x)) *  (shear_u_rot_rad > (halo2_u_rot_rad - dtheta_x))
 
+            range_u_mpc , range_v_mpc = cosmology.rad_to_mpc(2*halo1_u_rot_rad+2*dtheta_x,2*dtheta_y,pair_z)
+            range_u_arcmin , range_v_arcmin = cosmology.rad_to_arcmin(2*halo1_u_rot_rad+2*dtheta_x,2*dtheta_y)
+        
         logger.info('z=%f dtheta=%f' % (pair_z,dtheta_x))
+        logger.info('range_u_mpc=%2.4f range_v_mpc=%2.4f' % (range_u_mpc , range_v_mpc) )
+      
 
         # select the stamp
 
@@ -111,22 +120,35 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         shear_v_stamp_rad  = shear_v_rot_rad[select]
         shear_g1_stamp = shear_g1_rot[select]
         shear_g2_stamp = shear_g2_rot[select]
+        shear_g1_orig = shear_g1[select]
+        shear_g2_orig = shear_g2[select]
+        shear_z_stamp = shear_z[select]
+        shear_ra_stamp_deg = shear_ra_deg[select]
+        shear_de_stamp_deg = shear_de_deg[select]
+
+        if lenscat != None:
+            lenscat_stamp = lenscat[select]
+        else:
+            lenscat_stamp = None
+
+        sc = cosmology.get_sigma_crit( shear_z_stamp , np.ones(shear_z_stamp.shape)*pair_z )
+        scinv = 1./sc
+        g1sc = shear_g1_stamp * sc
+        g2sc = shear_g2_stamp * sc
+
+        gal_density = get_galaxy_density(shear_ra_stamp_deg,shear_de_stamp_deg)
+        logger.info('gal_density %2.2f' % gal_density)
+
         
         # logger.info('r_pair=%2.2e rad ' % np.abs(halo1_u_rot_rad - halo2_u_rot_rad))
         # logger.info('dtheta_x=%2.2e rad ' % r_pair)
+        # logger.info('getting plot')
         # pl.scatter(shear_u_stamp_rad,shear_v_stamp_rad,c='b')
         # pl.scatter(halo1_u_rot_rad,halo1_v_rot_rad,c='r')
         # pl.scatter(halo2_u_rot_rad,halo2_v_rot_rad,c='r')
         # pl.axis('equal')
         # pl.show()
 
-
-
-
-        if lenscat != None:
-            lenscat_stamp  = lenscat[select]
-        else:
-            lenscat_stamp=None
 
         # convert to Mpc
         shear_u_stamp_mpc , shear_v_stamp_mpc = cosmology.rad_to_mpc(shear_u_stamp_rad,shear_v_stamp_rad,pair_z)
@@ -137,16 +159,123 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo1_u_rot_arcmin , halo1_v_rot_arcmin = cosmology.rad_to_arcmin(halo1_u_rot_rad,halo1_v_rot_rad)
         halo2_u_rot_arcmin , halo2_v_rot_arcmin = cosmology.rad_to_arcmin(halo2_u_rot_rad,halo2_v_rot_rad)
 
+
+
         logger.info('r_pair=%2.2e Mpc ' % np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc))
         logger.info('r_pair=%2.2e arcmin ' % np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
 
-        return (halo1_u_rot_mpc,      halo1_v_rot_mpc, 
-                halo2_u_rot_mpc,      halo2_v_rot_mpc, 
-                halo1_u_rot_arcmin,   halo1_v_rot_arcmin, 
-                halo2_u_rot_arcmin,   halo2_v_rot_arcmin, 
-                shear_u_stamp_mpc,    shear_v_stamp_mpc, 
-                shear_u_stamp_arcmin, shear_v_stamp_arcmin, 
-                shear_g1_stamp, shear_g2_stamp, lenscat_stamp)
+        pixel_size_arcmin,_ = cosmology.mpc_to_arcmin(config['pixel_size_mpc'],0.,pair_z) 
+
+        if config['shear_type'] == 'stacked':
+
+            grid_u_mpc = np.arange( -range_u_mpc / 2. , range_u_mpc / 2., config['pixel_size_mpc'] )
+            grid_v_mpc = np.arange( -range_v_mpc / 2. , range_v_mpc / 2., config['pixel_size_mpc'] )
+            grid_u_arcmin = grid_u_mpc / config['pixel_size_mpc'] * pixel_size_arcmin 
+            grid_v_arcmin = grid_v_mpc / config['pixel_size_mpc'] * pixel_size_arcmin
+
+
+            logger.info('grid_u_mpc %d' % len(grid_u_mpc))
+            logger.info('grid_v_mpc %d' % len(grid_v_mpc))
+
+            hist_g1, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g1_stamp/scinv)
+            hist_g2, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g2_stamp/scinv)
+            hist_n,  _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) )
+            hist_sc, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=sc )
+
+            mean_g1 = hist_g1 / hist_n
+            mean_g2 = hist_g2 / hist_n
+
+            # in case we divided by zero
+            mean_g1[hist_n == 0] = 0
+            mean_g2[hist_n == 0] = 0
+
+            u_mid_mpc,v_mid_mpc = plotstools.get_bins_centers(grid_u_mpc) , plotstools.get_bins_centers(grid_v_mpc)
+            u_mid_arcmin,v_mid_arcmin = plotstools.get_bins_centers(grid_u_arcmin) , plotstools.get_bins_centers(grid_v_arcmin)
+            grid_2d_u_mpc , grid_2d_v_mpc = np.meshgrid(u_mid_mpc,v_mid_mpc,indexing='ij')
+            grid_2d_u_arcmin , grid_2d_v_arcmin = np.meshgrid(u_mid_arcmin,v_mid_arcmin,indexing='ij')
+
+            # dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','ra_deg','dec_deg','g1','g2','scinv','weight','z','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
+            binned_u_arcmin = grid_2d_u_arcmin.flatten('F')
+            binned_v_arcmin = grid_2d_v_arcmin.flatten('F')
+            binned_u_mpc = grid_2d_u_mpc.flatten('F')
+            binned_v_mpc = grid_2d_v_mpc.flatten('F')
+            binned_g1 = mean_g1.flatten('F')
+            binned_g2 = mean_g2.flatten('F')
+            binned_n = hist_n.flatten('F')
+            binned_sc = hist_sc.flatten('F')
+
+            u_mpc = binned_u_mpc[:,None]
+            v_mpc = binned_v_mpc[:,None]
+            u_arcmin = binned_u_arcmin[:,None]
+            v_arcmin = binned_v_arcmin[:,None]
+            # ra = shear_ra_deg[:,None]
+            # de = shear_de_deg[:,None]
+            g1sc = binned_g1[:,None]
+            g2sc = binned_g2[:,None]
+            sc_sum = binned_sc[:,None]
+            weight = g1sc*0 + 1. # set all rows to 1 
+            n_gals = binned_n[:,None] # set all rows to 1
+            # scinv = scinv[:,None]
+            # z = lenscat_stamp['z'][:,None]
+            
+            # pl.figure()
+            # pl.subplot(1,2,1)
+            # pl.imshow(mean_g1,interpolation="nearest")
+            # pl.colorbar()
+            # pl.subplot(1,2,2)
+            # pl.imshow(mean_g2,interpolation="nearest")
+            # pl.colorbar()
+            # pl.figure()
+            # pl.subplot(1,2,1)
+            # # plot_pair(halo1_u_rot_mpc , halo1_v_rot_mpc , halo2_u_rot_mpc , halo2_v_rot_mpc , u_mpc, v_mpc, g1sc, g2sc , close=False,nuse = 1,quiver_scale=15)
+            # pl.subplot(1,2,2)
+            # plot_pair(halo1_u_rot_mpc , halo1_v_rot_mpc , halo2_u_rot_mpc , halo2_v_rot_mpc , shear_u_stamp_mpc, shear_v_stamp_mpc, shear_g1_stamp, shear_g2_stamp , close=False,nuse = 10,quiver_scale=2)
+            # pl.show()
+
+            # dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1sc','g2sc','sc_sum',',weight','n_gals'] , 'formats' : ['f8']*8 + ['i8']*1 }
+            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,g1sc,g2sc,sc_sum,weight,n_gals],axis=1)
+            pairs_shear = tabletools.array2recarray(pairs_shear,dtype_shears_stacked)        
+
+
+        elif config['shear_type'] == 'single':
+
+    
+            u_mpc = shear_u_stamp_mpc[:,None]
+            v_mpc = shear_v_stamp_mpc[:,None]
+            u_arcmin = shear_u_stamp_arcmin[:,None]
+            v_arcmin = shear_v_stamp_arcmin[:,None]
+            ra = lenscat_stamp['ra'][:,None]
+            de = lenscat_stamp['dec'][:,None]
+            g1 = shear_g1_stamp[:,None]
+            g2 = shear_g2_stamp[:,None]
+            g1_orig = shear_g1_orig[:,None]
+            g2_orig = shear_g2_orig[:,None]
+            weight = ra*0 + 1. # set all rows to 1 
+            n_gals = ra*0 + 1. # set all rows to 1
+            scinv = scinv[:,None]
+            z = shear_z[:,None]
+
+            pairs_shear = np.concatenate([ra,de,u_mpc,v_mpc,g1,g2,g1_orig,g2_orig,scinv],axis=1)
+            pairs_shear = tabletools.array2recarray(pairs_shear,dtype_shears_single)        
+
+        else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
+
+        halos_coords = {}
+        halos_coords['halo1_u_rot_mpc'] = halo1_u_rot_mpc   
+        halos_coords['halo1_v_rot_mpc'] = halo1_v_rot_mpc 
+        halos_coords['halo2_u_rot_mpc'] = halo2_u_rot_mpc   
+        halos_coords['halo2_v_rot_mpc'] = halo2_v_rot_mpc 
+        halos_coords['halo1_u_rot_arcmin'] = halo1_u_rot_arcmin
+        halos_coords['halo1_v_rot_arcmin'] = halo1_v_rot_arcmin 
+        halos_coords['halo2_u_rot_arcmin'] = halo2_u_rot_arcmin
+        halos_coords['halo2_v_rot_arcmin'] = halo2_v_rot_arcmin
+        halos_coords['range_u_mpc'] = range_u_mpc
+        halos_coords['range_v_mpc'] = range_v_mpc
+        halos_coords['range_u_arcmin'] = range_u_arcmin
+        halos_coords['range_v_arcmin'] = range_v_arcmin
+        halos_coords['gal_density'] = gal_density
+
+        return pairs_shear , halos_coords
 
 
 def linearise_coords(ra_deg,de_deg,center_ra_deg,center_de_deg):
@@ -179,23 +308,29 @@ def rotate_shear(rotation_angle,shear_ra,shear_de,shear_g1,shear_g2):
 
     return shear_g1_rot, shear_g2_rot
 
-def plot_pair(halo1,halo2,pair_info,halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10,filename_fig='whiskers.png',show=False,close=True):
+def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10,filename_fig='whiskers.png',show=False,close=True,halo1=None,halo2=None,pair_info=None,quiver_scale=2):
     """
     In Mpc
     """
 
     # pl.figure(figsize=(50,25),dpi=500)
-    pl.figure()
-    pl.clf()
-    quiver_scale=2
-    r_pair = pair_info['R_pair']
+    # pl.figure()
+    # pl.clf()
+    # quiver_scale=2
+    r_pair = 2*np.abs(halo1_x)
+    # r_pair = pair_info['R_pair']
     emag=np.sqrt(shear_g1**2+shear_g2**2)
     ephi=0.5*np.arctan2(shear_g2,shear_g1)              
 
     pl.quiver(shear_x[::nuse],shear_y[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.005,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
     pl.scatter(halo1_x,halo1_y,100,c='b') 
     pl.scatter(halo2_x,halo2_y,100,c='c') 
-    pl.title('%s r_pair=%2.2fMpc n_gals=%d M1=%2.2e M2=%2.2e' % (idp,r_pair,len(shear_g1),halo1['m200'],halo2['m200']))
+
+    if (halo1 != None) and (halo2 != None):
+        pl.title('%s r_pair=%2.2fMpc n_gals=%d M1=%2.2e M2=%2.2e' % (idp,r_pair,len(shear_g1),halo1['m200'],halo2['m200']))
+    else:
+        pl.title('%s r_pair=%2.2fMpc n_gals=%d' % (idp,r_pair,len(shear_g1)))
+    
     pl.xlim([min(shear_x),max(shear_x)])
     pl.ylim([min(shear_y),max(shear_y)])
     pl.axis('equal')
@@ -247,7 +382,6 @@ def stats_pairs(filename_pairs):
         pl.savefig(filename_fig)
         pl.close()
         logger.info('saved %s' % filename_fig)
-
 
 
 
@@ -407,16 +541,18 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
         filename_fig = '%s.%s.%03d.png' % (filename_shears,tag,ipair)
 
         if config['shear_type'] == 'stacked':
-            plot_pair(halo1,halo2,vpair,halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig)
+            # dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1sc','g2sc','weight','n_gals'] , 'formats' : ['f8']*7 + ['i8']*1 }
+
+            plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'],halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1sc'], pair_shears['g2sc'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair,quiver_scale=15,nuse=1)
+            # plot_pair(halos_coords['halo1_u_rot_mpc'] , halos_coords['halo1_v_rot_mpc'] , halos_coords['halo2_u_rot_mpc'] , halos_coords['halo2_v_rot_mpc'] , u_mpc, v_mpc, g1sc, g2sc , close=False,nuse = 1,quiver_scale=15)
+
+       
         elif config['shear_type'] == 'single':
-            plot_pair(halo1,halo2,vpair,halo1['ra'], halo1['dec'], halo1['ra'], halo1['dec'], pair_shears['ra_deg'], pair_shears['dec_deg'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig)
+            # plot_pair(halo1,halo2,vpair,halo1['ra'], halo1['dec'], halo2['ra'], halo2['dec'], pair_shears['ra_deg'], pair_shears['dec_deg'], pair_shears['g1_orig'], pair_shears['g2_orig'],idp=ipair,filename_fig=filename_fig)
+            plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair)
+    
         else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
 
-
-        gal_density = get_galaxy_density(pair_shears['ra_deg'],pair_shears['dec_deg'])
-        logger.info('gal_density %2.2f' % gal_density)
-
-        # list_fitstb.append( tabletools.getBinaryTable(pair_shears) )
         tabletools.saveTable(filename_current_pair,pair_shears)
         logger.info('saved %s' % filename_current_pair)
 

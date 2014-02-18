@@ -153,75 +153,20 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         lenscat_all = np.concatenate(list_set)
         shear_g1 , shear_g2 = -lenscat_all[shear1_col] , lenscat_all[shear2_col] 
         shear_ra_deg , shear_de_deg = lenscat_all['ra'] , lenscat_all['dec'] 
+        shear_z = lenscat_all['z']
        
 
-        (halo1_u_rot_mpc,      halo1_v_rot_mpc, 
-        halo2_u_rot_mpc,      halo2_v_rot_mpc, 
-        halo1_u_rot_arcmin,   halo1_v_rot_arcmin, 
-        halo2_u_rot_arcmin,   halo2_v_rot_arcmin, 
-        shear_u_stamp_mpc,    shear_v_stamp_mpc, 
-        shear_u_stamp_arcmin, shear_v_stamp_arcmin, 
-        shear_g1_stamp, shear_g2_stamp, lenscat_stamp) = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
+        pairs_shear , halos_coords = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
                                 halo2_ra_deg, halo2_de_deg, 
                                 shear_ra_deg, shear_de_deg, 
-                                shear_g1, shear_g2, 
-                                pair_z, lenscat_all, )
+                                shear_g1, shear_g2, shear_z, 
+                                pair_z, lenscat_all )
 
-        sc = cosmology.get_sigma_crit(lenscat_stamp['z'],np.ones(lenscat_stamp['z'].shape)*pair_z)
-        scinv = 1./sc
-        g1sc = shear_g1_stamp * sc
-        g2sc = shear_g2_stamp * sc
-        # now save the shears in the format
-        # dtype_shears = { 'names' : ['u','v','ra','dec','g1','g2','scinv','weight','n_gals'] , 'formats' : ['f8']*8 + ['i8']*1 }
-
-        # filaments_tools.plot_pair(halo1_u_rot_arcmin, halo1_v_rot_arcmin, halo2_u_rot_arcmin, halo2_v_rot_arcmin, shear_u_stamp_arcmin, shear_v_stamp_arcmin, shear_g1_stamp, shear_g2_stamp,idp=idp,tag=tag)
-
-        if len(shear_g1_stamp) < 100:
-            logger.error('found only %d shears' % len(shear_g1_stamp))
-            return None
-
-        u_mpc = shear_u_stamp_mpc[:,None]
-        v_mpc = shear_v_stamp_mpc[:,None]
-        u_arcmin = shear_u_stamp_arcmin[:,None]
-        v_arcmin = shear_v_stamp_arcmin[:,None]
-        ra = lenscat_stamp['ra'][:,None]
-        de = lenscat_stamp['dec'][:,None]
-        g1 = shear_g1_stamp[:,None]
-        g2 = shear_g2_stamp[:,None]
-        g1_orig = lenscat_stamp[shear1_col][:,None]
-        g2_orig = lenscat_stamp[shear2_col][:,None]
-        weight = ra*0 + 1. # set all rows to 1 
-        n_gals = ra*0 + 1. # set all rows to 1
-        scinv = scinv[:,None]
-        z = lenscat_stamp['z'][:,None]
-
-        # dtype_shears = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','ra_deg','dec_deg','g1','g2','scinv','weight','z','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
-
-        if config['shear_type'] == 'stacked':
-            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,ra,de,g1,g2,scinv,weight,z,n_gals],axis=1)
-            pairs_shear = tabletools.array2recarray(pairs_shear,filaments_tools.dtype_shears_stacked)        
-        elif config['shear_type'] == 'single':
-            pairs_shear = np.concatenate([ra,de,g1,g2,g1_orig,g2_orig,scinv],axis=1)
-            pairs_shear = tabletools.array2recarray(pairs_shear,filaments_tools.dtype_shears_single)        
-        else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
-
-        halos_coords = {}
-        halos_coords['halo1_u_rot_mpc'] = halo1_u_rot_mpc   
-        halos_coords['halo1_v_rot_mpc'] = halo1_v_rot_mpc 
-        halos_coords['halo2_u_rot_mpc'] = halo2_u_rot_mpc   
-        halos_coords['halo2_v_rot_mpc'] = halo2_v_rot_mpc 
-        halos_coords['halo1_u_rot_arcmin'] = halo1_u_rot_arcmin
-        halos_coords['halo1_v_rot_arcmin'] = halo1_v_rot_arcmin 
-        halos_coords['halo2_u_rot_arcmin'] = halo2_u_rot_arcmin
-        halos_coords['halo2_v_rot_arcmin'] = halo2_v_rot_arcmin
+        if len(pairs_shear) < 100:
+            logger.error('found only %d shears' % len(pairs_shear))
+            raise Exception('found only %d shears' % len(pairs_shear))
 
         return pairs_shear , halos_coords
-
-def pixelise_shears(pair_info,halo1,halo2,shears):
-
-    pass
-
-
  
 
 
@@ -258,23 +203,23 @@ def main():
     filename_shears = config['filename_shears']
     
     # get_shear_files_catalog()
-    select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
-    filaments_tools.add_phys_dist(filename_halos=filename_halos)
-    get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-    filaments_tools.boundary_mpc=config['boundary_mpc']
+    # select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
+    # filaments_tools.add_phys_dist(filename_halos=filename_halos)
+    # get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    # filaments_tools.boundary_mpc=config['boundary_mpc']
 
     # logger.info('getting noiseless shear catalogs')
     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
 
-    # if create_ellip:
-    #     logger.info('getting noisy shear catalogs')
-    #     filename_shears = filename_shears.replace('_g','_e')
-    #     global shear1_col , shear2_col , tag
-    #     shear1_col = 'e1'
-    #     shear2_col = 'e2'
-    #     filaments_tools.tag='e'
-    #     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
+    if config['create_ellip']:
+        logger.info('getting noisy shear catalogs')
+        filename_shears = filename_shears.replace('_g','_e')
+        global shear1_col , shear2_col , tag
+        shear1_col = 'e1'
+        shear2_col = 'e2'
+        filaments_tools.tag='e'
+        filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
 
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
