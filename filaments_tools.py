@@ -14,7 +14,7 @@ cospars = cosmology.cosmoparams()
 dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz'] ,
                 'formats' : ['i8']*4 + ['f8']*21 }
 
-dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1sc','g2sc','sc_sum',',weight','n_gals'] , 'formats' : ['f8']*8 + ['i8']*1 }
+dtype_shears_stacked = { 'names' : ['index','u_mpc','v_mpc','u_arcmin','v_arcmin','g1sc','g2sc','sc_sum',',weight','n_gals'] , 'formats' : ['i8']*1 + ['f8']*8 + ['i8']*1 }
 dtype_shears_single = { 'names' : ['ra_deg','dec_deg','u_mpc','v_mpc','g1','g2', 'g1_orig','g2_orig','scinv'] , 'formats' : ['f8']*9 }
 
 # logging.basicConfig(level=logging.INFO,format='%(message)s')
@@ -308,7 +308,7 @@ def rotate_shear(rotation_angle,shear_ra,shear_de,shear_g1,shear_g2):
 
     return shear_g1_rot, shear_g2_rot
 
-def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10,filename_fig='whiskers.png',show=False,close=True,halo1=None,halo2=None,pair_info=None,quiver_scale=2):
+def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10,filename_fig=None,show=False,close=True,halo1=None,halo2=None,pair_info=None,quiver_scale=2):
     """
     In Mpc
     """
@@ -336,8 +336,9 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
     pl.axis('equal')
 
 
-    pl.savefig(filename_fig)
-    logger.info('saved %s' % filename_fig)
+    if filename_fig != None:
+        pl.savefig(filename_fig)
+        logger.info('saved %s' % filename_fig)
     if show:
         pl.show()
     if close:
@@ -556,13 +557,8 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
         tabletools.saveTable(filename_current_pair,pair_shears)
         logger.info('saved %s' % filename_current_pair)
 
+        tabletools.saveTable(filename_pairs,halo_pairs)
+        logger.info( 'wrote %s' % filename_pairs )    
+
         logger.info('%5d ra=% 2.4f (% 2.4f, % 2.4f)  dec=% 2.4f (% 2.4f, % 2.4f) z=% 2.4f (% 2.4f, % 2.4f) n_selected=%6d' % (
             ipair,vpair['ra_mid'],halo1['ra'],halo2['ra'],vpair['dec_mid'],halo1['dec'],halo2['dec'],vpair['z'],halo1['z'],halo2['z'], len(pair_shears)))     
-
-    # hdu = pyfits.PrimaryHDU()
-    # hdulist = pyfits.HDUList( [hdu] + list_fitstb )
-    # hdulist.writeto(filename_shears,clobber=True)                      
-    # logger.info( 'wrote %s' % filename_shears )
-
-    tabletools.saveTable(filename_pairs,halo_pairs)
-    logger.info( 'wrote %s' % filename_pairs )    
