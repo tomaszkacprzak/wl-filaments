@@ -1,9 +1,10 @@
 import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools
 import numpy as np
 import pylab as pl
+import scipy
 
 
-log = logging.getLogger("fil_mod_1h") 
+log = logging.getLogger("model_1hmc") 
 log.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
@@ -128,7 +129,8 @@ class modelfit():
         # M200 = theta
         M200, conc = theta
         
-        prob = -0.5 * ( (M200 - self.gaussian_prior_theta[0]['mean']) )**2 / self.gaussian_prior_theta[0]['std']
+        prob = -0.5 * ( (M200 - self.gaussian_prior_theta[0]['mean'])/self.gaussian_prior_theta[0]['std'] )**2  - np.log(np.sqrt(2*np.pi))
+
 
         if (0 < M200 < 17) and (0 < conc < 10.0):
                 return prob

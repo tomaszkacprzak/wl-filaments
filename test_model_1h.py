@@ -5,18 +5,12 @@ import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
 import filaments_model_1h
 
-
-logging.basicConfig(filename='filament_fit.log',level=logging.DEBUG,format='%(message)s')
-log = logging.getLogger("get_halo_pairs") 
-log.setLevel(logging.DEBUG)
-
 cospars = cosmology.cosmoparams()
-
 
 
 def main():
 
-    description = 'filaments_fit'
+    description = 'test_mod1h'
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
@@ -31,7 +25,7 @@ def main():
                        3: logging.DEBUG }
     logging_level = logging_levels[args.verbosity]
     logging.basicConfig(format="%(message)s", level=logging_level, stream=sys.stdout)
-    log = logging.getLogger("filaments_fit") 
+    log = logging.getLogger("test_mod1h") 
     log.setLevel(logging_level)
 
     id_pair = 7
@@ -43,22 +37,29 @@ def main():
     shears_info = tabletools.loadTable(filename_shears)
     halo1_table = tabletools.loadTable(filename_halo1)
 
+    import pdb; pdb.set_trace()
+    concentr = halo1_table[id_pair]['r200']/halo1_table[id_pair]['rvir']
+    print 'concentr', concentr
+    print 'm200', halo1_table[id_pair]['m200']
 
     fitobj = filaments_model_1h.modelfit()
-    fitobj.sigma_g =  0.01
-    fitobj.shear_g1 =  shears_info['g1sc'] + np.random.randn(len(shears_info['g1sc']))*fitobj.sigma_g
-    fitobj.shear_g2 =  shears_info['g2sc'] + np.random.randn(len(shears_info['g1sc']))*fitobj.sigma_g
+    fitobj.shear_z = 1000
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
     fitobj.halo_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
     fitobj.halo_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
     fitobj.halo_z =  pairs_table['z'][id_pair]
+    fitobj.sigma_g =  0.0000
+    fitobj.shear_g1 , fitobj.shear_g2 =  fitobj.draw_model([16])
+    fitobj.shear_g1 = fitobj.shear_g1 + np.random.randn(len(fitobj.shear_g1))*fitobj.sigma_g
+    fitobj.shear_g2 = fitobj.shear_g2 + np.random.randn(len(fitobj.shear_g2))*fitobj.sigma_g
+    fitobj.plot_model([16])
 
     pair_info = pairs_table[id_pair]
 
+    import pdb; pdb.set_trace()
     fitobj.run_mcmc()
     print fitobj.sampler
-    print halo1_table['m200'][id_pair]
 
     pl.figure()
     pl.hist(fitobj.sampler.flatchain, 100, color="k", histtype="step")

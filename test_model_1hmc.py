@@ -3,7 +3,7 @@ import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
-import filaments_model_1h
+import filaments_model_1hmc
 
 
 logging.basicConfig(filename='filament_fit.log',level=logging.DEBUG,format='%(message)s')
@@ -44,7 +44,7 @@ def main():
     halo1_table = tabletools.loadTable(filename_halo1)
 
 
-    fitobj = filaments_model_1h.modelfit()
+    fitobj = filaments_model_1hmc.modelfit()
     fitobj.sigma_g =  0.01
     fitobj.shear_g1 =  shears_info['g1sc'] + np.random.randn(len(shears_info['g1sc']))*fitobj.sigma_g
     fitobj.shear_g2 =  shears_info['g2sc'] + np.random.randn(len(shears_info['g1sc']))*fitobj.sigma_g
@@ -61,20 +61,12 @@ def main():
     print halo1_table['m200'][id_pair]
 
     pl.figure()
-    pl.hist(fitobj.sampler.flatchain, 100, color="k", histtype="step")
-
-    # pl.plot(fitobj.sampler.flatchain,'x')
+    pl.hist(fitobj.sampler.flatchain[:,0], 100, color="k", histtype="step")
+    pl.figure
+    pl.hist(fitobj.sampler.flatchain[:,1], 100, color="k", histtype="step")
     pl.show()
 
-    median_m = [np.median(fitobj.sampler.flatchain)]
-    print median_m
-    fitobj.plot_model(median_m)
 
-
-    import pdb;pdb.set_trace()
-
-    # grid_search(pair_info,shears_info)
-    # test_model(shears_info,pair_info)
-
+    import pdb; pdb.set_trace()
 
 main()
