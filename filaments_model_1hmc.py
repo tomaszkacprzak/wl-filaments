@@ -43,7 +43,7 @@ class modelfit():
         pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
         pl.axis('equal')
 
-    def plot_residual(self,model_g1,model_g2):
+    def plot_residual(self,model_g1,model_g2,show=False):
 
         res1 , res2 = self.shear_g1 - model_g1, self.shear_g2 - model_g2
         
@@ -72,9 +72,11 @@ class modelfit():
         self.plot_shears(model_g1,model_g2)
         pl.subplot(3,1,3)
         self.plot_shears(res1 , res2)
-        pl.show()
 
-    def plot_model(self,p):
+        if show:
+            pl.show()
+
+    def plot_model(self,p,show=False):
 
         model_g1 , model_g2 = self.draw_model(p)
         self.plot_residual(model_g1 , model_g2)        

@@ -1,4 +1,4 @@
-import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools
+import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools
 import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
@@ -42,34 +42,52 @@ def main():
     print 'concentr', concentr
     print 'm200', halo1_table[id_pair]['m200']
 
+    true_M200 = 15
+
     fitobj = filaments_model_1h.modelfit()
-    fitobj.shear_z = 1000
+    fitobj.shear_z = 1
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
     fitobj.halo_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
     fitobj.halo_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
     fitobj.halo_z =  pairs_table['z'][id_pair]
-    fitobj.sigma_g =  0.0000
-    fitobj.shear_g1 , fitobj.shear_g2 =  fitobj.draw_model([16])
+    fitobj.sigma_g =  0.1
+    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask =  fitobj.draw_model([true_M200])
     fitobj.shear_g1 = fitobj.shear_g1 + np.random.randn(len(fitobj.shear_g1))*fitobj.sigma_g
     fitobj.shear_g2 = fitobj.shear_g2 + np.random.randn(len(fitobj.shear_g2))*fitobj.sigma_g
-    fitobj.plot_model([16])
+    fitobj.plot_model([true_M200])
+    filename_fig = 'halo_model_true.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' % filename_fig)
+    pl.show()
 
     pair_info = pairs_table[id_pair]
 
     import pdb; pdb.set_trace()
-    fitobj.run_mcmc()
-    print fitobj.sampler
 
+    log_post , grid_M200 = fitobj.run_gridsearch()
+    log_post = log_post - max(log_post)
+    norm = np.sum(np.exp(log_post))
+    prob_post = np.exp(log_post) 
     pl.figure()
-    pl.hist(fitobj.sampler.flatchain, 100, color="k", histtype="step")
-
-    # pl.plot(fitobj.sampler.flatchain,'x')
+    pl.plot(grid_M200 , log_post , '.-')
+    pl.figure()
+    pl.plot(grid_M200 , prob_post , '.-')
+    plotstools.adjust_limits()
     pl.show()
 
+    fitobj.run_mcmc()
+    print fitobj.sampler
+    pl.figure()
+    pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,18,100), color="k", histtype="step")
+    # pl.plot(fitobj.sampler.flatchain,'x')
+    pl.show()
     median_m = [np.median(fitobj.sampler.flatchain)]
     print median_m
     fitobj.plot_model(median_m)
+    filename_fig = 'halo_model_median.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' % filename_fig)
 
 
     import pdb;pdb.set_trace()
