@@ -1,4 +1,4 @@
-import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools
+import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools
 import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
@@ -45,7 +45,7 @@ def main():
 
 
     fitobj = filaments_model_1h.modelfit()
-    fitobj.sigma_g =  0.01
+    fitobj.sigma_g =  0.1
     fitobj.shear_g1 =  shears_info['g1sc'] + np.random.randn(len(shears_info['g1sc']))*fitobj.sigma_g
     fitobj.shear_g2 =  shears_info['g2sc'] + np.random.randn(len(shears_info['g1sc']))*fitobj.sigma_g
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
@@ -56,9 +56,32 @@ def main():
 
     pair_info = pairs_table[id_pair]
 
+    import pdb; pdb.set_trace()
+
+    log_post , grid_M200 = fitobj.run_gridsearch(M200_min=16,M200_max=17)
+    log_post = log_post - max(log_post)
+    norm = np.sum(np.exp(log_post))
+    prob_post = np.exp(log_post) 
+    pl.figure()
+    pl.plot(grid_M200 , log_post , '.-')
+    pl.figure()
+    pl.plot(grid_M200 , prob_post , '.-')
+    plotstools.adjust_limits()
+    pl.show()
+
     fitobj.run_mcmc()
     print fitobj.sampler
-    print halo1_table['m200'][id_pair]
+    pl.figure()
+    pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,18,100), color="k", histtype="step")
+    # pl.plot(fitobj.sampler.flatchain,'x')
+    pl.show()
+    median_m = [np.median(fitobj.sampler.flatchain)]
+    print median_m
+    fitobj.plot_model(median_m)
+    filename_fig = 'halo_model_median.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' % filename_fig)
+
 
     pl.figure()
     pl.hist(fitobj.sampler.flatchain, 100, color="k", histtype="step")

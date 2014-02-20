@@ -105,7 +105,7 @@ class modelfit():
         self.n_model_evals +=1
 
         M200 = 10.**params[0]
-        # conc = params[1]
+        # conc = 2.1
         conc = self.get_concentr(M200,self.halo_z)
 
 
@@ -119,11 +119,20 @@ class modelfit():
         model_g1 = h1g1 
         model_g2 = h1g2 
 
-        weak_limit = 0.3
+        weak_limit = 0.4
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
 
         # self.plot_residual(model_g1,model_g2)
+
+        pl.figure()
+        pl.subplot(2,1,1)
+        self.plot_shears(model_g1 , model_g2, limit_mask)
+        pl.subplot(2,1,2)
+        self.plot_shears_mag(model_g1 , model_g2)
+        pl.suptitle('model M200=%2.4f conc=%2.4f' % (M200,conc) )
+        filename_fig = 'model.%04d.png' % self.n_model_evals
+        pl.savefig(filename_fig)
 
         return  model_g1 , model_g2 , limit_mask
 
@@ -131,11 +140,6 @@ class modelfit():
 
         model_g1 , model_g2, limit_mask = self.draw_model(theta)
 
-        # pl.subplot(2,1,1)
-        # self.plot_shears(model_g1 , model_g2, limit_mask)
-        # pl.subplot(2,1,2)
-        # self.plot_shears_mag(model_g1 , model_g2)
-        # pl.show()
 
         likelihood = self.log_likelihood(model_g1,model_g2,limit_mask)
         prior = self.log_prior(theta)
@@ -188,11 +192,11 @@ class modelfit():
 
         self.sampler.run_mcmc(theta0, 1000)
 
-    def run_gridsearch(self):
+    def run_gridsearch(self,M200_min=14,M200_max=16,M200_n=1000):
 
-        grid_M200_min = 14
-        grid_M200_max = 16
-        grid_M200_n = 1000
+        grid_M200_min = M200_min
+        grid_M200_max = M200_max
+        grid_M200_n = M200_n
         log_post = np.zeros(grid_M200_n)
         grid_M200 = np.linspace(grid_M200_min,grid_M200_max,grid_M200_n)
         for im200,vm200 in enumerate(grid_M200):
@@ -206,4 +210,6 @@ class modelfit():
 
         # Duffy et al 2008 from King and Mead 2011
         concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
+
+        print concentr
         return concentr
