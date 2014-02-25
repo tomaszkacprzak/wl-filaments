@@ -107,6 +107,7 @@ class modelfit():
         M200 = 10.**params[0]
         # conc = 2.1
         conc = self.get_concentr(M200,self.halo_z)
+        print 'concentration (draw_model) ', conc
 
 
         halo_pos = galsim.PositionD(x=self.halo_u_arcmin*60.,y=self.halo_v_arcmin*60.)
@@ -119,7 +120,7 @@ class modelfit():
         model_g1 = h1g1 
         model_g2 = h1g2 
 
-        weak_limit = 0.4
+        weak_limit = 2
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
 
@@ -133,6 +134,7 @@ class modelfit():
         pl.suptitle('model M200=%2.4f conc=%2.4f' % (M200,conc) )
         filename_fig = 'model.%04d.png' % self.n_model_evals
         pl.savefig(filename_fig)
+        pl.close()
 
         return  model_g1 , model_g2 , limit_mask
 
