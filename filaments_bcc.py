@@ -26,7 +26,7 @@ logger.propagate = False
 # dtype_shearbase = { 'names' : ['id','n_gals', 'file', 'min_ra','max_ra','min_dec','max_dec'] , 'formats' : ['i8']*2 + ['a1024']*1 + ['f8']*4 }
 dtype_shearbase = { 'names' : ['id','n_gals', 'file','x','y','z'] , 'formats' : ['i8']*2 + ['a1024']*1 + ['f8']*3 }
 
-dirname_data = '/home/kacprzak/data/'
+dirname_data = '/home/tomek/data/'
 filename_shearbase = 'shear_base.txt'
 
 shear1_col = 's1'

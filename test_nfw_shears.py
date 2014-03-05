@@ -1,9 +1,11 @@
-import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools
+import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, nfw
 import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
 import filaments_model_1h
+import warnings
+# warnings.simplefilter('ignore')
 
 cospars = cosmology.cosmoparams()
 
@@ -38,10 +40,9 @@ def main():
     halo1_table = tabletools.loadTable(filename_halo1)
 
     concentr = halo1_table[id_pair]['r200']/halo1_table[id_pair]['rvir']
-    print 'concentr', concentr
-    print 'm200', halo1_table[id_pair]['m200']
 
-    true_M200 = 15
+    # true_M200 = np.log10(halo1_table[id_pair]['m200'])
+    true_M200 = halo1_table[id_pair]['m200']
 
     fitobj = filaments_model_1h.modelfit()
     fitobj.shear_z = 1
@@ -53,15 +54,45 @@ def main():
     fitobj.sigma_g =  0.1
     fitobj.shear_g1 , fitobj.shear_g2 , limit_mask =  fitobj.draw_model([true_M200])  
     fitobj.plot_model([true_M200])
+
+
+    print 'halo_u_arcmin' ,'halo_v_arcmin' ,fitobj.halo_u_arcmin, fitobj.halo_v_arcmin
+    print 'concentr', concentr
+    print 'm200', true_M200
+    print 'halo_z', fitobj.halo_z
+
+
     pl.show()
 
     data = np.concatenate( [fitobj.shear_g1[:,None] ,  fitobj.shear_g2[:,None] , fitobj.shear_u_arcmin[:,None] , fitobj.shear_v_arcmin[:,None] ], axis=1 )
-    np.savetxt('test_nfw_data.txt',data,header='g1 g2 u_arcmin v_arcmin (z_s=1)')
+    # np.savetxt('test_nfw_data.txt',data,header='g1 g2 u_arcmin v_arcmin (z_s=1)')
+    np.savetxt('test_nfw_data.txt',data)
     log.info('saved test_nfw_data.txt')
 
-    import pdb;pdb.set_trace()
-    # filename_fig = 'halo_model_true.png'
 
+    nh = nfw.NfwHalo()
+    nh.M_200=true_M200
+    nh.concentr=4.1518478676
+    nh.z_cluster=fitobj.halo_z
+    nh.theta_cx = fitobj.halo_u_arcmin
+    nh.theta_cy = fitobj.halo_v_arcmin 
+    z_source=1
+    # theta_vals = numpy.linspace(1,10,100)
+    
+    theta_x=fitobj.shear_u_arcmin[:,None]
+    theta_y=fitobj.shear_v_arcmin[:,None]
+
+    print 'theta_x', theta_x[0]
+    print 'theta_y', theta_y[0]
+
+    [g1 , g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(theta_x , theta_y,z_source)
+
+    data = np.concatenate( [g1 ,  g2 , theta_x , theta_y], axis=1 )
+    np.savetxt('test_nfw_data_gravlenspy.txt',data)
+    log.info('saved test_nfw_data_gravlenspy.txt')
+
+
+    print 'now run test_nfw_shears.m in matlab'
 
     # pl.savefig(filename_fig)
     # log.info('saved %s' % filename_fig)

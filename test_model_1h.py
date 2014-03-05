@@ -37,14 +37,11 @@ def main():
     shears_info = tabletools.loadTable(filename_shears)
     halo1_table = tabletools.loadTable(filename_halo1)
 
-    import pdb; pdb.set_trace()
-    concentr = halo1_table[id_pair]['r200']/halo1_table[id_pair]['rvir']
-    print 'concentr', concentr
-    print 'm200', halo1_table[id_pair]['m200']
-
     true_M200 = 15
 
+
     fitobj = filaments_model_1h.modelfit()
+    # filaments_model_1h.log.setLevel(logging.DEBUG)
     fitobj.shear_z = 1
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
@@ -63,8 +60,6 @@ def main():
 
     pair_info = pairs_table[id_pair]
 
-    import pdb; pdb.set_trace()
-
     log_post , grid_M200 = fitobj.run_gridsearch()
     log_post = log_post - max(log_post)
     norm = np.sum(np.exp(log_post))
@@ -77,7 +72,6 @@ def main():
     pl.show()
 
     fitobj.run_mcmc()
-    print fitobj.sampler
     pl.figure()
     pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,18,100), color="k", histtype="step")
     # pl.plot(fitobj.sampler.flatchain,'x')

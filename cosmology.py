@@ -10,18 +10,20 @@ class cosmoparams:
 
     def __init__(self):
 
-        self.omega_m = 0.3
-        self.omega_lambda = 0.7
+        self.Omega_m = 0.3
+        self.Omega_Lambda = 0.7
         self.w = -1.
-        self.omega_k = 0.
+        self.Omega_k = 0.
         self.h = 0.7
-        self.H0 = 100.*self.h # 
+        self.H_0 = 100. # 
         self.DH= 3000.       # Mpc
         self.G = 6.673e-11; # SI units m3 kg-1 s-2
         self.c =  299792458; # m/s
-        self.mpc_to_m = 3.0856e22; # number of meters in 1Mpc
-        self.m_solar = 1.989e30; # kg / M_solar
-
+        self.Mpc_to_m = 3.0856e22; # number of meters in 1Mpc
+        self.M_solar = 1.989e30; # kg / M_solar
+        self.H_0__h_over_s = self.H_0 * 1e3 / self.Mpc_to_m  # h/s
+        self.rho_crit = 3 * self.H_0__h_over_s**2 / (8 *np.pi * self.G) /self.M_solar *self.Mpc_to_m**3; # h^2 M_solar / Mpc^-3
+        print 'cosmology: rho_crit', self.rho_crit
         # G = 6.672e-8;
         # C = 29979245800;
         # Pc = 3.0857e18;
@@ -51,7 +53,7 @@ def get_comoving_dist_line_of_sight(z):
 
     grid_z = np.linspace(0,maxz,n_grid_z)
     dz = grid_z[1]
-    E = np.sqrt(cospars.omega_m * (1+grid_z)**3 + cospars.omega_k * (1+grid_z)**2 + cospars.omega_lambda)
+    E = np.sqrt(cospars.Omega_m * (1+grid_z)**3 + cospars.Omega_k * (1+grid_z)**2 + cospars.Omega_Lambda)
     if not hasattr(z, '__iter__'):
         DC = cospars.DH * sum(dz/E)
     else:
@@ -130,8 +132,8 @@ def get_euclidian_coords(ra_deg,de_deg,z):
         xyz=np.zeros([len(ra_deg),3])
 
     # import cosmolopy.distance as cd
-    # cosmo = {'omega_M_0' : 0.25, 'omega_lambda_0' : 0.75, 'h' : 0.72}
-    # cosmo = cd.set_omega_k_0(cosmo)
+    # cosmo = {'Omega_M_0' : 0.25, 'Omega_Lambda_0' : 0.75, 'h' : 0.72}
+    # cosmo = cd.set_Omega_k_0(cosmo)
     # los = cd.comoving_distance_transverse(z, **cosmo) *  cosmo['h']
     # los = get_comoving_dist_line_of_sight(z)
     los = get_ang_diam_dist(z)
@@ -149,7 +151,7 @@ def euclidian_to_radec(x,y,z):
 
     return ra,de,r
 
-def get_sigma_crit(z_gal,z_lens,unit='kg/m^2'):
+def get_sigma_crit(z_gal,z_lens,unit='Msol*h/pc^2'):
     """
     @return Sigma_crit in specified units
     @param unit units to return Sigma_crit in, currently available 'kg/m^2' and 'Msol*h/pc^2'
@@ -159,7 +161,7 @@ def get_sigma_crit(z_gal,z_lens,unit='kg/m^2'):
     DL = get_ang_diam_dist(z_lens)  # Mpc
     DLS = get_ang_diam_dist(z_gal,z_lens)   # Mpc
 
-    Sigma_crit = cospars.c**2 / (4.*np.pi * cospars.G ) *  DS/(DL*DLS) / cospars.mpc_to_m # kg/m^2
+    Sigma_crit = cospars.c**2 / (4.*np.pi * cospars.G ) *  DS/(DL*DLS) / cospars.Mpc_to_m # kg/m^2
 
     if unit=='kg/m^2':
         return Sigma_crit
@@ -167,10 +169,10 @@ def get_sigma_crit(z_gal,z_lens,unit='kg/m^2'):
 
         h = 1
         kg_per_Msol = 1.98892e30
-        km_per_mpc = 3.08568e19
+        km_per_Mpc = 3.08568e19
 
-        fac = km_per_mpc / kg_per_Msol # kg/m --> Msol/kpc
-        fac = fac * km_per_mpc         # kg/m^2 --> Msol/kpc^2
+        fac = km_per_Mpc / kg_per_Msol # kg/m --> Msol/kpc
+        fac = fac * km_per_Mpc         # kg/m^2 --> Msol/kpc^2
         fac = fac * h / 1e6            # 1/kpc^2 --> h/pc^2
 
         return Sigma_crit * fac
