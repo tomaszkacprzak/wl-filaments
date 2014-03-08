@@ -30,6 +30,9 @@ class modelfit():
         self.sigma_g = 0.2
         self.n_model_evals = 0
         self.sampler = None
+        self.n_samples = 1000
+        self.n_dim = 1 
+        self.n_walkers = 10
         self.gaussian_prior_theta = [{'mean' : 14, 'std': 1}]
         self.box_prior_theta = [{'min' : 5, 'max': 25}]
         self.save_all_models = False
@@ -129,16 +132,18 @@ class modelfit():
         list_h1g2 = []
         list_weight = []
 
-        for ib, vb in enumerate(self.grid_z_centers):
-            if vb < (self.halo_z+redshift_offset): continue
-            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(self.shear_u_arcmin , self.shear_v_arcmin , vb)
-            weight = self.prob_z[ib]
-            list_h1g1.append(h1g1*weight) 
-            list_h1g2.append(h1g2*weight) 
-            list_weight.append(weight)
+        # for ib, vb in enumerate(self.grid_z_centers):
+        #     if vb < (self.halo_z+redshift_offset): continue
+        #     [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(self.shear_u_arcmin , self.shear_v_arcmin , vb)
+        #     weight = self.prob_z[ib]
+        #     list_h1g1.append(h1g1*weight) 
+        #     list_h1g2.append(h1g2*weight) 
+        #     list_weight.append(weight)          
 
-        h1g1 = np.sum(np.array(list_h1g1),axis=0) / np.sum(list_weight)
-        h1g2 = np.sum(np.array(list_h1g2),axis=0) / np.sum(list_weight)
+        # h1g1 = np.sum(np.array(list_h1g1),axis=0) / np.sum(list_weight)
+        # h1g2 = np.sum(np.array(list_h1g2),axis=0) / np.sum(list_weight)
+
+        h1g1 , h1g2  = nh.get_shears_with_pz(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
 
         # median_redshift = 0.8
         # [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(self.shear_u_arcmin , self.shear_v_arcmin , median_redshift )
@@ -218,17 +223,15 @@ class modelfit():
 
     def run_mcmc(self):
 
-        n_dim = 1 
-        n_walkers = 10
         self.n_model_evals = 0
 
         log.info('getting self.sampler')
-        self.sampler = emcee.EnsembleSampler(nwalkers=n_walkers, dim=n_dim , lnpostfn=self.log_posterior)
+        self.sampler = emcee.EnsembleSampler(nwalkers=self.n_walkers, dim=self.n_dim , lnpostfn=self.log_posterior)
         # theta0 = [ [self.gaussian_prior_theta[0]['mean'] + np.random.randn()*self.gaussian_prior_theta[0]['std']]  for i in range(n_walkers)]
-        theta0 = [ [self.gaussian_prior_theta[0]['mean'] + np.random.randn()*self.gaussian_prior_theta[0]['std'] ]  for i in range(n_walkers)]
+        theta0 = [ [self.gaussian_prior_theta[0]['mean'] + np.random.randn()*self.gaussian_prior_theta[0]['std'] ]  for i in range(self.n_walkers)]
         print theta0
 
-        self.sampler.run_mcmc(theta0, 1000)
+        self.sampler.run_mcmc(theta0, self.n_samples)
 
     def run_gridsearch(self,M200_min=14,M200_max=15.3,M200_n=100):
 
