@@ -9,3 +9,4 @@ boundary_mpc : 4
 n_pairs : 100
 create_ellip : False
 shear_type : single # single or stacked
+# pixel_size_mpc : 0.2
