@@ -71,7 +71,6 @@ def fit_single_halo():
     log.info('running mcmc - type c to continue')
     import pdb; pdb.set_trace()
     fitobj.run_mcmc()
-    print fitobj.sampler
     pl.figure()
     pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,16,100), color="k", histtype="step")
     # pl.plot(fitobj.sampler.flatchain,'x')
@@ -94,6 +93,52 @@ def fit_single_halo():
 
 
     import pdb;pdb.set_trace()
+
+def estimate_confidence_interval(par_orig,pdf_orig):
+    import scipy
+    import scipy.interpolate
+
+
+    # upsample PDF
+    n_upsample = 10000
+    f = scipy.interpolate.interp1d(par_orig,pdf_orig)
+    par = np.linspace(min(par_orig),max(par_orig),n_upsample) 
+    pdf = f(par)
+
+    sig = 1
+    confidence_level = scipy.special.erf( float(sig) / np.sqrt(2.) )
+
+    pdf_norm = sum(pdf.flatten())
+    pdf = pdf/pdf_norm
+
+    max_pdf = max(pdf.flatten())
+    min_pdf = 0.
+
+    max_par = par[pdf.argmax()]
+
+    list_levels , _ = plotstools.get_sigma_contours_levels(pdf,list_sigmas=[1])
+    sig1_level = list_levels[0]
+
+    diff = abs(pdf-sig1_level)
+    ix1,ix2 = diff.argsort()[:2]
+    par_x1 , par_x2 = par[ix1] , par[ix2]
+    sig_point_lo = min([par_x1,par_x2])
+    sig_point_hi = max([par_x1,par_x2])
+
+    pl.figure()
+    pl.plot(par,pdf,'x-')
+    pl.axvline(x=sig_point_lo,linewidth=1, color='r')
+    pl.axvline(x=sig_point_hi,linewidth=1, color='r')
+
+
+    err_hi = sig_point_hi - max_par
+    err_lo = max_par - sig_point_lo 
+      
+    log.debug('max %5.5f +%5.5f -%5.5f', max_par, err_hi , err_lo)
+
+    return  max_par , err_hi , err_lo
+
+
 
 
     
@@ -129,14 +174,13 @@ def fit_single_filament():
 
     fitobj = filaments_model_1f.modelfit()
     fitobj.get_bcc_pz()
-    fitobj.sigma_g =  0.02
+    fitobj.sigma_g =  0.2
     fitobj.shear_g1 =  shears_info['g1'] + np.random.randn(len(shears_info['g1']))*fitobj.sigma_g
     fitobj.shear_g2 =  shears_info['g2'] + np.random.randn(len(shears_info['g2']))*fitobj.sigma_g
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
     
-    fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair
-    ]
+    fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
     fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
     fitobj.halo1_z =  pairs_table['z'][id_pair]
     fitobj.halo1_M200 = halo1_table['m200'][id_pair]
@@ -149,7 +193,7 @@ def fit_single_filament():
     fitobj.halo2_conc = halo2_conc
 
     fitobj.parameters[0]['box']['min'] = 0.0001
-    fitobj.parameters[0]['box']['max'] = 0.1
+    fitobj.parameters[0]['box']['max'] = 0.3
     fitobj.parameters[1]['box']['min'] = 0.0001
     fitobj.parameters[1]['box']['max'] = 10
     
@@ -157,8 +201,10 @@ def fit_single_filament():
     # pl.show()
     # fitobj.save_all_models=False
     log.info('running grid search')
-    log_post , params, grid_kappa0, grid_radius = fitobj.run_gridsearch(n_grid=100)
+    n_grid=100
+    log_post , params, grid_kappa0, grid_radius = fitobj.run_gridsearch(n_grid=n_grid)
     vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_kappa0 , vmax_radius = fitobj.get_grid_max(log_post,params)
+
 
     scatter_size=10
 
@@ -173,7 +219,29 @@ def fit_single_filament():
     pl.colorbar()
     filename_fig = 'post.png'
     pl.savefig(filename_fig, dpi=1000)
-    
+
+    # grid_kappa0_matrix = np.reshape(  grid_kappa0 , [ n_grid, n_grid] ) 
+    # grid_radius_matrix = np.reshape(  grid_radius , [ n_grid, n_grid] )
+    prob_post_matrix = np.reshape(  prob_post , [n_grid, n_grid] )    
+
+    prob_post_kappa0 = prob_post_matrix.sum(axis=1)
+    prob_post_radius = prob_post_matrix.sum(axis=0)
+
+    max_par , err_hi , err_lo = estimate_confidence_interval(grid_kappa0 , prob_post_kappa0)
+    log.info('max %5.5f +%5.5f -%5.5f', max_par, err_hi , err_lo)
+
+    pl.figure()
+    pl.plot(grid_kappa0 , prob_post_kappa0)
+    pl.axvline(x=max_par - err_lo,linewidth=1, color='r')
+    pl.axvline(x=max_par + err_hi,linewidth=1, color='r')
+    pl.title('prob_post_kappa0')
+    pl.figure()
+    pl.plot(grid_radius , prob_post_radius)
+    pl.title('prob_post_radius')
+
+
+
+    import pdb; pdb.set_trace()
 
     # fitobj.plot_residual_whisker(best_model_g1, best_model_g2)
     # pl.suptitle('model post=% 10.4e kappa0=%5.2e radius=%2.4f' % (vmax_post,vmax_kappa0,vmax_radius) )
@@ -194,6 +262,9 @@ def fit_single_filament():
     pl.figure()
     plotstools.plot_dist(samples)
     pl.show()
+
+    pdf, par, _ = pl.hist(samples[:,0],bins=1000)
+    estimate_confidence_interval(pdf, par)
     
     # pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,16,100), histtype="step")
 

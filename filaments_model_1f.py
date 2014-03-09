@@ -213,7 +213,7 @@ class modelfit():
         if log.level == logging.DEBUG:
             n_progress = 1
         elif log.level == logging.INFO:
-            n_progress = 1000
+            n_progress = 10000
         if self.n_model_evals % n_progress == 0:
 
             log.info('%7d post=% 2.4e like=% 2.4e prior=% 2.4e kappa0=% 5.3f radius=% 5.3f' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1]))
@@ -285,9 +285,8 @@ class modelfit():
 
             start = np.array(start)
             theta0.append( start )
-                    
-        print theta0
-
+                 
+        
         self.sampler.run_mcmc(theta0, self.n_samples)
 
     def run_gridsearch(self,n_grid=100):

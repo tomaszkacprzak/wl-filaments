@@ -16,6 +16,15 @@ log.propagate = False
 
 
 cospars = cosmology.cosmoparams()
+
+def get_post_from_log(log_post):
+
+    log_post = log_post - max(log_post.flatten())
+    post = np.exp(log_post)
+    norm = np.sum(post)
+    post = post / norm
+
+    return post
     
 def fit_single_filament():
 
