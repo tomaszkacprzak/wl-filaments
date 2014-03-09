@@ -144,7 +144,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
             # vset=vset.replace('kacprzak','tomek')
             lenscat=tabletools.loadTable(vset)
             # prelim cut on z
-            select =  lenscat['z'] > pair_z + redshift_offset
+            select =  lenscat['z'] > (pair_z + redshift_offset)
             lenscat=lenscat[select]
 
             list_set.append(lenscat)
@@ -164,7 +164,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
         if len(pairs_shear) < 100:
             logger.error('found only %d shears' % len(pairs_shear))
-            raise Exception('found only %d shears' % len(pairs_shear))
+            return None , None
 
         return pairs_shear , halos_coords
  
@@ -203,11 +203,11 @@ def main():
     filename_shears = config['filename_shears']
     
     # get_shear_files_catalog()
-    # select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
-    # filaments_tools.add_phys_dist(filename_halos=filename_halos)
-    # get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-    # filaments_tools.boundary_mpc=config['boundary_mpc']
+    select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
+    filaments_tools.add_phys_dist(filename_halos=filename_halos)
+    get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    filaments_tools.boundary_mpc=config['boundary_mpc']
 
     # logger.info('getting noiseless shear catalogs')
     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
@@ -218,7 +218,6 @@ def main():
         global shear1_col , shear2_col , tag
         shear1_col = 'e1'
         shear2_col = 'e2'
-        filaments_tools.tag='e'
         filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
 
 
