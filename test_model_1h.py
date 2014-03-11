@@ -7,6 +7,92 @@ import filaments_model_1h
 
 cospars = cosmology.cosmoparams()
 
+def fit_single_halo():
+
+    id_pair = 7
+    filename_shears = 'shears_bcc_g.%03d.fits' % id_pair
+    filename_pairs = 'pairs_bcc.fits'
+    filename_halo1 = 'pairs_bcc.halos1.fits'
+    filename_halo2 = 'pairs_bcc.halos2.fits'
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    shears_info = tabletools.loadTable(filename_shears)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
+    true_M200 = np.log10(halo1_table['m200'][id_pair])
+    true_M200 = np.log10(halo2_table['m200'][id_pair])
+    log.info( 'halo1 M200 %5.2e',halo1_table['m200'][id_pair] )
+    log.info( 'halo2 M200 %5.2e',halo2_table['m200'][id_pair] )
+    log.info( 'halo1 conc %5.2f',halo1_table['r200'][id_pair]/halo1_table['rs'][id_pair]*1000.)
+    log.info( 'halo2 conc %5.2f',halo2_table['r200'][id_pair]/halo2_table['rs'][id_pair]*1000.)
+
+
+    fitobj = filaments_model_1h.modelfit()
+    fitobj.get_bcc_pz()
+    fitobj.sigma_g =  0.001
+    fitobj.shear_g1 =  shears_info['g1'] + np.random.randn(len(shears_info['g1']))*fitobj.sigma_g
+    fitobj.shear_g2 =  shears_info['g2'] + np.random.randn(len(shears_info['g2']))*fitobj.sigma_g
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.halo_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
+    fitobj.halo_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
+    fitobj.halo_z =  pairs_table['z'][id_pair]
+    fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
+    pl.show()
+
+    pair_info = pairs_table[id_pair]
+
+    log.info('running grid search')
+    log_post , grid_M200, best_g1, best_g2, best_limit_mask = fitobj.run_gridsearch(M200_min=13.5,M200_max=15,M200_n=1000)
+    prob_post = get_post_from_log(log_post)
+    pl.figure()
+    pl.plot(grid_M200 , log_post , '.-')
+    pl.figure()
+    pl.plot(grid_M200 , prob_post , '.-')
+    plotstools.adjust_limits()
+    pl.figure()
+    fitobj.plot_residual(best_g1, best_g2)
+    pl.show()
+
+
+    log.info('running mcmc - type c to continue')
+    import pdb; pdb.set_trace()
+    fitobj.run_mcmc()
+    print fitobj.sampler
+    pl.figure()
+    pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,16,100), color="k", histtype="step")
+    # pl.plot(fitobj.sampler.flatchain,'x')
+    pl.show()
+    median_m = [np.median(fitobj.sampler.flatchain)]
+    print median_m
+    fitobj.plot_model(median_m)
+    filename_fig = 'halo_model_median.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' % filename_fig)
+
+
+    pl.figure()
+    pl.hist(fitobj.sampler.flatchain, 100, color="k", histtype="step")
+    pl.show()
+
+    median_m = [np.median(fitobj.sampler.flatchain)]
+    print 'median_m %2.2e' % 10**median_m
+    fitobj.plot_model(median_m)
+
+
+    import pdb;pdb.set_trace()
+
+
+
+def get_post_from_log(log_post):
+
+    log_post = log_post - max(log_post.flatten())
+    post = np.exp(log_post)
+    norm = np.sum(post)
+    post = post / norm
+
+    return post
 
 def main():
 
@@ -28,66 +114,6 @@ def main():
     log = logging.getLogger("test_mod1h") 
     log.setLevel(logging_level)
 
-    id_pair = 7
-    filename_shears = 'shears_bcc_g.%03d.fits' % id_pair
-    filename_pairs = 'pairs_bcc.fits'
-    filename_halo1 = 'pairs_bcc.halos1.fits'
-
-    pairs_table = tabletools.loadTable(filename_pairs)
-    shears_info = tabletools.loadTable(filename_shears)
-    halo1_table = tabletools.loadTable(filename_halo1)
-
-    true_M200 = 15
-
-
-    fitobj = filaments_model_1h.modelfit()
-    # filaments_model_1h.log.setLevel(logging.DEBUG)
-    fitobj.shear_z = 1
-    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
-    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
-    fitobj.halo_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
-    fitobj.halo_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
-    fitobj.halo_z =  pairs_table['z'][id_pair]
-    fitobj.sigma_g =  0.1
-    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask =  fitobj.draw_model([true_M200])
-    fitobj.shear_g1 = fitobj.shear_g1 + np.random.randn(len(fitobj.shear_g1))*fitobj.sigma_g
-    fitobj.shear_g2 = fitobj.shear_g2 + np.random.randn(len(fitobj.shear_g2))*fitobj.sigma_g
-    fitobj.plot_model([true_M200])
-    filename_fig = 'halo_model_true.png'
-    pl.savefig(filename_fig)
-    log.info('saved %s' % filename_fig)
-    pl.show()
-
-    pair_info = pairs_table[id_pair]
-
-    log_post , grid_M200 = fitobj.run_gridsearch()
-    log_post = log_post - max(log_post)
-    norm = np.sum(np.exp(log_post))
-    prob_post = np.exp(log_post) 
-    pl.figure()
-    pl.plot(grid_M200 , log_post , '.-')
-    pl.figure()
-    pl.plot(grid_M200 , prob_post , '.-')
-    plotstools.adjust_limits()
-    pl.show()
-
-    fitobj.run_mcmc()
-    pl.figure()
-    pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,18,100), color="k", histtype="step")
-    # pl.plot(fitobj.sampler.flatchain,'x')
-    pl.show()
-    median_m = [np.median(fitobj.sampler.flatchain)]
-    print median_m
-    fitobj.plot_model(median_m)
-    filename_fig = 'halo_model_median.png'
-    pl.savefig(filename_fig)
-    log.info('saved %s' % filename_fig)
-
-
-    import pdb;pdb.set_trace()
-
-    # grid_search(pair_info,shears_info)
-    # test_model(shears_info,pair_info)
-
+    fit_single_halo()
 
 main()
