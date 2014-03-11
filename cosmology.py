@@ -60,7 +60,7 @@ def get_comoving_dist_line_of_sight(z):
         # Hogg 2000 eqn 14,15
         sumE = [sum(dz/E[:n]) for n in xrange(0,len(E))]
         f = interp.interp1d(grid_z,sumE)
-        DC = cospars.DH * f(z) * cospars.h
+        DC = cospars.DH * f(z) 
 
     # flat universe
     DM = DC

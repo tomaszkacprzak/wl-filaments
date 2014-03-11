@@ -1,8 +1,8 @@
 import pyfits, os, yaml, argparse, sys, logging , cosmology , plotstools , tabletools
 import numpy as np
-import pylab as pl
 import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
+import warnings; warnings.simplefilter('once')
 
 cospars = cosmology.cosmoparams()
 
@@ -25,8 +25,6 @@ stream_handler.setFormatter(log_formatter)
 logger.addHandler(stream_handler)
 logger.propagate = False
 
-
-
 config = {}
 
 def get_galaxy_density(shear_ra_deg,shear_de_deg):
@@ -44,18 +42,22 @@ def wrap_angle(ang_rad):
 
     if isinstance(ang_rad,np.ndarray):
         select = ang_rad > np.pi
-        ang_rad[select] -= np.pi
+        ang_rad[select] -= 2*np.pi
     elif ang_rad > np.pi:
-        ang_rad -= np.pi
+        ang_rad -= 2*np.pi
 
     return ang_rad
 
 
 def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,shear_z,pair_z,lenscat=None):
 
-               
-        pairs_ra_deg = np.mean([halo1_ra_deg,halo2_ra_deg])
-        pairs_de_deg = np.mean([halo1_de_deg,halo2_de_deg])
+        eucl1_ra, eucl1_de, _ = get_euclidian_coords(halo1_ra_deg,halo1_de_deg,1)
+        eucl2_ra, eucl2_de, _ = get_euclidian_coords(halo2_ra_deg,halo2_de_deg,1)        
+        eucl_ra_deg = np.mean([eucl1_ra,eucl2_ra])
+        eucl_de_deg = np.mean([eucl1_de,eucl2_de])
+        pairs_ra_deg , pairs_de_deg = euclidian_to_radec(eucl_ra_deg,eucl_de_deg,1)
+        # pairs_ra_deg = np.mean([halo1_ra_deg,halo2_ra_deg])
+        # pairs_de_deg = np.mean([halo1_de_deg,halo2_de_deg])
 
         # convert to radians
         pairs_ra_rad , pairs_de_rad = cosmology.deg_to_rad(pairs_ra_deg, pairs_de_deg)
@@ -157,8 +159,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
 
 
 
-        logger.info('r_pair=%2.2e Mpc ' % np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc))
-        logger.info('r_pair=%2.2e arcmin ' % np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
+        logger.info('r_pair = %2.2f Mpc = %2.2f arcmin ' , np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc) , np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
 
 
         if config['shear_type'] == 'stacked':
@@ -171,9 +172,8 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             grid_v_arcmin = grid_v_mpc / config['pixel_size_mpc'] * pixel_size_arcmin
 
 
-            logger.info('grid_u_mpc %d' % len(grid_u_mpc))
-            logger.info('grid_v_mpc %d' % len(grid_v_mpc))
-
+            logger.info('len grid_u_mpc=%d grid_v_mpc=%d' , len(grid_u_mpc) ,  len(grid_v_mpc))
+            
             hist_g1, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g1_stamp)
             hist_g2, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g2_stamp)
             hist_g1sc, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=g1sc)
@@ -332,6 +332,8 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
     In Mpc
     """
 
+    import pylab as pl
+
     # pl.figure(figsize=(50,25),dpi=500)
     # pl.figure()
     # pl.clf()
@@ -353,7 +355,6 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
     pl.ylim([min(shear_y),max(shear_y)])
     pl.axis('equal')
 
-
     if filename_fig != None:
         pl.savefig(filename_fig)
         logger.info('saved %s' % filename_fig)
@@ -363,7 +364,10 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
         pl.close()
 
 
+
 def stats_pairs(filename_pairs):
+
+    import pylab as pl
 
     pairs_table = tabletools.loadTable(filename_pairs)
 
@@ -434,9 +438,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     ih1 = conn1[select]
     ih2 = bt_id_reduced[select]
     DA  = bt_dx_reduced[select]
-    print ih2
-    print DA
- 
+     
     logger.info(str(sum(select)))
 
     logger.info('number of pairs %d ' % len(ih1))
@@ -541,12 +543,15 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
     for ipair,vpair in enumerate(halo_pairs[:n_pairs]):
 
+        logger.info('=========== % 4d pair ===========' % ipair)
+
+
         filename_current_pair = filename_shears.replace('.fits', '.%03d.fits' % (ipair))
         filename_fig =  filename_current_pair.replace('.fits','.png')
 
         halo1 = halo_pairs1[ipair]
         halo2 = halo_pairs2[ipair]
-        
+
         pair_shears , halos_coords = function_shears_for_single_pair(halo1,halo2,idp=ipair)
         if pair_shears == None:
             log.error('pair_shears == None , something is wrong')
@@ -569,10 +574,7 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
                 # plot_pair(halos_coords['halo1_u_rot_mpc'] , halos_coords['halo1_v_rot_mpc'] , halos_coords['halo2_u_rot_mpc'] , halos_coords['halo2_v_rot_mpc'] , u_mpc, v_mpc, g1sc, g2sc , close=False,nuse = 1,quiver_scale=15)
                 plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'],halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair,quiver_scale=2,nuse=1)
             
-            tabletools.saveTable(filename_shears,pair_shears,append=True)
-
-            print pyfits.open(filename_shears)
-            
+            tabletools.saveTable(filename_shears,pair_shears,append=True)          
        
         elif config['shear_type'] == 'single':
     
@@ -591,9 +593,9 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
     
         else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
 
+        logger.info('%5d ra=% 2.4f (% 2.4f, % 2.4f)  dec=% 2.4f (% 2.4f, % 2.4f) z=% 2.4f (% 2.4f, % 2.4f) R_pair=% 10.4f n_selected=%6d' % (
+            ipair,vpair['ra_mid'],halo1['ra'],halo2['ra'],vpair['dec_mid'],halo1['dec'],halo2['dec'],vpair['z'],halo1['z'],halo2['z'], vpair['R_pair'], len(pair_shears)))     
 
         tabletools.saveTable(filename_pairs,halo_pairs)
         logger.info( 'wrote %s' % filename_pairs )    
 
-        logger.info('%5d ra=% 2.4f (% 2.4f, % 2.4f)  dec=% 2.4f (% 2.4f, % 2.4f) z=% 2.4f (% 2.4f, % 2.4f) n_selected=%6d' % (
-            ipair,vpair['ra_mid'],halo1['ra'],halo2['ra'],vpair['dec_mid'],halo1['dec'],halo2['dec'],vpair['z'],halo1['z'],halo2['z'], len(pair_shears)))     
