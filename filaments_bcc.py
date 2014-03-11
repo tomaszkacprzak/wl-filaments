@@ -1,12 +1,7 @@
-import pyfits
+import os, yaml, argparse, sys, logging , time, pyfits , cosmology , tabletools
 import numpy as np
-import pylab as pl
 import scipy.interpolate as interp
-import cosmology
-import tabletools
-import yaml, argparse, sys, logging , time
 from sklearn.neighbors import BallTree as BallTree
-import galsim
 import filaments_tools
 
 # logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s %(message)s',datefmt='%Y-%m-%d %H:%M:%S',level=logging.INFO)
@@ -26,7 +21,7 @@ logger.propagate = False
 # dtype_shearbase = { 'names' : ['id','n_gals', 'file', 'min_ra','max_ra','min_dec','max_dec'] , 'formats' : ['i8']*2 + ['a1024']*1 + ['f8']*4 }
 dtype_shearbase = { 'names' : ['id','n_gals', 'file','x','y','z'] , 'formats' : ['i8']*2 + ['a1024']*1 + ['f8']*3 }
 
-dirname_data = '/home/tomek/data/'
+dirname_data = os.getenv("HOME") + '/data/'
 filename_shearbase = 'shear_base.txt'
 
 shear1_col = 's1'
@@ -206,7 +201,7 @@ def main():
     select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
     filaments_tools.add_phys_dist(filename_halos=filename_halos)
     get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
     filaments_tools.boundary_mpc=config['boundary_mpc']
 
     # logger.info('getting noiseless shear catalogs')
