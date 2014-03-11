@@ -116,7 +116,7 @@ def fit_single_filament(save_plots=False,n_pairs=None):
     filaname_results = 'results_1f_bcc.fits'
     filename_shears = 'shears_bcc_g.fits'
 
-    pairs_table = tabletools.loadTable(filename_pairs)
+    pairs_table = tabletools.loadTable(filaname_results)
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
 
@@ -129,31 +129,31 @@ def fit_single_filament(save_plots=False,n_pairs=None):
     if n_pairs==None:
         n_pairs = len(pairs_table)
 
-    pairs_table_use = pairs_table[:n_pairs]
+    if 'kappa0_signif' not in pairs_table.dtype.names:
 
-    kappa0_signif = np.zeros(n_pairs)
-    kappa0_map = np.zeros(n_pairs)
-    kappa0_err_hi = np.zeros(n_pairs)
-    kappa0_err_lo = np.zeros(n_pairs)
-    radius_map = np.zeros(n_pairs)
-    radius_err_hi = np.zeros(n_pairs)
-    radius_err_lo = np.zeros(n_pairs)
-    chi2_red_null = np.zeros(n_pairs)
-    chi2_red_max = np.zeros(n_pairs)
-    chi2_D = np.zeros(n_pairs)
-    chi2_LRT = np.zeros(n_pairs)
+        kappa0_signif = np.zeros(n_pairs)
+        kappa0_map = np.zeros(n_pairs)
+        kappa0_err_hi = np.zeros(n_pairs)
+        kappa0_err_lo = np.zeros(n_pairs)
+        radius_map = np.zeros(n_pairs)
+        radius_err_hi = np.zeros(n_pairs)
+        radius_err_lo = np.zeros(n_pairs)
+        chi2_red_null = np.zeros(n_pairs)
+        chi2_red_max = np.zeros(n_pairs)
+        chi2_D = np.zeros(n_pairs)
+        chi2_LRT = np.zeros(n_pairs)
 
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='kappa0_signif', arr=kappa0_signif , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='kappa0_map',    arr=kappa0_map    , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='kappa0_err_hi', arr=kappa0_err_hi , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='kappa0_err_lo', arr=kappa0_err_lo , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='radius_map',    arr=radius_map    , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='radius_err_hi', arr=radius_err_hi , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='radius_err_lo', arr=radius_err_lo , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='chi2_red_null', arr=chi2_red_null , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='chi2_red_max',  arr=chi2_red_max  , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='chi2_D',        arr=chi2_D        , dtype='f8')
-    pairs_table_use=tabletools.appendColumn(rec=pairs_table_use,name='chi2_LRT',      arr=chi2_LRT      , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='kappa0_signif', arr=kappa0_signif , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='kappa0_map',    arr=kappa0_map    , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='kappa0_err_hi', arr=kappa0_err_hi , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='kappa0_err_lo', arr=kappa0_err_lo , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='radius_map',    arr=radius_map    , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='radius_err_hi', arr=radius_err_hi , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='radius_err_lo', arr=radius_err_lo , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='chi2_red_null', arr=chi2_red_null , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='chi2_red_max',  arr=chi2_red_max  , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='chi2_D',        arr=chi2_D        , dtype='f8')
+        pairs_table=tabletools.appendColumn(rec=pairs_table,name='chi2_LRT',      arr=chi2_LRT      , dtype='f8')
 
    
     for id_pair in range(args.first,args.last):
@@ -235,18 +235,18 @@ def fit_single_filament(save_plots=False,n_pairs=None):
         chi2_LRT = 1. - scipy.stats.chi2.cdf(chi2_D, ndof)
         # likelihood_ratio_test = scipy.stats.chi2.pdf(D, ndof)
 
-        pairs_table_use['kappa0_signif'][id_pair] = kappa0_significance
-        pairs_table_use['kappa0_err_lo'][id_pair] = vmax_kappa0
-        pairs_table_use['kappa0_map'][id_pair] = kappa0_err_hi
-        pairs_table_use['kappa0_err_hi'][id_pair] = kappa0_err_lo
-        pairs_table_use['radius_map'][id_pair] = vmax_radius
-        pairs_table_use['radius_err_hi'][id_pair] = radius_err_hi
-        pairs_table_use['radius_err_lo'][id_pair] = radius_err_lo
-        pairs_table_use['chi2_red_null'][id_pair] = chi2_red_null
-        pairs_table_use['chi2_red_max'][id_pair] = chi2_red_max
-        pairs_table_use['chi2_D'][id_pair] = chi2_D
-        pairs_table_use['chi2_LRT'][id_pair] = chi2_LRT
-        tabletools.saveTable(filaname_results,pairs_table_use)
+        pairs_table['kappa0_signif'][id_pair] = kappa0_significance
+        pairs_table['kappa0_err_lo'][id_pair] = vmax_kappa0
+        pairs_table['kappa0_map'][id_pair] = kappa0_err_hi
+        pairs_table['kappa0_err_hi'][id_pair] = kappa0_err_lo
+        pairs_table['radius_map'][id_pair] = vmax_radius
+        pairs_table['radius_err_hi'][id_pair] = radius_err_hi
+        pairs_table['radius_err_lo'][id_pair] = radius_err_lo
+        pairs_table['chi2_red_null'][id_pair] = chi2_red_null
+        pairs_table['chi2_red_max'][id_pair] = chi2_red_max
+        pairs_table['chi2_D'][id_pair] = chi2_D
+        pairs_table['chi2_LRT'][id_pair] = chi2_LRT
+        tabletools.saveTable(filaname_results,pairs_table)
 
         log.info('ML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' , chi2_red_max, chi2_red_null , chi2_D, chi2_LRT )
         log.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
@@ -414,7 +414,7 @@ def main():
     # test_model(shears_info,pair_info)
 
     # fit_single_halo()
-    fit_single_filament(save_plots=True,n_pairs=3000)
+    fit_single_filament(save_plots=True)
 
 def delete_module(modname, paranoid=None):
     from sys import modules
