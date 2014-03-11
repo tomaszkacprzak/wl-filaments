@@ -38,7 +38,7 @@ def get_galaxy_density(shear_ra_deg,shear_de_deg):
     density = float(len(shear_ra_arcmin)) / area
     return density
 
-def wrap_angle(ang_rad):
+def wrap_angle_rad(ang_rad):
 
     if isinstance(ang_rad,np.ndarray):
         select = ang_rad > np.pi
@@ -48,36 +48,75 @@ def wrap_angle(ang_rad):
 
     return ang_rad
 
+def wrap_angle_deg(ang_deg):
+
+    if isinstance(ang_deg,np.ndarray):
+        select = ang_deg > np.pi
+        ang_deg[select] -= 4*90.
+    elif ang_deg > np.pi:
+        ang_deg -= 4*90.
+
+    return ang_deg
+
 
 def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,shear_z,pair_z,lenscat=None):
 
-        eucl1_ra, eucl1_de, _ = get_euclidian_coords(halo1_ra_deg,halo1_de_deg,1)
-        eucl2_ra, eucl2_de, _ = get_euclidian_coords(halo2_ra_deg,halo2_de_deg,1)        
-        eucl_ra_deg = np.mean([eucl1_ra,eucl2_ra])
-        eucl_de_deg = np.mean([eucl1_de,eucl2_de])
-        pairs_ra_deg , pairs_de_deg = euclidian_to_radec(eucl_ra_deg,eucl_de_deg,1)
-        # pairs_ra_deg = np.mean([halo1_ra_deg,halo2_ra_deg])
-        # pairs_de_deg = np.mean([halo1_de_deg,halo2_de_deg])
+        # import pylab as pl
+        # pl.figure()
+        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
+        # pl.scatter(halo1_ra_deg     , halo1_de_deg , 100, 'c' , marker='o')
+        # pl.scatter(halo2_ra_deg     , halo2_de_deg ,100,  'm' , marker='o')
+        # select = np.random.permutation(len(shear_ra_deg))[:10000]
+        # pl.scatter(shear_ra_deg[select]  , shear_de_deg[select] ,1,  'm' , marker='.')
+        # pl.show()
+
 
         # convert to radians
-        pairs_ra_rad , pairs_de_rad = cosmology.deg_to_rad(pairs_ra_deg, pairs_de_deg)
         halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(halo1_ra_deg, halo1_de_deg)
         halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(halo2_ra_deg, halo2_de_deg)
         shear_ra_rad , shear_de_rad = cosmology.deg_to_rad(shear_ra_deg, shear_de_deg)
-        
-        # localise
+
+        # get midpoint
+        pairs_ra_rad , pairs_de_rad = cosmology.get_midpoint_rad(halo1_ra_rad,halo1_de_rad,halo2_ra_rad,halo2_de_rad)
+
+        # # localise
         halo1_u_rad , halo1_v_rad = halo1_ra_rad - pairs_ra_rad , halo1_de_rad - pairs_de_rad
         halo2_u_rad , halo2_v_rad = halo2_ra_rad - pairs_ra_rad , halo2_de_rad - pairs_de_rad
         shear_u_rad , shear_v_rad = shear_ra_rad - pairs_ra_rad , shear_de_rad - pairs_de_rad 
-        halo1_u_rad , halo1_v_rad = wrap_angle(halo1_u_rad) , wrap_angle(halo1_v_rad) # not sure if this works 
-        halo2_u_rad , halo2_v_rad = wrap_angle(halo2_u_rad) , wrap_angle(halo2_v_rad) # not sure if this works
-        shear_u_rad , shear_v_rad = wrap_angle(shear_u_rad) , wrap_angle(shear_v_rad) # not sure if this works      
+        pairs_u_rad , pairs_v_rad =  0, 0
 
+        # then wrap
+        pairs_u_rad_wrapped , pairs_v_rad_wrapped = wrap_angle_rad(pairs_u_rad) , wrap_angle_rad(pairs_v_rad)
+        halo1_u_rad_wrapped , halo1_v_rad_wrapped = wrap_angle_rad(halo1_u_rad) , wrap_angle_rad(halo1_v_rad)
+        halo2_u_rad_wrapped , halo2_v_rad_wrapped = wrap_angle_rad(halo2_u_rad) , wrap_angle_rad(halo2_v_rad)
+        shear_u_rad_wrapped , shear_v_rad_wrapped = wrap_angle_rad(shear_u_rad) , wrap_angle_rad(shear_v_rad)
+        
+        # import pylab as pl
+        # pl.figure()
+        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
+        # pl.scatter(halo1_u_rad_wrapped     , halo1_v_rad_wrapped , 100, 'c' , marker='o')
+        # pl.scatter(halo2_u_rad_wrapped     , halo2_v_rad_wrapped ,100,  'm' , marker='o')
+        # pl.scatter( min(shear_u_rad_wrapped) , min(shear_v_rad_wrapped) , 50 , marker='d')
+        # pl.scatter( max(shear_u_rad_wrapped) , min(shear_v_rad_wrapped) , 50 , marker='d')
+        # pl.scatter( min(shear_u_rad_wrapped) , max(shear_v_rad_wrapped) , 50 , marker='d')
+        # pl.scatter( max(shear_u_rad_wrapped) , max(shear_v_rad_wrapped) , 50 , marker='d')
+        # pl.show()
+
+        
         # linearise
-        halo1_u_rad = halo1_u_rad * np.cos(pairs_de_rad)
-        halo2_u_rad = halo2_u_rad * np.cos(pairs_de_rad)
-        shear_u_rad = shear_u_rad * np.cos(pairs_de_rad)
-        # possibly shear rotation too here?
+        halo1_u_rad = halo1_u_rad_wrapped * np.cos(pairs_v_rad_wrapped)
+        halo2_u_rad = halo2_u_rad_wrapped * np.cos(halo2_v_rad_wrapped)
+        shear_u_rad = shear_u_rad_wrapped * np.cos(shear_v_rad_wrapped)
+        # # possibly shear rotation too here?
+
+        # import pylab as pl
+        # pl.figure()
+        # select = np.random.permutation(len(shear_u_rad))[:10000]
+        # pl.scatter( shear_u_rad[select] , shear_v_rad[select] , 1 , marker='.')
+        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
+        # pl.scatter(halo1_u_rad , halo1_v_rad , 100, 'c' , marker='o')
+        # pl.scatter(halo2_u_rad , halo2_v_rad , 100, 'm' , marker='o')
+        # pl.show()
 
         rotation_angle = np.angle(halo1_u_rad + 1j*halo1_v_rad)
 
@@ -86,6 +125,14 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo2_u_rot_rad , halo2_v_rot_rad = rotate_vector(rotation_angle, halo2_u_rad , halo2_v_rad)   
         shear_g1_rot , shear_g2_rot = rotate_shear(rotation_angle, shear_u_rad, shear_v_rad, shear_g1, shear_g2)
 
+        # import pylab as pl
+        # pl.figure()
+        # select = np.random.permutation(len(shear_v_rot_rad))[:10000]
+        # pl.scatter( shear_u_rot_rad[select] ,shear_v_rot_rad[select] , 1 , marker=',')
+        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
+        # pl.scatter(halo1_u_rot_rad , halo1_v_rot_rad , 100, 'c' , marker='o')
+        # pl.scatter(halo2_u_rot_rad , halo2_v_rot_rad , 100, 'm' , marker='o')
+        # pl.show()
 
         # grid boudaries
 
@@ -100,9 +147,26 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             range_u_arcmin , range_v_arcmin = cosmology.rad_to_arcmin(2*dtheta_x,2*dtheta_y)
         
         else:
+
+
             dtheta_x = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
             dtheta_y = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
-            select = (shear_v_rot_rad < dtheta_y) * (shear_v_rot_rad > -dtheta_y) * (shear_u_rot_rad < (halo1_u_rot_rad + dtheta_x)) *  (shear_u_rot_rad > (halo2_u_rot_rad - dtheta_x))
+
+            # import pylab as pl
+            # pl.figure()
+            # select = np.random.permutation(len(shear_u_rot_rad))[:10000]
+            # pl.scatter( shear_u_rot_rad[select] ,shear_v_rot_rad[select] , 1 , marker=',')
+            # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
+            # pl.scatter(halo1_u_rot_rad , halo1_v_rot_rad , 100, 'c' , marker='o')
+            # pl.scatter(halo2_u_rot_rad , halo2_v_rot_rad , 100, 'm' , marker='o')
+            # pl.scatter(  np.abs(halo1_u_rot_rad + dtheta_x) ,  np.abs(dtheta_y) , marker='+' )
+            # pl.scatter( -np.abs(halo1_u_rot_rad + dtheta_x) ,  np.abs(dtheta_y) , marker='+' )
+            # pl.scatter(  np.abs(halo1_u_rot_rad + dtheta_x) , -np.abs(dtheta_y) , marker='+' )
+            # pl.scatter( -np.abs(halo1_u_rot_rad + dtheta_x) , -np.abs(dtheta_y) , marker='+' )
+            # pl.show()
+
+            # select = (shear_v_rot_rad < dtheta_y) * (shear_v_rot_rad > -dtheta_y) * (shear_u_rot_rad < (halo1_u_rot_rad + dtheta_x)) *  (shear_u_rot_rad > (halo2_u_rot_rad - dtheta_x))
+            select = ( np.abs( shear_u_rot_rad ) < np.abs(halo1_u_rot_rad + dtheta_x)) * (np.abs(shear_v_rot_rad) < np.abs(dtheta_y))
 
             range_u_mpc , range_v_mpc = cosmology.rad_to_mpc(2*halo1_u_rot_rad+2*dtheta_x,2*dtheta_y,pair_z)
             range_u_arcmin , range_v_arcmin = cosmology.rad_to_arcmin(2*halo1_u_rot_rad+2*dtheta_x,2*dtheta_y)
@@ -123,10 +187,22 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         shear_ra_stamp_deg = shear_ra_deg[select]
         shear_de_stamp_deg = shear_de_deg[select]
 
+        # import pylab as pl
+        # pl.figure()
+        # select = np.random.permutation(len(shear_u_stamp_rad))[:10000]
+        # pl.scatter( shear_u_stamp_rad[select] ,shear_v_stamp_rad[select] , 1 , marker=',')
+        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
+        # pl.scatter(halo1_u_rot_rad , halo1_v_rot_rad , 100, 'c' , marker='o')
+        # pl.scatter(halo2_u_rot_rad , halo2_v_rot_rad , 100, 'm' , marker='o')
+        # pl.show()
+
         if lenscat != None:
             lenscat_stamp = lenscat[select]
         else:
             lenscat_stamp = None
+
+        if len(shear_z_stamp) == 0:
+            import pdb; pdb.set_trace()
 
         # get Sigma_crit
         sc = cosmology.get_sigma_crit( shear_z_stamp , np.ones(shear_z_stamp.shape)*pair_z , unit=config['Sigma_crit_unit'] )      
@@ -156,8 +232,6 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         shear_u_stamp_arcmin , shear_v_stamp_arcmin = cosmology.rad_to_arcmin(shear_u_stamp_rad,shear_v_stamp_rad)
         halo1_u_rot_arcmin , halo1_v_rot_arcmin = cosmology.rad_to_arcmin(halo1_u_rot_rad,halo1_v_rot_rad)
         halo2_u_rot_arcmin , halo2_v_rot_arcmin = cosmology.rad_to_arcmin(halo2_u_rot_rad,halo2_v_rot_rad)
-
-
 
         logger.info('r_pair = %2.2f Mpc = %2.2f arcmin ' , np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc) , np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
 
@@ -507,27 +581,28 @@ def add_phys_dist(filename_halos):
 
     big_catalog = tabletools.loadTable(filename_halos,log=logger)
 
-    logger.info('getting euclidian coords')
-    box_coords = cosmology.get_euclidian_coords(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
+    logger.info('getting cartesian coords')
+    # box_coords = cosmology.get_euclidian_coords(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
+    x,y,z = cosmology.spherical_to_cartesian_with_redshift(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
     DA = cosmology.get_ang_diam_dist(big_catalog['z'])  
     if 'xphys' not in big_catalog.dtype.names:
         logger.info('adding new columns')
-        big_catalog=tabletools.appendColumn(big_catalog, 'xphys', box_coords[:,0], dtype='f8')
-        big_catalog=tabletools.appendColumn(big_catalog, 'yphys', box_coords[:,1], dtype='f8')
-        big_catalog=tabletools.appendColumn(big_catalog, 'zphys', box_coords[:,2], dtype='f8')
+        big_catalog=tabletools.appendColumn(big_catalog, 'xphys', x, dtype='f8')
+        big_catalog=tabletools.appendColumn(big_catalog, 'yphys', y, dtype='f8')
+        big_catalog=tabletools.appendColumn(big_catalog, 'zphys', z, dtype='f8')
         big_catalog=tabletools.appendColumn(big_catalog, 'DA', DA, dtype='f8')
     else:
         logger.info('updating columns')
-        big_catalog['xphys'] = box_coords[:,0]
-        big_catalog['yphys'] = box_coords[:,1]
-        big_catalog['zphys'] = box_coords[:,2]
+        big_catalog['xphys'] = x
+        big_catalog['yphys'] = y
+        big_catalog['zphys'] = z
         big_catalog['DA'] = DA
 
     logger.info('number of halos %d', len(big_catalog))
     tabletools.saveTable(filename_halos,big_catalog)
     logger.info('wrote %s' % filename_halos)
 
-def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_single_pair, n_pairs=100, filename_full_halocat = None):
+def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_single_pair, filename_full_halocat = None , id_first=0, id_last=-1):
 
     if os.path.isfile(filename_shears): raise Exception('file %s already exists' % filename_shears)
 
@@ -539,11 +614,17 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
     list_fitstb = []
 
+    if id_last == -1:
+        id_last = len(halo_pairs) 
+
+    n_pairs = len(range(id_first,id_last))
+
     logger.info('getting shears for %d pairs' % n_pairs)
 
-    for ipair,vpair in enumerate(halo_pairs[:n_pairs]):
+    for ipair in range(id_first,id_last):
 
-        logger.info('=========== % 4d pair ===========' % ipair)
+        vpair = halo_pairs[ipair]
+
 
 
         filename_current_pair = filename_shears.replace('.fits', '.%03d.fits' % (ipair))
@@ -551,6 +632,7 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
         halo1 = halo_pairs1[ipair]
         halo2 = halo_pairs2[ipair]
+        logger.info('=========== % 4d pair ra=[%6.3f %6.3f] dec=[%6.3f %6.3f] ===========' % (ipair , halo1['ra'] , halo2['ra'] , halo1['dec'] , halo2['dec']))
 
         pair_shears , halos_coords = function_shears_for_single_pair(halo1,halo2,idp=ipair)
         if pair_shears == None:

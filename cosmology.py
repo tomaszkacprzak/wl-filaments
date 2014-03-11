@@ -42,9 +42,10 @@ def get_comoving_dist_line_of_sight(z):
     n_grid_z = 1000
     try:
         maxz = max(z)
-    except TypeError, te:
-        # print 'TypeError', z
+    except Exception, te:
+        # print 'TypeError',  te, z
         maxz = z
+       
 
 
     if maxz < 0.001:
@@ -121,10 +122,7 @@ def plot_DC_vs_z():
     pl.plot(z_vals,DC)
     pl.show()
 
-def get_euclidian_coords(ra_deg,de_deg,z):
-
-    ra_rad = ra_deg*np.pi/180.
-    de_rad = (90.-de_deg)*np.pi/180.
+def spherical_to_cartesian_with_redshift(ra_deg,de_deg,z):
 
     if not hasattr(z, '__iter__'):
         xyz=np.zeros([1,3])        
@@ -137,19 +135,58 @@ def get_euclidian_coords(ra_deg,de_deg,z):
     # los = cd.comoving_distance_transverse(z, **cosmo) *  cosmo['h']
     # los = get_comoving_dist_line_of_sight(z)
     los = get_ang_diam_dist(z)
-    xyz[:,0]=los*np.sin(de_rad)*np.cos(ra_rad);
-    xyz[:,1]=los*np.sin(de_rad)*np.sin(ra_rad);
-    xyz[:,2]=los*np.cos(de_rad);
+    ra_rad , de_rad = deg_to_rad(ra_deg, de_deg)
+    x, y, z = spherical_to_cartesian_rad(ra_rad , de_rad , los)  
 
-    return xyz
+    return x, y, z
 
-def euclidian_to_radec(x,y,z):
+def spherical_to_cartesian_deg(ra_deg,de_deg,radius):
+
+    ra_rad , de_rad = deg_to_rad(ra_deg, de_deg)
+    return spherical_to_cartesian_rad(ra_rad,de_rad,radius)
+
+
+def spherical_to_cartesian_rad(ra_rad,de_rad,radius):
+ 
+    x=radius * np.cos(de_rad)*np.cos(ra_rad);
+    y=radius * np.cos(de_rad)*np.sin(ra_rad);
+    z=radius * np.sin(de_rad);
+    return x, y, z
+
+def cartesian_to_spherical_rad(x, y, z):
 
     r = np.sqrt(x**2 + y**2 + z**2)
-    de = 90 - np.arccos( z / r )
-    ra = arctan(y/x) 
+    de_rad = np.pi/2. - np.arccos( z / r )
+    ra_rad = np.arctan(y/x)   
+    return ra_rad, de_rad, r
 
-    return ra,de,r
+def cartesian_to_spherical_deg(x, y, z):    
+
+    ra_rad , de_rad, r = cartesian_to_spherical_rad(x, y, z)
+    ra_deg , de_deg =  rad_to_deg(ra_rad, de_rad) 
+    return ra_deg , de_deg , r
+
+def get_midpoint_deg( halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg ):
+
+    halo1_ra_rad , halo1_de_rad = deg_to_rad(halo1_ra_deg , halo1_de_deg)
+    halo2_ra_rad , halo2_de_rad = deg_to_rad(halo2_ra_deg , halo2_de_deg)
+    pairs_ra_rad , pairs_de_rad = get_midpoint_rad( halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad )
+    pairs_ra_deg , pairs_de_deg = rad_to_deg( pairs_ra_rad , pairs_de_rad )
+    return pairs_ra_deg , pairs_de_deg
+
+
+def get_midpoint_rad( halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad ):
+
+    eucl1_1, eucl2_1, eucl3_1 = spherical_to_cartesian_rad(halo1_ra_rad,halo1_de_rad,1)
+    eucl1_2, eucl2_2, eucl3_2 = spherical_to_cartesian_rad(halo2_ra_rad,halo2_de_rad,1)      
+    eucl1_mid = np.mean([eucl1_1,eucl1_2])
+    eucl2_mid = np.mean([eucl2_1,eucl2_2])
+    eucl3_mid = np.mean([eucl3_1,eucl3_2])
+    pairs_ra_rad , pairs_de_rad , _ = cartesian_to_spherical_rad(eucl1_mid,eucl2_mid,eucl3_mid)
+    return pairs_ra_rad , pairs_de_rad
+
+
+
 
 def get_sigma_crit(z_gal,z_lens,unit='Msol*h/pc^2'):
     """
@@ -196,6 +233,13 @@ def deg_to_rad(ra_deg,de_deg):
     de_rad = de_deg*np.pi/180.    
 
     return ra_rad,de_rad
+
+def rad_to_deg(ra_rad,de_rad):
+
+    ra_deg = ra_rad * 180. / np.pi
+    de_deg = de_rad * 180. / np.pi
+
+    return ra_deg , de_deg
 
 
 def arcsec_to_deg(ra_arcsec,de_arcsec):

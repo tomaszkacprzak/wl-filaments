@@ -84,13 +84,17 @@ def get_shear_files_catalog():
     for ix,fs in enumerate(filelist_shears):
         logger.info('%3d\t%s\t%1.2e' % ( ix, fs ,float(total_n_gals) ))
         shear_cat_full=tabletools.loadTable(fs)
+        # use every 100 shear for speed
         shear_cat = shear_cat_full[::100]
         radius = shear_cat['ra']*0 + 1 # set to 1
-        xyz = cosmology.get_euclidian_coords(shear_cat['ra'], shear_cat['dec'] , radius)
-        x,y,z = np.mean(xyz[:,0]), np.mean(xyz[:,1]) , np.mean(xyz[:,2])
-
-        row = np.array([(ix, len(shear_cat),fs,x,y,z )],dtype=dtype_shearbase)        
-        total_n_gals += len(shear_cat)
+        # xyz = cosmology.get_euclidian_coords(shear_cat['ra'], shear_cat['dec'] , radius)
+        xs,ys,zs = cosmology.spherical_to_cartesian_deg(shear_cat['ra'], shear_cat['dec'] , radius)  
+        x,y,z = np.mean(xs), np.mean(ys) , np.mean(zs)
+        del(xs) 
+        del(ys)
+        del(zs)
+        row = np.array([(ix, len(shear_cat_full),fs,x,y,z )],dtype=dtype_shearbase)        
+        total_n_gals += len(shear_cat_full)
         list_shearbase.append(row)
         del(shear_cat)
         del(shear_cat_full)
@@ -115,14 +119,15 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
         halo2_ra_deg , halo2_de_deg = halo2['ra'],halo2['dec']
 
-        pair_ra_deg = np.mean([halo1_ra_deg,halo2_ra_deg])
-        pair_de_deg = np.mean([halo1_de_deg,halo2_de_deg])
+        pair_ra_deg,  pair_de_deg = cosmology.get_midpoint_deg(halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg)
         pair_z = np.mean([halo1['z'],halo2['z']])
         
         # find the corresponding files
 
         radius = 1.
-        pair_xyz = cosmology.get_euclidian_coords( pair_ra_deg , pair_de_deg , radius)
+        # pair_xyz = cosmology.get_euclidian_coords( pair_ra_deg , pair_de_deg , radius)
+        x,y,z = cosmology.spherical_to_cartesian_deg( pair_ra_deg , pair_de_deg , radius)
+        pair_xyz = np.array([x , y , z])
         box_coords_x = shear_base['x']
         box_coords_y = shear_base['y']
         box_coords_z = shear_base['z']
@@ -130,7 +135,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         box_coords_xyz = np.concatenate([ box_coords_x[:,None], box_coords_y[:,None], box_coords_z[:,None] ] , axis=1)
         logger.info('getting Ball Tree for 3D')
         BT = BallTree(box_coords_xyz, leaf_size=5)
-        n_connections=5
+        n_connections=3
         bt_dx,bt_id = BT.query(pair_xyz,k=n_connections)
 
         list_set = []
@@ -147,9 +152,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         
         lenscat_all = np.concatenate(list_set)
         shear_g1 , shear_g2 = -lenscat_all[shear1_col] , lenscat_all[shear2_col] 
-        shear_ra_deg , shear_de_deg = lenscat_all['ra'] , lenscat_all['dec'] 
-        shear_z = lenscat_all['z']
-       
+        shear_ra_deg , shear_de_deg , shear_z = lenscat_all['ra'] , lenscat_all['dec'] ,  lenscat_all['z']
 
         pairs_shear , halos_coords = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
                                 halo2_ra_deg, halo2_de_deg, 
@@ -172,6 +175,8 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', default='filaments_config.yaml',type=str, action='store', help='name of the yaml config file')
+    parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
+    parser.add_argument('-l', '--last', default=-1 ,type=int, action='store', help='last pairs to process')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     args = parser.parse_args()
@@ -198,14 +203,14 @@ def main():
     filename_shears = config['filename_shears']
     
     # get_shear_files_catalog()
-    select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
-    filaments_tools.add_phys_dist(filename_halos=filename_halos)
+    # select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
+    # filaments_tools.add_phys_dist(filename_halos=filename_halos)
     get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
     # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
     filaments_tools.boundary_mpc=config['boundary_mpc']
 
     # logger.info('getting noiseless shear catalogs')
-    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,n_pairs=n_pairs)
+    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=args.first,id_last=args.last)
 
     if config['create_ellip']:
         logger.info('getting noisy shear catalogs')
