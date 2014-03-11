@@ -27,7 +27,7 @@ class modelfit():
         self.shear_v_arcmin = None
         self.grid_z_edges = np.linspace(0,2,10);
         self.grid_z_centers = plotstools.get_bins_centers(self.grid_z_edges)
-        self.prob_z = np.ones_like(self.grid_z_centers) / len(self.grid_z_centers)
+        self.prob_z = None
         self.halo_u_arcmin = None
         self.halo_v_arcmin = None
         self.halo_z = None
@@ -60,7 +60,7 @@ class modelfit():
         self.halo2_u_arcmin = None
         self.halo2_v_arcmin = None
 
-    def plot_shears(self,g1,g2,limit_mask=None):
+    def plot_shears(self,g1,g2,limit_mask=None,unit='arcmin'):
         
         ephi=0.5*np.arctan2(g2,g1)              
 
@@ -71,12 +71,19 @@ class modelfit():
 
 
         nuse=1
-        quiver_scale=3
+        quiver_scale=1
+        line_width=0.0005* quiver_scale
 
-        pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
-        
-        pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
-        pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
+        if unit=='arcmin':
+            pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
+            pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
+        elif unit=='Mpc':
+            # not finished yet
+            pl.quiver(self.shear_u_[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
+            pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
+
         pl.axis('equal')
 
     def plot_shears_mag(self,g1,g2):
@@ -161,6 +168,9 @@ class modelfit():
         nh2.theta_cx = self.halo2_u_arcmin
         nh2.theta_cy = self.halo2_v_arcmin 
 
+        log.debug('got signal for halo1 u=%5.2f v=%5.2f' , nh1.theta_cx, nh1.theta_cy)
+        log.debug('got signal for halo2 u=%5.2f v=%5.2f' , nh2.theta_cx, nh2.theta_cy)
+
         h1g1 , h1g2  = nh1.get_shears_with_pz(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2  = nh2.get_shears_with_pz(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
 
@@ -208,10 +218,11 @@ class modelfit():
         if not np.isfinite(prior):
             posterior = -np.inf
         else:
+            # use no info from prior for now
             posterior = likelihood 
 
         if log.level == logging.DEBUG:
-            n_progress = 1
+            n_progress = 100
         elif log.level == logging.INFO:
             n_progress = 10000
         if self.n_model_evals % n_progress == 0:
@@ -250,8 +261,8 @@ class modelfit():
         # prob = -0.5 * ( (log10_M200 - self.gaussian_prior_theta[0]['mean'])/self.gaussian_prior_theta[0]['std'] )**2  - np.log(np.sqrt(2*np.pi))
         prob=1e-10 # small number so that the prior doesn't matter
 
-        if ( self.parameters[0]['box']['min'] < filament_kappa0 < self.parameters[0]['box']['max'] ):
-            if ( self.parameters[1]['box']['min'] < filament_radius < self.parameters[1]['box']['max'] ):
+        if ( self.parameters[0]['box']['min'] <= filament_kappa0 <= self.parameters[0]['box']['max'] ):
+            if ( self.parameters[1]['box']['min'] <= filament_radius <= self.parameters[1]['box']['max'] ):
                 return prob
 
         return -np.inf
@@ -266,6 +277,21 @@ class modelfit():
         chi2 = -0.5 * ( np.sum( ((res1)/self.sigma_g) **2 ) ) 
 
         return chi2
+
+    def null_log_likelihood(self):
+
+        theta_null = [0,1]
+        model_g1 , model_g2, limit_mask = self.draw_model(theta_null)
+        null_log_like = self.log_likelihood(model_g1,model_g2,limit_mask)
+        # null_log_post =  self.log_posterior(theta_null)
+        
+        # print null_log_like , null_log_post
+        # pl.show()
+
+        return null_log_like
+
+
+
 
     def run_mcmc(self):
 
@@ -351,10 +377,11 @@ class modelfit():
 
     def get_bcc_pz(self):
 
-        filename_lenscat = '/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
-        lenscat = tabletools.loadTable(filename_lenscat)
+        if self.prob_z == None:
 
-        self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
+            filename_lenscat = '/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+            lenscat = tabletools.loadTable(filename_lenscat)
+            self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
   
 
     def filament_model(self,shear_u_arcmin,shear_v_arcmin,u1_arcmin,u2_arcmin,kappa0,radius_arcmin):
