@@ -1,6 +1,9 @@
+import matplotlib as mpl
+mpl.use('pdf')
 import yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as pl
+print pl.get_backend()
 # import matplotlib as mpl;
 # from matplotlib import figure;
 pl.rcParams['image.interpolation'] = 'nearest' ; 
@@ -9,9 +12,6 @@ from sklearn.neighbors import BallTree as BallTree
 import filaments_model_1h
 import filaments_model_1f
 
-# print pl.get_backend()
-# pl.rcParams['backend'] = 'agg'
-# print pl.get_backend()
 
 log = logging.getLogger("filam..fit") 
 log.setLevel(logging.INFO)  
