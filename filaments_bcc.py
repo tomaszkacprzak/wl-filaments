@@ -86,9 +86,10 @@ def get_shear_files_catalog():
         shear_cat_full=tabletools.loadTable(fs)
         shear_cat = shear_cat_full[::100]
         radius = shear_cat['ra']*0 + 1 # set to 1
-        xyz = cosmology.get_euclidian_coords(shear_cat['ra'], shear_cat['dec'] , radius)
+        # xyz = cosmology.get_euclidian_coords(shear_cat['ra'], shear_cat['dec'] , radius)
+        x,y,z = cosmology.spherical_to_cartesian_deg(shear_cat['ra'], shear_cat['dec'] , radius)
+        xyz = np.concatenate([x[:,None],y[:,None],z[:,None]],axis=1)
         x,y,z = np.mean(xyz[:,0]), np.mean(xyz[:,1]) , np.mean(xyz[:,2])
-
         row = np.array([(ix, len(shear_cat),fs,x,y,z )],dtype=dtype_shearbase)        
         total_n_gals += len(shear_cat)
         list_shearbase.append(row)
@@ -122,7 +123,9 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         # find the corresponding files
 
         radius = 1.
-        pair_xyz = cosmology.get_euclidian_coords( pair_ra_deg , pair_de_deg , radius)
+        # pair_xyz = cosmology.get_euclidian_coords( pair_ra_deg , pair_de_deg , radius)
+        x,y,z = cosmology.spherical_to_cartesian_deg( pair_ra_deg , pair_de_deg , radius)
+        pair_xyz = np.concatenate( [] x[:,None] , y[:,None] , z[:,None] ] , axis=1)
         box_coords_x = shear_base['x']
         box_coords_y = shear_base['y']
         box_coords_z = shear_base['z']
