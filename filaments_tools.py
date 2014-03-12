@@ -61,62 +61,29 @@ def wrap_angle_deg(ang_deg):
 
 def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,shear_z,pair_z,lenscat=None):
 
-        # import pylab as pl
-        # pl.figure()
-        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
-        # pl.scatter(halo1_ra_deg     , halo1_de_deg , 100, 'c' , marker='o')
-        # pl.scatter(halo2_ra_deg     , halo2_de_deg ,100,  'm' , marker='o')
-        # select = np.random.permutation(len(shear_ra_deg))[:10000]
-        # pl.scatter(shear_ra_deg[select]  , shear_de_deg[select] ,1,  'm' , marker='.')
-        # pl.show()
-
-
         # convert to radians
         halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(halo1_ra_deg, halo1_de_deg)
         halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(halo2_ra_deg, halo2_de_deg)
         shear_ra_rad , shear_de_rad = cosmology.deg_to_rad(shear_ra_deg, shear_de_deg)
 
+        # import pylab as pl
+        # pl.figure()
+        # pl.scatter(halo1_ra_rad     , halo1_de_rad , 100, 'c' , marker='o')
+        # pl.scatter(halo2_ra_rad     , halo2_de_rad ,100,  'm' , marker='o')
+        # select = np.random.permutation(len(shear_ra_rad))[:10000]
+        # pl.scatter(shear_ra_rad[select]  , shear_de_rad[select] ,1,  'm' , marker='.')
+        # pl.show()
+        # ang_sep = cosmology.get_angular_separation(halo1_ra_rad, halo1_de_rad, halo2_ra_rad, halo2_de_rad)
+        # print 'angular sep: ' , ang_sep , ang_sep * cosmology.get_ang_diam_dist(pair_z)
+
         # get midpoint
         pairs_ra_rad , pairs_de_rad = cosmology.get_midpoint_rad(halo1_ra_rad,halo1_de_rad,halo2_ra_rad,halo2_de_rad)
 
-        # # localise
-        halo1_u_rad , halo1_v_rad = halo1_ra_rad - pairs_ra_rad , halo1_de_rad - pairs_de_rad
-        halo2_u_rad , halo2_v_rad = halo2_ra_rad - pairs_ra_rad , halo2_de_rad - pairs_de_rad
-        shear_u_rad , shear_v_rad = shear_ra_rad - pairs_ra_rad , shear_de_rad - pairs_de_rad 
-        pairs_u_rad , pairs_v_rad =  0, 0
-
-        # then wrap
-        pairs_u_rad_wrapped , pairs_v_rad_wrapped = wrap_angle_rad(pairs_u_rad) , wrap_angle_rad(pairs_v_rad)
-        halo1_u_rad_wrapped , halo1_v_rad_wrapped = wrap_angle_rad(halo1_u_rad) , wrap_angle_rad(halo1_v_rad)
-        halo2_u_rad_wrapped , halo2_v_rad_wrapped = wrap_angle_rad(halo2_u_rad) , wrap_angle_rad(halo2_v_rad)
-        shear_u_rad_wrapped , shear_v_rad_wrapped = wrap_angle_rad(shear_u_rad) , wrap_angle_rad(shear_v_rad)
-        
-        # import pylab as pl
-        # pl.figure()
-        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
-        # pl.scatter(halo1_u_rad_wrapped     , halo1_v_rad_wrapped , 100, 'c' , marker='o')
-        # pl.scatter(halo2_u_rad_wrapped     , halo2_v_rad_wrapped ,100,  'm' , marker='o')
-        # pl.scatter( min(shear_u_rad_wrapped) , min(shear_v_rad_wrapped) , 50 , marker='d')
-        # pl.scatter( max(shear_u_rad_wrapped) , min(shear_v_rad_wrapped) , 50 , marker='d')
-        # pl.scatter( min(shear_u_rad_wrapped) , max(shear_v_rad_wrapped) , 50 , marker='d')
-        # pl.scatter( max(shear_u_rad_wrapped) , max(shear_v_rad_wrapped) , 50 , marker='d')
-        # pl.show()
-
-        
-        # linearise
-        halo1_u_rad = halo1_u_rad_wrapped * np.cos(pairs_v_rad_wrapped)
-        halo2_u_rad = halo2_u_rad_wrapped * np.cos(halo2_v_rad_wrapped)
-        shear_u_rad = shear_u_rad_wrapped * np.cos(shear_v_rad_wrapped)
-        # # possibly shear rotation too here?
-
-        # import pylab as pl
-        # pl.figure()
-        # select = np.random.permutation(len(shear_u_rad))[:10000]
-        # pl.scatter( shear_u_rad[select] , shear_v_rad[select] , 1 , marker='.')
-        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
-        # pl.scatter(halo1_u_rad , halo1_v_rad , 100, 'c' , marker='o')
-        # pl.scatter(halo2_u_rad , halo2_v_rad , 100, 'm' , marker='o')
-        # pl.show()
+        # get tangent plane projection        
+        shear_u_rad, shear_v_rad = cosmology.get_gnomonic_projection(shear_ra_rad , shear_de_rad , pairs_ra_rad , pairs_de_rad)
+        pairs_u_rad, pairs_v_rad = cosmology.get_gnomonic_projection(pairs_ra_rad , pairs_de_rad , pairs_ra_rad , pairs_de_rad)
+        halo1_u_rad, halo1_v_rad = cosmology.get_gnomonic_projection(halo1_ra_rad , halo1_de_rad , pairs_ra_rad , pairs_de_rad)
+        halo2_u_rad, halo2_v_rad = cosmology.get_gnomonic_projection(halo2_ra_rad , halo2_de_rad , pairs_ra_rad , pairs_de_rad)
 
         rotation_angle = np.angle(halo1_u_rad + 1j*halo1_v_rad)
 
@@ -124,6 +91,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo1_u_rot_rad , halo1_v_rot_rad = rotate_vector(rotation_angle, halo1_u_rad , halo1_v_rad)
         halo2_u_rot_rad , halo2_v_rot_rad = rotate_vector(rotation_angle, halo2_u_rad , halo2_v_rad)   
         shear_g1_rot , shear_g2_rot = rotate_shear(rotation_angle, shear_u_rad, shear_v_rad, shear_g1, shear_g2)
+
 
         # import pylab as pl
         # pl.figure()
@@ -133,6 +101,9 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         # pl.scatter(halo1_u_rot_rad , halo1_v_rot_rad , 100, 'c' , marker='o')
         # pl.scatter(halo2_u_rot_rad , halo2_v_rot_rad , 100, 'm' , marker='o')
         # pl.show()
+        # ang_sep = cosmology.get_angular_separation(halo1_u_rot_rad, halo1_v_rot_rad, halo2_u_rot_rad, halo2_v_rot_rad)
+        # print 'angular sep: ' , ang_sep , ang_sep * cosmology.get_ang_diam_dist(pair_z)
+
 
         # grid boudaries
 
@@ -151,19 +122,6 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
 
             dtheta_x = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
             dtheta_y = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
-
-            # import pylab as pl
-            # pl.figure()
-            # select = np.random.permutation(len(shear_u_rot_rad))[:10000]
-            # pl.scatter( shear_u_rot_rad[select] ,shear_v_rot_rad[select] , 1 , marker=',')
-            # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
-            # pl.scatter(halo1_u_rot_rad , halo1_v_rot_rad , 100, 'c' , marker='o')
-            # pl.scatter(halo2_u_rot_rad , halo2_v_rot_rad , 100, 'm' , marker='o')
-            # pl.scatter(  np.abs(halo1_u_rot_rad + dtheta_x) ,  np.abs(dtheta_y) , marker='+' )
-            # pl.scatter( -np.abs(halo1_u_rot_rad + dtheta_x) ,  np.abs(dtheta_y) , marker='+' )
-            # pl.scatter(  np.abs(halo1_u_rot_rad + dtheta_x) , -np.abs(dtheta_y) , marker='+' )
-            # pl.scatter( -np.abs(halo1_u_rot_rad + dtheta_x) , -np.abs(dtheta_y) , marker='+' )
-            # pl.show()
 
             # select = (shear_v_rot_rad < dtheta_y) * (shear_v_rot_rad > -dtheta_y) * (shear_u_rot_rad < (halo1_u_rot_rad + dtheta_x)) *  (shear_u_rot_rad > (halo2_u_rot_rad - dtheta_x))
             select = ( np.abs( shear_u_rot_rad ) < np.abs(halo1_u_rot_rad + dtheta_x)) * (np.abs(shear_v_rot_rad) < np.abs(dtheta_y))
@@ -186,15 +144,6 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         shear_z_stamp = shear_z[select]
         shear_ra_stamp_deg = shear_ra_deg[select]
         shear_de_stamp_deg = shear_de_deg[select]
-
-        # import pylab as pl
-        # pl.figure()
-        # select = np.random.permutation(len(shear_u_stamp_rad))[:10000]
-        # pl.scatter( shear_u_stamp_rad[select] ,shear_v_stamp_rad[select] , 1 , marker=',')
-        # pl.scatter( 0     , 0 , 100, 'r' , marker='x')
-        # pl.scatter(halo1_u_rot_rad , halo1_v_rot_rad , 100, 'c' , marker='o')
-        # pl.scatter(halo2_u_rot_rad , halo2_v_rot_rad , 100, 'm' , marker='o')
-        # pl.show()
 
         if lenscat != None:
             lenscat_stamp = lenscat[select]
@@ -223,7 +172,6 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         # pl.axis('equal')
         # pl.show()
 
-
         # convert to Mpc
         shear_u_stamp_mpc , shear_v_stamp_mpc = cosmology.rad_to_mpc(shear_u_stamp_rad,shear_v_stamp_rad,pair_z)
         halo1_u_rot_mpc , halo1_v_rot_mpc = cosmology.rad_to_mpc(halo1_u_rot_rad,halo1_v_rot_rad,pair_z)
@@ -233,7 +181,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo1_u_rot_arcmin , halo1_v_rot_arcmin = cosmology.rad_to_arcmin(halo1_u_rot_rad,halo1_v_rot_rad)
         halo2_u_rot_arcmin , halo2_v_rot_arcmin = cosmology.rad_to_arcmin(halo2_u_rot_rad,halo2_v_rot_rad)
 
-        logger.info('r_pair = %2.2f Mpc = %2.2f arcmin ' , np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc) , np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
+        logger.info('r_pair=%2.2fMpc    =%2.2farcmin ' , np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc) , np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
 
 
         if config['shear_type'] == 'stacked':
@@ -369,18 +317,6 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halos_coords['gal_density'] = gal_density
 
         return pairs_shear , halos_coords
-
-
-def linearise_coords(ra_deg,de_deg,center_ra_deg,center_de_deg):
-
-    
-    ra_rad , de_rad = cosmology.deg_to_rad(ra_deg,de_deg)
-    center_ra_rad , center_de_rad = cosmology.deg_to_rad(center_ra_deg,center_de_deg)
-    u_rad  , v_rad  = cosmology.get_uv_coords(ra_rad,de_rad,center_ra_rad,center_de_rad)
-
-    # logger.info('ra=%f de=%f (deg) ra=%f de=%f (rad) u=%f v=%f'%(ra_deg,de_deg,ra_rad,de_rad,u_rad,v_rad))
-
-    return u_rad, v_rad 
 
 def rotate_vector(rotation_angle,shear_ra,shear_de):
 
@@ -627,7 +563,7 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
 
 
-        filename_current_pair = filename_shears.replace('.fits', '.%03d.fits' % (ipair))
+        filename_current_pair = filename_shears.replace('.fits', '.%04d.fits' % (ipair))
         filename_fig =  filename_current_pair.replace('.fits','.png')
 
         halo1 = halo_pairs1[ipair]

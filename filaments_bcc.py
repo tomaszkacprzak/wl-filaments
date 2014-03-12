@@ -135,7 +135,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         box_coords_xyz = np.concatenate([ box_coords_x[:,None], box_coords_y[:,None], box_coords_z[:,None] ] , axis=1)
         logger.info('getting Ball Tree for 3D')
         BT = BallTree(box_coords_xyz, leaf_size=5)
-        n_connections=3
+        n_connections=1
         bt_dx,bt_id = BT.query(pair_xyz,k=n_connections)
 
         list_set = []
@@ -149,10 +149,20 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
             list_set.append(lenscat)
             logger.debug('opened %s with %d gals mean_ra=%2.2f, mean_de=%2.2f' % (vset,len(lenscat),np.mean(lenscat['ra']),np.mean(lenscat['dec'])))
+
         
         lenscat_all = np.concatenate(list_set)
         shear_g1 , shear_g2 = -lenscat_all[shear1_col] , lenscat_all[shear2_col] 
         shear_ra_deg , shear_de_deg , shear_z = lenscat_all['ra'] , lenscat_all['dec'] ,  lenscat_all['z']
+
+        # import pylab as pl
+        # pl.figure()
+        # pl.scatter(pair_ra_deg      , pair_de_deg  , 100, 'r' , marker='x')
+        # pl.scatter(halo1_ra_deg     , halo1_de_deg , 100, 'c' , marker='o')
+        # pl.scatter(halo2_ra_deg     , halo2_de_deg , 100, 'm' , marker='o')
+        # select = np.random.permutation(len(shear_ra_deg))[:10000]
+        # pl.scatter(shear_ra_deg[select]  , shear_de_deg[select] ,1,  'm' , marker='.')
+        # pl.show()
 
         pairs_shear , halos_coords = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
                                 halo2_ra_deg, halo2_de_deg, 
