@@ -135,7 +135,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         box_coords_xyz = np.concatenate([ box_coords_x[:,None], box_coords_y[:,None], box_coords_z[:,None] ] , axis=1)
         logger.info('getting Ball Tree for 3D')
         BT = BallTree(box_coords_xyz, leaf_size=5)
-        n_connections=1
+        n_connections=3
         bt_dx,bt_id = BT.query(pair_xyz,k=n_connections)
 
         list_set = []
