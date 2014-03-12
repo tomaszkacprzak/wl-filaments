@@ -42,9 +42,10 @@ def get_comoving_dist_line_of_sight(z):
     n_grid_z = 1000
     try:
         maxz = max(z)
-    except TypeError, te:
-        # print 'TypeError', z
+    except Exception, te:
+        # print 'TypeError',  te, z
         maxz = z
+       
 
 
     if maxz < 0.001:
@@ -91,10 +92,28 @@ def get_ang_diam_dist(z1, z2=0.):
     return ang_diam_dist
 
 
+def get_gnomonic_projection(ra_rad, de_rad , ra_center_rad, de_center_rad):
+# http://mathworld.wolfram.com/GnomonicProjection.html
 
-def get_angular_separation(ra1,dec1,ra2,dec2):
+    cos_c = np.sin(de_center_rad)*np.sin(de_rad) + np.cos(de_center_rad) * np.cos(de_rad) * np.cos(ra_rad  - ra_center_rad)
+    x = np.cos(de_rad)*np.sin(ra_rad - ra_center_rad)
+    y = np.cos(de_center_rad) * np.sin(de_rad) - np.sin(de_center_rad)*np.cos(de_rad)*np.cos(ra_rad-ra_center_rad) 
+    y = y/cos_c
 
-    theta = np.arccos( np.sin(dec1)*np.sin(dec2) + np.cos(dec1)*np.cos(dec2)*np.cos(ra1-ra2))
+    return x,y
+
+
+
+
+
+def get_angular_separation(ra1_rad,de1_rad,ra2_rad,de2_rad):
+
+    d_ra =  np.abs(ra1_rad-ra2_rad)
+    d_de =  np.abs(de1_rad-de2_rad)
+    theta = np.arccos( np.sin(de1_rad)*np.sin(de2_rad) + np.cos(de1_rad)*np.cos(de2_rad)*np.cos(d_ra))
+    # theta = 2*np.arcsin( np.sqrt( np.sin(d_de/2.)**2  + np.cos(de1_rad)*np.cos(de2_rad)*np.sin(d_ra/2.)**2 ) )
+
+
     return theta
 
 def get_projection_matrix(center_ra,center_dec):
@@ -121,10 +140,7 @@ def plot_DC_vs_z():
     pl.plot(z_vals,DC)
     pl.show()
 
-def get_euclidian_coords(ra_deg,de_deg,z):
-
-    ra_rad = ra_deg*np.pi/180.
-    de_rad = (90.-de_deg)*np.pi/180.
+def spherical_to_cartesian_with_redshift(ra_deg,de_deg,z):
 
     if not hasattr(z, '__iter__'):
         xyz=np.zeros([1,3])        
@@ -137,19 +153,64 @@ def get_euclidian_coords(ra_deg,de_deg,z):
     # los = cd.comoving_distance_transverse(z, **cosmo) *  cosmo['h']
     # los = get_comoving_dist_line_of_sight(z)
     los = get_ang_diam_dist(z)
-    xyz[:,0]=los*np.sin(de_rad)*np.cos(ra_rad);
-    xyz[:,1]=los*np.sin(de_rad)*np.sin(ra_rad);
-    xyz[:,2]=los*np.cos(de_rad);
+    ra_rad , de_rad = deg_to_rad(ra_deg, de_deg)
+    x, y, z = spherical_to_cartesian_rad(ra_rad , de_rad , los)  
 
-    return xyz
+    return x, y, z
 
-def euclidian_to_radec(x,y,z):
+def spherical_to_cartesian_deg(ra_deg,de_deg,radius):
+
+    ra_rad , de_rad = deg_to_rad(ra_deg, de_deg)
+    return spherical_to_cartesian_rad(ra_rad,de_rad,radius)
+
+
+def spherical_to_cartesian_rad(ra_rad,de_rad,radius):
+ 
+    x=radius * np.cos(de_rad)*np.cos(ra_rad);
+    y=radius * np.cos(de_rad)*np.sin(ra_rad);
+    z=radius * np.sin(de_rad);
+    return x, y, z
+
+def cartesian_to_spherical_rad(x, y, z):
 
     r = np.sqrt(x**2 + y**2 + z**2)
-    de = 90 - np.arccos( z / r )
-    ra = arctan(y/x) 
+    de_rad = np.pi/2. - np.arccos( z / r )
+    ra_rad = np.arctan(y/x)   
+    return ra_rad, de_rad, r
 
-    return ra,de,r
+def cartesian_to_spherical_deg(x, y, z):    
+
+    ra_rad , de_rad, r = cartesian_to_spherical_rad(x, y, z)
+    ra_deg , de_deg =  rad_to_deg(ra_rad, de_rad) 
+    return ra_deg , de_deg , r
+
+def get_midpoint_deg( halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg ):
+
+    halo1_ra_rad , halo1_de_rad = deg_to_rad(halo1_ra_deg , halo1_de_deg)
+    halo2_ra_rad , halo2_de_rad = deg_to_rad(halo2_ra_deg , halo2_de_deg)
+    pairs_ra_rad , pairs_de_rad = get_midpoint_rad( halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad )
+    pairs_ra_deg , pairs_de_deg = rad_to_deg( pairs_ra_rad , pairs_de_rad )
+    return pairs_ra_deg , pairs_de_deg
+
+
+def get_midpoint_rad( halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad ):
+
+    # eucl1_1, eucl2_1, eucl3_1 = spherical_to_cartesian_rad(halo1_ra_rad,halo1_de_rad,1)
+    # eucl1_2, eucl2_2, eucl3_2 = spherical_to_cartesian_rad(halo2_ra_rad,halo2_de_rad,1)      
+    # eucl1_mid = np.mean([eucl1_1,eucl1_2])
+    # eucl2_mid = np.mean([eucl2_1,eucl2_2])
+    # eucl3_mid = np.mean([eucl3_1,eucl3_2])
+    # pairs_ra_rad , pairs_de_rad , _ = cartesian_to_spherical_rad(eucl1_mid,eucl2_mid,eucl3_mid)
+
+    # lon <-> RA , lat <-> DEC
+    Bx = np.cos(halo2_de_rad) * np.cos(halo2_ra_rad - halo1_ra_rad)
+    By = np.cos(halo2_de_rad) * np.sin(halo2_ra_rad - halo1_ra_rad)
+    pairs_de_rad = np.arctan2( np.sin(halo1_de_rad) + np.sin(halo2_de_rad) , np.sqrt( (np.cos(halo1_de_rad) + Bx)**2 + By**2 ) )
+    pairs_ra_rad = halo1_ra_rad + np.arctan2(By , np.cos(halo1_de_rad) + Bx)
+
+    # http://www.movable-type.co.uk/scripts/latlong.html
+
+    return pairs_ra_rad , pairs_de_rad
 
 def get_sigma_crit(z_gal,z_lens,unit='Msol*h/pc^2'):
     """
@@ -196,6 +257,13 @@ def deg_to_rad(ra_deg,de_deg):
     de_rad = de_deg*np.pi/180.    
 
     return ra_rad,de_rad
+
+def rad_to_deg(ra_rad,de_rad):
+
+    ra_deg = ra_rad * 180. / np.pi
+    de_deg = de_rad * 180. / np.pi
+
+    return ra_deg , de_deg
 
 
 def arcsec_to_deg(ra_arcsec,de_arcsec):
