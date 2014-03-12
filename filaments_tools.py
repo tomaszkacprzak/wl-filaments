@@ -425,7 +425,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     halocat = tabletools.loadTable(filename_halos)
     logger.info('number of halos: %d' % len(halocat))  
 
-    logger.info('getting euclidian coords')
+    logger.info('getting cartesian coords')
     x=halocat['xphys'][:,None]
     y=halocat['yphys'][:,None]
     z=halocat['zphys'][:,None]

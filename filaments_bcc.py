@@ -88,6 +88,7 @@ def get_shear_files_catalog():
         shear_cat = shear_cat_full[::100]
         radius = shear_cat['ra']*0 + 1 # set to 1
         # xyz = cosmology.get_euclidian_coords(shear_cat['ra'], shear_cat['dec'] , radius)
+
         xs,ys,zs = cosmology.spherical_to_cartesian_deg(shear_cat['ra'], shear_cat['dec'] , radius)  
         x,y,z = np.mean(xs), np.mean(ys) , np.mean(zs)
         del(xs) 
