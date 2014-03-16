@@ -448,16 +448,13 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     ih1 = conn1[select]
     ih2 = bt_id_reduced[select]
     DA  = bt_dx_reduced[select]
-     
-    logger.info(str(sum(select)))
-
+        
     logger.info('number of pairs %d ' % len(ih1))
-    logger.info('removing duplicates')
     select = ih1 < ih2
     ih1 = ih1[select]
     ih2 = ih2[select]
     DA = DA[select]
-    logger.info('number of pairs %d ' % len(ih1))
+    logger.info('number of pairs after removing duplicates %d ' % len(ih1))
 
     logger.info('calculating x-y distance')
     vh1 = halocat[ih1]
@@ -475,10 +472,13 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
 
     max_los = Dlos
     # select the plane separation
-    logger.info('select the plane separation')
+    logger.debug('select the plane separation')
     select1 = np.abs(d_los) < max_los
     select2 = d_xy > range_Dxy[0]
     select3 = d_xy < range_Dxy[1]
+
+    # remove subhalos
+
 
     select  = select1 * select2 * select3
     ih1 = ih1[select]

@@ -43,9 +43,7 @@ class modelfit():
         self.parameters[0] = {}
         self.parameters[1] = {}
         self.parameters[0]['name'] = 'filament_kappa'
-        self.parameters[1]['name'] = 'filament_radius'
-        # self.parameters[0]['prior'] = {'mean' : 0.05, 'std': 0.01}
-        # self.parameters[1]['prior'] = {'mean' : 0.1, 'std': 0.1}
+        self.parameters[1]['name'] = 'filament_radius' # Mpc
         self.parameters[0]['box'] = {'min' : 0, 'max': 0.1}
         self.parameters[1]['box'] = {'min' : 0, 'max': 2}
 
@@ -183,7 +181,7 @@ class modelfit():
     def draw_model(self,params):
         """
         params[0] filament_kappa
-        params[1] filament_radius
+        params[1] filament_radius [Mpc]
         """
 
         self.n_model_evals +=1
