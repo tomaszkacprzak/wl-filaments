@@ -32,21 +32,31 @@ h = hpy()
 dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT'] , 
         'formats' : ['i8'] + ['f8']*15 }
 
-    
+   
 def fit_single_filament(save_plots=False):
 
+    if args.first == -1: 
+        id_pair_first = 0 ; 
+    else: 
+        id_pair_first = args.first
+    
+    id_pair_last = args.first + args.num 
+
+    log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     filename_pairs = 'pairs_bcc.fits'
     filename_halo1 = 'pairs_bcc.halos1.fits'
     filename_halo2 = 'pairs_bcc.halos2.fits'
     filename_shears = 'shears_bcc_g.fits' 
 
-    filename_results_prob = 'prob.' + filename_pairs.replace('.fits','.pp2')
+    filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
+    filename_results_pairs = 'results.pairs.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
-        log.error('file %s already exists, remove before continuing', filename_results_prob)
-        raise ValueError('file %s already exists, remove before continuing' % filename_results_prob)
-    filename_results_pairs = 'results-test.' + filename_pairs
-
+        raise Exception('file %s exists, remove before continuing' % filename_results_prob)
+    if os.path.isfile(filename_results_pairs):
+        raise Exception('file %s exists, remove before continuing' % filename_results_prob)
+    tabletools.writeHeader(filename_results_pairs,dtype_stats)
+    
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
@@ -56,35 +66,22 @@ def fit_single_filament(save_plots=False):
     fitobj.get_bcc_pz()
     prob_z = fitobj.prob_z
 
-    if args.first == -1: 
-        id_pair_first = 0 ; 
-    else: 
-        id_pair_first = args.first
-    if args.last  == -1: 
-        id_pair_last = 100 ; 
-    else: 
-        id_pair_last = args.last 
-
-    log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     # empty container list for probability measurements
-    table_stats = np.zeros(len(range(id_pair_first,id_pair_last)) , dtype=dtype_stats)
-    list_prob_result = []
+    # table_stats = np.zeros(len(range(id_pair_first,id_pair_last)) , dtype=dtype_stats)
 
     for id_pair in range(id_pair_first,id_pair_last):
 
         # now we use that
         shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
 
-        # later use HDUs
-        # load here in case used in parrallel with generator
-
         log.info('--------- pair %d with %d shears--------' , id_pair , len(shears_info)) 
+
 
         if len(shears_info) > 50000:
             log.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
             result_dict = {'id' : id_pair}
-            list_prob_result.append(result_dict)
+            tabletools.savePickle(filename_results_prob,prob_result,append=True)
             continue
 
 
@@ -127,15 +124,15 @@ def fit_single_filament(save_plots=False):
         fitobj.halo2_conc = halo2_conc
 
         fitobj.parameters[0]['box']['min'] = 0.
-        fitobj.parameters[0]['box']['max'] = 0.05
+        fitobj.parameters[0]['box']['max'] = 0.04
         fitobj.parameters[1]['box']['min'] = 0.001
-        fitobj.parameters[1]['box']['max'] = 15
+        fitobj.parameters[1]['box']['max'] = 20
         
         # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # pl.show()
         # fitobj.save_all_models=False
         log.info('running grid search')
-        n_grid=150
+        n_grid=200
         log_post , params, grid_kappa0, grid_radius = fitobj.run_gridsearch(n_grid=n_grid)
 
         # get the normalised PDF and use the same normalisation on the log
@@ -165,24 +162,25 @@ def fit_single_filament(save_plots=False):
         chi2_LRT = 1. - scipy.stats.chi2.cdf(chi2_D, ndof)
         # likelihood_ratio_test = scipy.stats.chi2.pdf(D, ndof)
 
-        table_stats['kappa0_signif'][id_pair] = kappa0_significance
-        table_stats['kappa0_err_lo'][id_pair] = vmax_kappa0
-        table_stats['kappa0_map'][id_pair] = kappa0_err_hi
-        table_stats['kappa0_err_hi'][id_pair] = kappa0_err_lo
-        table_stats['radius_map'][id_pair] = vmax_radius
-        table_stats['radius_err_hi'][id_pair] = radius_err_hi
-        table_stats['radius_err_lo'][id_pair] = radius_err_lo
-        table_stats['chi2_red_null'][id_pair] = chi2_red_null
-        table_stats['chi2_red_max'][id_pair] = chi2_red_max
-        table_stats['chi2_D'][id_pair] = chi2_D
-        table_stats['chi2_LRT'][id_pair] = chi2_LRT
-        table_stats['chi2_red_D'][id_pair] = chi2_D_red
-        table_stats['chi2_red_LRT'][id_pair] = chi2_LRT_red
-        table_stats['chi2_null'][id_pair] = chi2_null
-        table_stats['chi2_max'][id_pair] = chi2_max
-        table_stats['id'][id_pair] = id_pair
+        table_stats = np.zeros(1 , dtype=dtype_stats)
+        table_stats['kappa0_signif'] = kappa0_significance
+        table_stats['kappa0_err_lo'] = vmax_kappa0
+        table_stats['kappa0_map'] = kappa0_err_hi
+        table_stats['kappa0_err_hi'] = kappa0_err_lo
+        table_stats['radius_map'] = vmax_radius
+        table_stats['radius_err_hi'] = radius_err_hi
+        table_stats['radius_err_lo'] = radius_err_lo
+        table_stats['chi2_red_null'] = chi2_red_null
+        table_stats['chi2_red_max'] = chi2_red_max
+        table_stats['chi2_D'] = chi2_D
+        table_stats['chi2_LRT'] = chi2_LRT
+        table_stats['chi2_red_D'] = chi2_D_red
+        table_stats['chi2_red_LRT'] = chi2_LRT_red
+        table_stats['chi2_null'] = chi2_null
+        table_stats['chi2_max'] = chi2_max
+        table_stats['id'] = id_pair
 
-        tabletools.saveTable(filename_results_pairs, table_stats)
+        tabletools.saveTable(filename_results_pairs, table_stats, append=True)
 
         prob_result = {}
         prob_result['prob_post'] = prob_post
@@ -195,14 +193,10 @@ def fit_single_filament(save_plots=False):
         prob_result['prob_post_kappa0'] = prob_post_kappa0
         prob_result['prob_post_radius'] = prob_post_radius
         prob_result['id'] = id_pair
-        prob_result['stats'] = table_stats[id_pair]
+        prob_result['stats'] = table_stats
 
         # list_prob_result.append(prob_result)
         tabletools.savePickle(filename_results_prob,prob_result,append=True)
-
-        # file_pickle = open(filename_results_prob,'w')
-        # pickle.dump(list_prob_result,file_pickle,protocol=2)
-        # file_pickle.close()
         # log.info('saved %s with %d measurements' , filename_results_prob , len(list_prob_result))
         
         log.info('ML-ratio test: chi2_red_max=% 10.3f chi2_red_null=% 10.3f D_red=% 8.4e p-val_red=%1.5f' , chi2_red_max, chi2_red_null , chi2_D_red, chi2_LRT_red )
@@ -222,13 +216,13 @@ def fit_single_filament(save_plots=False):
             plotstools.imshow_grid(params[:,0],params[:,1],prob_post,nx=n_grid,ny=n_grid)
             pl.plot( vmax_kappa0 , vmax_radius , 'rx' )
             pl.xlabel('kappa0')
-            pl.ylabel('radius')
+            pl.ylabel('radius [Mpc]')
 
             pl.subplot(gs[0,1])
             plotstools.imshow_grid(params[:,0],params[:,1],log_post,nx=n_grid,ny=n_grid)
             pl.plot( vmax_kappa0 , vmax_radius , 'rx' )
             pl.xlabel('kappa0')
-            pl.ylabel('radius')
+            pl.ylabel('radius [Mpc]')
 
             
             pl.subplot(gs[0,2])
@@ -250,6 +244,9 @@ def fit_single_filament(save_plots=False):
             fitobj.plot_shears(fitobj.shear_g1,fitobj.shear_g2,limit_mask,unit='Mpc')
             pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
             pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
+            pl.axhline(y= vmax_radius,linewidth=1, color='r')
+            pl.axhline(y=-vmax_radius,linewidth=1, color='r')
+
             pl.axis('equal')
             pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
             pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
@@ -351,8 +348,8 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
-    parser.add_argument('-l', '--last', default=-1,type=int, action='store', help='first pair to process')
-    parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='last pair to process')
+    parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
+    parser.add_argument('-n', '--num', default=-1,type=int, action='store', help='number of pairs to process')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
