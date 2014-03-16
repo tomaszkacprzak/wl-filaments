@@ -39,9 +39,17 @@ def fit_single_filament(save_plots=False):
     filename_pairs = 'pairs_bcc.fits'
     filename_halo1 = 'pairs_bcc.halos1.fits'
     filename_halo2 = 'pairs_bcc.halos2.fits'
-    filename_shears = 'shears_bcc_g.fits'
-    filename_results_prob = 'prob.' + filename_pairs.replace('.fits','.pp2')
-    filename_results_pairs = 'results.' + filename_pairs
+    filename_shears = 'shears_bcc_g.fits' 
+
+    filename_results_prob = 'prob-test.' + filename_pairs.replace('.fits','.pp2')
+    if os.path.isfile(filename_results_prob):
+        log.error('file %s already exists, remove before continuing', filename_results_prob)
+        raise ValueError('file %s already exists, remove before continuing' % filename_results_prob)
+    filename_results_pairs = 'results-test.' + filename_pairs
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
 
     # get prob_z
     fitobj = filaments_model_1f.modelfit()
@@ -65,23 +73,18 @@ def fit_single_filament(save_plots=False):
 
     for id_pair in range(id_pair_first,id_pair_last):
 
-
         # now we use that
-        # filename_shears = 'shears_bcc_g.%03d.fits' % id_pair      
-        # shears_info = tabletools.loadTable(filename_shears)
+        shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
 
         # later use HDUs
         # load here in case used in parrallel with generator
-        pairs_table = tabletools.loadTable(filename_pairs)
-        halo1_table = tabletools.loadTable(filename_halo1)
-        halo2_table = tabletools.loadTable(filename_halo2)
-        shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
 
         log.info('--------- pair %d with %d shears--------' , id_pair , len(shears_info)) 
 
         if len(shears_info) > 50000:
             log.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
-            list_prob_result.append({'id' : id_pair})
+            result_dict = {'id' : id_pair}
+            list_prob_result.append(result_dict)
             continue
 
 
@@ -188,14 +191,13 @@ def fit_single_filament(save_plots=False):
         prob_result['id'] = id_pair
         prob_result['stats'] = table_stats[id_pair]
 
-        list_prob_result.append(prob_result)
+        # list_prob_result.append(prob_result)
+        tabletools.savePickle(filename_results_prob,prob_result,append=True)
 
-        file_pickle = open(filename_results_prob,'w')
-        pickle.dump(list_prob_result,file_pickle,protocol=2)
-        file_pickle.close()
-        log.info('saved %s with %d measurements' , filename_results_prob , len(list_prob_result))
-
-
+        # file_pickle = open(filename_results_prob,'w')
+        # pickle.dump(list_prob_result,file_pickle,protocol=2)
+        # file_pickle.close()
+        # log.info('saved %s with %d measurements' , filename_results_prob , len(list_prob_result))
         
         log.info('ML-ratio test: chi2_red_max=% 10.3f chi2_red_null=% 10.3f D_red=% 8.4e p-val_red=%1.5f' , chi2_red_max, chi2_red_null , chi2_D_red, chi2_LRT_red )
         log.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
@@ -213,7 +215,6 @@ def fit_single_filament(save_plots=False):
             pl.subplot(gs[0,0])
             plotstools.imshow_grid(params[:,0],params[:,1],prob_post,nx=n_grid,ny=n_grid)
             pl.plot( vmax_kappa0 , vmax_radius , 'rx' )
-
             pl.xlabel('kappa0')
             pl.ylabel('radius')
 
@@ -269,6 +270,7 @@ def fit_single_filament(save_plots=False):
 
             pl.subplot(gs[1,2:4])
             pl.scatter(fitobj.shear_u_arcmin, fitobj.shear_v_arcmin, scatter_size, fitobj.shear_g1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            # plotstools.imshow_grid(fitobj.shear_u_arcmin, fitobj.shear_v_arcmin, fitobj.shear_g1)
             pl.axis('equal')
             pl.xlim([min(fitobj.shear_u_arcmin),max(fitobj.shear_u_arcmin)])
             pl.ylim([min(fitobj.shear_v_arcmin),max(fitobj.shear_v_arcmin)])
@@ -307,15 +309,15 @@ def fit_single_filament(save_plots=False):
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
-            filename_fig = filename_fig = 'figs/result.%04d.png' % id_pair
+            filename_fig = filename_fig = 'figs/result.%04d.pdf' % id_pair
             try:
-                pl.savefig(filename_fig, dpi=1000)
+                pl.savefig(filename_fig, dpi=300)
                 log.info('saved %s' , filename_fig)
-            except: 
-                log.error('saving figure %s failed' , filename_fig )
+            except Exception , errmsg: 
+                log.error('saving figure %s failed: %s' , filename_fig , errmsg)
 
             pl.clf()
-            pl.close()
+            pl.close('all')
 
         # matplotlib leaks memory
         # print h.heap()
@@ -344,7 +346,8 @@ def main():
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-l', '--last', default=-1,type=int, action='store', help='first pair to process')
-    parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
+    parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='last pair to process')
+    parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     global args
@@ -365,6 +368,6 @@ def main():
     # test_model(shears_info,pair_info)
 
     # fit_single_halo()
-    fit_single_filament(save_plots=True)
+    fit_single_filament(save_plots=args.save_plots)
 
 main()

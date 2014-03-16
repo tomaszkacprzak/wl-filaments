@@ -1,12 +1,15 @@
 range_Dxy : [6,18]
-range_M : [1e14,1e16]
+range_M : [1.2e14,1e16]
 range_z : [0.2, 0.6]
 n_bcc_halo_files : 15
 filename_halos : 'halos_bcc.fits'
 filename_pairs : 'pairs_bcc.fits'
 filename_shears : 'shears_bcc_g.fits'
 boundary_mpc : 4
-n_pairs : 100
 create_ellip : False
-shear_type : single # single or stacked
-# pixel_size_mpc : 0.2
+shear_type : stacked # single, stacked, minimal
+Sigma_crit_unit :  kg/m^2 # kg/m^2 or Msol*h/pc^2
+save_pairs_plots: False
+pixel_size_mpc : 0.25
+pair_first : 0
+pair_last : 3000
