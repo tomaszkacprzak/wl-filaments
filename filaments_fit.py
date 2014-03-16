@@ -311,8 +311,8 @@ def fit_single_filament(save_plots=False):
             try:
                 pl.savefig(filename_fig, dpi=1000)
                 log.info('saved %s' , filename_fig)
-            except: 
-                log.error('saving figure %s failed' , filename_fig )
+            except Exception , errmsg: 
+                log.error('saving figure %s failed with message %s' , filename_fig , errmsg)
 
             pl.clf()
             pl.close()
