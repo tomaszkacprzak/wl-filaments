@@ -84,13 +84,14 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         pairs_u_rad, pairs_v_rad = cosmology.get_gnomonic_projection(pairs_ra_rad , pairs_de_rad , pairs_ra_rad , pairs_de_rad)
         halo1_u_rad, halo1_v_rad = cosmology.get_gnomonic_projection(halo1_ra_rad , halo1_de_rad , pairs_ra_rad , pairs_de_rad)
         halo2_u_rad, halo2_v_rad = cosmology.get_gnomonic_projection(halo2_ra_rad , halo2_de_rad , pairs_ra_rad , pairs_de_rad)
+        shear_g1_proj , shear_g2_proj = get_gnomonic_projection_shear(halo2_ra_rad , halo2_de_rad , pairs_ra_rad , pairs_de_rad, shear_g1,shear_g2)
 
         rotation_angle = np.angle(halo1_u_rad + 1j*halo1_v_rad)
 
         shear_u_rot_rad , shear_v_rot_rad = rotate_vector(rotation_angle, shear_u_rad , shear_v_rad)
         halo1_u_rot_rad , halo1_v_rot_rad = rotate_vector(rotation_angle, halo1_u_rad , halo1_v_rad)
         halo2_u_rot_rad , halo2_v_rot_rad = rotate_vector(rotation_angle, halo2_u_rad , halo2_v_rad)   
-        shear_g1_rot , shear_g2_rot = rotate_shear(rotation_angle, shear_u_rad, shear_v_rad, shear_g1, shear_g2)
+        shear_g1_rot , shear_g2_rot = rotate_shear(rotation_angle, shear_u_rad, shear_v_rad, shear_g1_proj, shear_g2_proj)
 
 
         # import pylab as pl
@@ -416,7 +417,8 @@ def stats_pairs(filename_pairs):
         pl.close()
         logger.info('saved %s' % filename_fig)
 
-
+# def remove_subhalos(vh1,vh2): 
+#     return select
 
 def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
 
@@ -448,7 +450,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     ih1 = conn1[select]
     ih2 = bt_id_reduced[select]
     DA  = bt_dx_reduced[select]
-        
+
     logger.info('number of pairs %d ' % len(ih1))
     select = ih1 < ih2
     ih1 = ih1[select]

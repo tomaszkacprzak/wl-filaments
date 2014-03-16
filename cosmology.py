@@ -102,6 +102,40 @@ def get_gnomonic_projection(ra_rad, de_rad , ra_center_rad, de_center_rad):
 
     return x,y
 
+def get_gnomonic_projection_shear(ra_rad, de_rad , ra_center_rad, de_center_rad, shear_g1 , shear_g2):
+
+    # code from Jospeh
+    # Here use a tangent plane to transform the sources' shear
+    # from RA, DEC to a common local coordinate system around lens
+    # phi_bar = ra_l[i] * pi/180.
+    # th_bar = (90. - dec_l[i]) * pi/180.
+    phi_bar = ra_center_rad
+    th_bar = np.pi/2. - de_center_rad
+
+    # phi = ra_s * (pi/180.)
+    # theta = (90. - dec_s) * (pi/180.)
+    phi = ra_rad
+    theta = np.pi/2. - de_rad 
+
+    gamma = np.abs(phi - phi_bar)
+
+    cot_delta = ( np.sin(theta)  / np.tan(th_bar) - np.cos(theta)  * np.cos(gamma) ) /np.sin(gamma)
+    cot_beta  = ( np.sin(th_bar) / np.tan(theta)  - np.cos(th_bar) * np.cos(gamma) ) /np.sin(gamma)
+    delta = np.arctan(1./cot_delta)
+    beta  = np.arctan(1./cot_beta )
+
+    del_bar = pi - beta
+    sgn = np.sign(phi - phi_bar)
+    phase = np.exp(sgn *2.j *np.abs(delta - del_bar))
+
+    # Now place shear in complex number, rotate by phase
+    temp = (gam1 + 1.j*gam2) * phase
+
+    gam1 = temp.real
+    gam2 = temp.imag
+
+    return gam1 , gam2
+
 
 
 
