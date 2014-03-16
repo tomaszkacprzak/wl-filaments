@@ -80,9 +80,9 @@ class modelfit():
             pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
         elif unit=='Mpc':
             # not finished yet
-            pl.quiver(self.shear_u_[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
-            pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
-            pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
+            pl.quiver(self.shear_u_mpc[::nuse],self.shear_v_mpc[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.xlim([min(self.shear_u_mpc),max(self.shear_u_mpc)])
+            pl.ylim([min(self.shear_v_mpc),max(self.shear_v_mpc)])
 
         pl.axis('equal')
 
@@ -191,13 +191,13 @@ class modelfit():
         filament_kappa0 = params[0]
         filament_radius = params[1]
 
-        filament_u1_arcmin = self.halo1_u_arcmin 
-        filament_u2_arcmin = self.halo2_u_arcmin 
+        filament_u1_mpc = self.halo1_u_mpc
+        filament_u2_mpc = self.halo2_u_mpc
 
-        fg1 , fg2 = self.filament_model(self.shear_u_arcmin,
-                                        self.shear_v_arcmin,
-                                        filament_u1_arcmin,
-                                        filament_u2_arcmin,
+        fg1 , fg2 = self.filament_model(self.shear_u_mpc,
+                                        self.shear_v_mpc,
+                                        filament_u1_mpc,
+                                        filament_u2_mpc,
                                         filament_kappa0,
                                         filament_radius)
 
@@ -385,15 +385,15 @@ class modelfit():
             self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
   
 
-    def filament_model(self,shear_u_arcmin,shear_v_arcmin,u1_arcmin,u2_arcmin,kappa0,radius_arcmin):
+    def filament_model(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc):
 
-        r = np.abs(shear_v_arcmin)
+        r = np.abs(shear_v_mpc)
 
-        kappa = - kappa0 / (1. + r / radius_arcmin)
+        kappa = - kappa0 / (1. + r / radius_mpc)
 
         # zero the filament outside halos
         # we shoud zero it at R200, but I have to check how to calculate it from M200 and concentr
-        select = ((shear_u_arcmin > (u1_arcmin) ) + (shear_u_arcmin < (u2_arcmin)  ))
+        select = ((shear_u_mpc > (u1_mpc) ) + (shear_u_mpc < (u2_mpc)  ))
         kappa[select] *= 0.
         g1 = kappa
         g2 = g1*0.
