@@ -212,11 +212,11 @@ def main():
     filename_pairs = config['filename_pairs']
     filename_shears = config['filename_shears']
     
-    # get_shear_files_catalog()
+    get_shear_files_catalog()
     select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
     filaments_tools.add_phys_dist(filename_halos=filename_halos)
     get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
     filaments_tools.boundary_mpc=config['boundary_mpc']
 
     # logger.info('getting noiseless shear catalogs')

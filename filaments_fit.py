@@ -1,5 +1,5 @@
 import matplotlib as mpl
-mpl.use('pdf')
+# mpl.use('pdf')
 import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import matplotlib.pyplot as pl
@@ -29,8 +29,76 @@ prob_z = None
 
 from guppy import hpy
 h = hpy()
-dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT'] , 
+dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ] , 
         'formats' : ['i8'] + ['f8']*15 }
+
+def process_results():
+
+    filename_prob = 'results.prob.bcc.pp2'
+    filename_prob_array = filename_prob.replace('.prob.', '.prob-array.')
+    file_grid = open(filename_prob,'r')
+    filename_grid = 'results.grid.bcc.pp2'
+    file_prob = open(filename_prob,'r')
+    n_pairs = 3000
+
+    import cPickle as pickle
+
+    grid=pickle.load(file_grid)
+    n_grid = len(grid['kappa0_post'])
+
+    prob_post_array = np.zeros([n_pairs,n_grid],dtype=np.float32)
+
+    for n in range(n_pairs):
+        res=pickle.load(file_prob)
+        prob_post_array[n,:] = res['prob_post']
+        print n
+
+    print prob_post_array.shape
+
+    tabletools.savePickle(filename_prob_array, prob_post_array)
+
+    # prob_post_matrix = np.reshape(  prob_post , [n_grid, n_grid] )    
+    # prob_post_kappa0 = prob_post_matrix.sum(axis=1)
+    # prob_post_radius = prob_post_matrix.sum(axis=0)
+
+
+    pl.imshow(prob_post_array)
+    pl.show()
+
+def analyse_results():
+
+    filename_prob_array = 'results.prob-array.bcc.pp2'
+    res_prob_array = tabletools.loadPickle(filename_prob_array)[0]
+    n_pairs = res_prob_array.shape[0]
+
+    filename_grid = 'results.grid.bcc.pp2'
+    file_grid = open(filename_grid,'r')
+    import cPickle as pickle
+
+    grid=pickle.load(file_grid)
+    # ['grid_radius', 'grid_kappa0', 'radius_post', 'kappa0_post']
+    n_grid = grid['grid_kappa0'].shape[0]
+    
+    prob_prod = np.prod(res_prob_array,axis=0)
+
+    prob_post_matrix = np.reshape(  prob_prod , [n_grid, n_grid] )    
+    prob_post_kappa0 = prob_post_matrix.sum(axis=1)
+    prob_post_radius = prob_post_matrix.sum(axis=0)
+
+    pl.imshow(prob_post_matrix)
+    pl.colorbar()
+    pl.show()
+
+    filename_pairs = 'results.pairs.bcc.cat'
+    pairs_results = tabletools.loadTable(filename_pairs,dtype=dtype_stats)
+    pl.scatter(pairs_results['kappa0_err_lo'],pairs_results['radius_map'])
+    pl.show()
+
+    import pdb; pdb.set_trace()
+
+
+
+
 
    
 def fit_single_filament(save_plots=False):
@@ -50,11 +118,15 @@ def fit_single_filament(save_plots=False):
     filename_shears = 'shears_bcc_g.fits' 
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
+    filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
     filename_results_pairs = 'results.pairs.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
         raise Exception('file %s exists, remove before continuing' % filename_results_prob)
     if os.path.isfile(filename_results_pairs):
-        raise Exception('file %s exists, remove before continuing' % filename_results_prob)
+        raise Exception('file %s exists, remove before continuing' % filename_results_pairs)
+    if os.path.isfile(filename_results_grid):
+        raise Exception('file %s exists, remove before continuing' % filename_results_grid)
+
     tabletools.writeHeader(filename_results_pairs,dtype_stats)
     
     pairs_table = tabletools.loadTable(filename_pairs)
@@ -164,8 +236,8 @@ def fit_single_filament(save_plots=False):
 
         table_stats = np.zeros(1 , dtype=dtype_stats)
         table_stats['kappa0_signif'] = kappa0_significance
-        table_stats['kappa0_err_lo'] = vmax_kappa0
-        table_stats['kappa0_map'] = kappa0_err_hi
+        table_stats['kappa0_err_lo'] = kappa0_err_hi
+        table_stats['kappa0_map'] = vmax_kappa0
         table_stats['kappa0_err_hi'] = kappa0_err_lo
         table_stats['radius_map'] = vmax_radius
         table_stats['radius_err_hi'] = radius_err_hi
@@ -179,26 +251,21 @@ def fit_single_filament(save_plots=False):
         table_stats['chi2_null'] = chi2_null
         table_stats['chi2_max'] = chi2_max
         table_stats['id'] = id_pair
+        table_stats['sigma_g'] = fitobj.sigma_g
 
         tabletools.saveTable(filename_results_pairs, table_stats, append=True)
-
-        prob_result = {}
-        prob_result['prob_post'] = prob_post
-        prob_result['kappa0_post'] = params[:,0]
-        prob_result['radius_post'] = params[:,1]
-        prob_result['grid_kappa0'] = grid_kappa0
-        prob_result['grid_radius'] = grid_radius
-        prob_result['sigma_g'] = fitobj.sigma_g
-        prob_result['prob_post_matrix'] = prob_post_matrix
-        prob_result['prob_post_kappa0'] = prob_post_kappa0
-        prob_result['prob_post_radius'] = prob_post_radius
-        prob_result['id'] = id_pair
-        prob_result['stats'] = table_stats
-
-        # list_prob_result.append(prob_result)
-        tabletools.savePickle(filename_results_prob,prob_result,append=True)
-        # log.info('saved %s with %d measurements' , filename_results_prob , len(list_prob_result))
+        tabletools.savePickle(filename_results_prob,prob_post,append=True)
         
+        grid_info = {}
+        grid_info['kappa0_post_matrix'] = prob_post_kappa0
+        grid_info['radius_post_matrix'] = prob_post_radius
+        grid_info['kappa0_post'] = params[:,0]
+        grid_info['radius_post'] = params[:,1]
+        grid_info['grid_kappa0'] = grid_kappa0
+        grid_info['grid_radius'] = grid_radius
+        if id_pair == id_pair_first:
+            tabletools.savePickle(filename_results_grid,grid_info)
+
         log.info('ML-ratio test: chi2_red_max=% 10.3f chi2_red_null=% 10.3f D_red=% 8.4e p-val_red=%1.5f' , chi2_red_max, chi2_red_null , chi2_D_red, chi2_LRT_red )
         log.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
         log.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
@@ -371,6 +438,8 @@ def main():
     # test_model(shears_info,pair_info)
 
     # fit_single_halo()
-    fit_single_filament(save_plots=args.save_plots)
+    # fit_single_filament(save_plots=args.save_plots)
+    # process_results()
+    analyse_results()
 
 main()

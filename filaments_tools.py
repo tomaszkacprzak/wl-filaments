@@ -338,7 +338,7 @@ def rotate_shear(rotation_angle,shear_ra,shear_de,shear_g1,shear_g2):
 
     return shear_g1_rot, shear_g2_rot
 
-def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10,filename_fig=None,show=False,close=True,halo1=None,halo2=None,pair_info=None,quiver_scale=2):
+def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10000,filename_fig=None,show=False,close=True,halo1=None,halo2=None,pair_info=None,quiver_scale=2):
     """
     In Mpc
     """
@@ -353,7 +353,9 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
     emag=np.sqrt(shear_g1**2+shear_g2**2)
     ephi=0.5*np.arctan2(shear_g2,shear_g1)              
 
-    pl.quiver(shear_x[::nuse],shear_y[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.005,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
+    n_shears_total = len(shear_x)
+    select = np.random.permutation(n_shears_total)[:nuse]
+    pl.quiver(shear_x[select],shear_y[select],emag[select]*np.cos(ephi)[select],emag[select]*np.sin(ephi)[select],linewidths=0.005,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
     pl.scatter(halo1_x,halo1_y,100,c='b') 
     pl.scatter(halo2_x,halo2_y,100,c='c') 
 
@@ -566,7 +568,7 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
 
         filename_current_pair = filename_shears.replace('.fits', '.%04d.fits' % (ipair))
-        filename_fig =  filename_current_pair.replace('.fits','.png')
+        filename_fig = 'figs/' +  filename_current_pair.replace('.fits','.png')
 
         halo1 = halo_pairs1[ipair]
         halo2 = halo_pairs2[ipair]
