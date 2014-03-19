@@ -124,12 +124,12 @@ def get_gnomonic_projection_shear(ra_rad, de_rad , ra_center_rad, de_center_rad,
     delta = np.arctan(1./cot_delta)
     beta  = np.arctan(1./cot_beta )
 
-    del_bar = pi - beta
+    del_bar = np.pi - beta
     sgn = np.sign(phi - phi_bar)
     phase = np.exp(sgn *2.j *np.abs(delta - del_bar))
 
     # Now place shear in complex number, rotate by phase
-    temp = (gam1 + 1.j*gam2) * phase
+    temp = (shear_g1 + 1.j*shear_g2) * phase
 
     gam1 = temp.real
     gam2 = temp.imag

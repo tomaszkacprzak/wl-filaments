@@ -1,3 +1,6 @@
+import matplotlib as mpl 
+mpl.use('agg')
+print 'using backend %s' % mpl.get_backend()
 import os, yaml, argparse, sys, logging , time, pyfits , cosmology , tabletools
 import numpy as np
 import scipy.interpolate as interp
@@ -135,7 +138,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         box_coords_xyz = np.concatenate([ box_coords_x[:,None], box_coords_y[:,None], box_coords_z[:,None] ] , axis=1)
         logger.info('getting Ball Tree for 3D')
         BT = BallTree(box_coords_xyz, leaf_size=5)
-        n_connections=3
+        n_connections=5
         bt_dx,bt_id = BT.query(pair_xyz,k=n_connections)
 
         list_set = []
@@ -164,7 +167,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         # pl.scatter(shear_ra_deg[select]  , shear_de_deg[select] ,1,  'm' , marker='.')
         # pl.show()
 
-        pairs_shear , halos_coords = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
+        pairs_shear , halos_coords , pairs_shear_full   = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
                                 halo2_ra_deg, halo2_de_deg, 
                                 shear_ra_deg, shear_de_deg, 
                                 shear_g1, shear_g2, shear_z, 
@@ -174,7 +177,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
             logger.error('found only %d shears' % len(pairs_shear))
             return None , None
 
-        return pairs_shear , halos_coords
+        return pairs_shear , halos_coords, pairs_shear_full
  
 
 
@@ -212,14 +215,14 @@ def main():
     filename_pairs = config['filename_pairs']
     filename_shears = config['filename_shears']
     
-    get_shear_files_catalog()
+    # get_shear_files_catalog()
     select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
     filaments_tools.add_phys_dist(filename_halos=filename_halos)
     get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
     filaments_tools.stats_pairs(filename_pairs=filename_pairs)
     filaments_tools.boundary_mpc=config['boundary_mpc']
 
-    # logger.info('getting noiseless shear catalogs')
+    logger.info('getting noiseless shear catalogs')
     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
 
     if config['create_ellip']:
