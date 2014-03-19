@@ -387,7 +387,7 @@ class modelfit():
 
         r = np.abs(shear_v_mpc)
 
-        kappa = - kappa0 / (1. + r / radius_mpc)
+        kappa = - kappa0 / (1. + (r / radius_mpc)**2 )
 
         # zero the filament outside halos
         # we shoud zero it at R200, but I have to check how to calculate it from M200 and concentr
