@@ -79,19 +79,34 @@ def analyse_results():
     # ['grid_radius', 'grid_kappa0', 'radius_post', 'kappa0_post']
     n_grid = grid['grid_kappa0'].shape[0]
     
-    prob_prod = np.prod(res_prob_array,axis=0)
+    # prob_prod = np.prod(res_prob_array,axis=0)
 
-    prob_post_matrix = np.reshape(  prob_prod , [n_grid, n_grid] )    
-    prob_post_kappa0 = prob_post_matrix.sum(axis=1)
-    prob_post_radius = prob_post_matrix.sum(axis=0)
+    # prob_post_matrix = np.reshape(  prob_prod , [n_grid, n_grid] )    
+    # prob_post_kappa0 = prob_post_matrix.sum(axis=1)
+    # prob_post_radius = prob_post_matrix.sum(axis=0)
 
-    pl.imshow(prob_post_matrix)
-    pl.colorbar()
-    pl.show()
+    # pl.imshow(prob_post_matrix)
+    # pl.colorbar()
+    # pl.show()
 
     filename_pairs = 'results.pairs.bcc.cat'
     pairs_results = tabletools.loadTable(filename_pairs,dtype=dtype_stats)
-    pl.scatter(pairs_results['kappa0_err_lo'],pairs_results['radius_map'])
+    
+
+    results_kappa0 = pairs_results['kappa0_err_lo'] # bug
+    results_radius = pairs_results['radius_map']
+    results_chi2_LRT =  pairs_results['chi2_LRT']
+
+    pl.subplot(2,2,1)
+    pl.scatter(results_kappa0, results_radius)
+    pl.xlabel('kappa0 max likelihood')
+    pl.ylabel('radius max likelihood')
+    
+    pl.subplot(2,2,2)
+    pl.scatter(results_kappa0,results_chi2_LRT)
+    pl.xlabel('kappa0 max likelihood')
+    pl.ylabel('chi2 p-val')
+
     pl.show()
 
     import pdb; pdb.set_trace()
@@ -119,7 +134,7 @@ def fit_single_filament(save_plots=False):
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
     filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
-    filename_results_pairs = 'results.pairs.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.cat')
+    filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
         raise Exception('file %s exists, remove before continuing' % filename_results_prob)
     if os.path.isfile(filename_results_pairs):
