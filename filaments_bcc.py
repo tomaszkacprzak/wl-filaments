@@ -29,7 +29,6 @@ filename_shearbase = 'shear_base.txt'
 
 shear1_col = 's1'
 shear2_col = 's2'
-tag = 'g'
 
 def fix_case(arr):
 
@@ -213,26 +212,32 @@ def main():
     # n_pairs = config['n_pairs']
     filename_halos=config['filename_halos']
     filename_pairs = config['filename_pairs']
-    filename_shears = config['filename_shears']
     
     # get_shear_files_catalog()
-    select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
-    filaments_tools.add_phys_dist(filename_halos=filename_halos)
-    get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-    filaments_tools.boundary_mpc=config['boundary_mpc']
+    # select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
+    # filaments_tools.add_phys_dist(filename_halos=filename_halos)
+    # get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    # filaments_tools.boundary_mpc=config['boundary_mpc']
 
-    logger.info('getting noiseless shear catalogs')
-    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
 
     if config['create_ellip']:
         logger.info('getting noisy shear catalogs')
-        filename_shears = filename_shears.replace('_g','_e')
-        global shear1_col , shear2_col , tag
+        filename_shears = config['filename_ells']
+        save_pairs_plots = config['save_pairs_plots'] 
+        config['save_pairs_plots'] = False # always no plots in ellipticity mode
+        global shear1_col , shear2_col 
         shear1_col = 'e1'
         shear2_col = 'e2'
         filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
 
+    logger.info('getting noiseless shear catalogs')
+    filename_shears = config['filename_shears']
+    config['save_pairs_plots'] = save_pairs_plots 
+    global shear1_col , shear2_col 
+    shear1_col = 's1'
+    shear2_col = 's2'
+    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 

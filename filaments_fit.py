@@ -1,5 +1,6 @@
 import matplotlib as mpl
-# mpl.use('pdf')
+mpl.rcParams.update({'font.size': 8})
+mpl.use('agg')
 import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import matplotlib.pyplot as pl
@@ -29,8 +30,8 @@ prob_z = None
 
 from guppy import hpy
 h = hpy()
-dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ] , 
-        'formats' : ['i8'] + ['f8']*15 }
+dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ,'sigma_g' ] , 
+        'formats' : ['i8'] + ['f8']*16 }
 
 def process_results():
 
@@ -114,7 +115,6 @@ def analyse_results():
 
 
 
-
    
 def fit_single_filament(save_plots=False):
 
@@ -130,17 +130,20 @@ def fit_single_filament(save_plots=False):
     filename_pairs = 'pairs_bcc.fits'
     filename_halo1 = 'pairs_bcc.halos1.fits'
     filename_halo2 = 'pairs_bcc.halos2.fits'
-    filename_shears = 'shears_bcc_g.fits' 
+    filename_shears = args.filename_shears 
 
-    filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
-    filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.pp2')
-    filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_pairs.replace('.fits','.cat')
+    filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
+    filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
+    filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
-        raise Exception('file %s exists, remove before continuing' % filename_results_prob)
+        os.remove(filename_results_prob)
+        log.warning('overwriting file %s ' , filename_results_prob)
     if os.path.isfile(filename_results_pairs):
-        raise Exception('file %s exists, remove before continuing' % filename_results_pairs)
+        os.remove(filename_results_pairs)
+        log.warning('overwriting file %s ' , filename_results_pairs)
     if os.path.isfile(filename_results_grid):
-        raise Exception('file %s exists, remove before continuing' % filename_results_grid)
+        os.remove(filename_results_grid)
+        log.warning('overwriting file %s ' , filename_results_grid)
 
     tabletools.writeHeader(filename_results_pairs,dtype_stats)
     
@@ -211,15 +214,15 @@ def fit_single_filament(save_plots=False):
         fitobj.halo2_conc = halo2_conc
 
         fitobj.parameters[0]['box']['min'] = 0.
-        fitobj.parameters[0]['box']['max'] = 0.04
+        fitobj.parameters[0]['box']['max'] = 0.03
         fitobj.parameters[1]['box']['min'] = 0.001
-        fitobj.parameters[1]['box']['max'] = 20
+        fitobj.parameters[1]['box']['max'] = 10
         
         # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # pl.show()
         # fitobj.save_all_models=False
         log.info('running grid search')
-        n_grid=200
+        n_grid=150
         log_post , params, grid_kappa0, grid_radius = fitobj.run_gridsearch(n_grid=n_grid)
 
         # get the normalised PDF and use the same normalisation on the log
@@ -394,7 +397,7 @@ def fit_single_filament(save_plots=False):
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
-            filename_fig = filename_fig = 'figs/result.%04d.pdf' % id_pair
+            filename_fig = filename_fig = 'figs/result.%04d.%s.pdf' % (id_pair,filename_shears.replace('.fits',''))
             try:
                 pl.savefig(filename_fig, dpi=300)
                 log.info('saved %s' , filename_fig)
@@ -433,6 +436,7 @@ def main():
     parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
     parser.add_argument('-n', '--num', default=-1,type=int, action='store', help='number of pairs to process')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
+    parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     global args
@@ -453,8 +457,8 @@ def main():
     # test_model(shears_info,pair_info)
 
     # fit_single_halo()
-    # fit_single_filament(save_plots=args.save_plots)
+    fit_single_filament(save_plots=args.save_plots)
     # process_results()
-    analyse_results()
+    # analyse_results()
 
 main()

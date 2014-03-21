@@ -557,8 +557,10 @@ def add_phys_dist(filename_halos):
 
 def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_single_pair, filename_full_halocat = None , id_first=0, id_last=-1):
 
-    if os.path.isfile(filename_shears): raise Exception('file %s already exists' % filename_shears)
-
+    if os.path.isfile(filename_shears): 
+        os.remove(filename_shears)
+        logger.warning('overwriting file %s' , filename_shears)
+        
     halo_pairs = tabletools.loadTable(filename_pairs)
     halo_pairs1 = tabletools.loadTable(filename_pairs.replace('fits','halos1.fits'))    
     halo_pairs2 = tabletools.loadTable(filename_pairs.replace('fits','halos2.fits'))    
@@ -572,7 +574,7 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
     n_pairs = len(range(id_first,id_last))
 
-    logger.info('getting shears for %d pairs' % n_pairs)
+    logger.info('getting shears for %d pairs from %d to %d' % (n_pairs , id_first, id_last))
 
     for ipair in range(id_first,id_last):
 
@@ -605,27 +607,26 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
       
         if config['shear_type'] == 'stacked':
 
+            tabletools.saveTable(filename_shears,pair_shears,append=True)          
+
             if config['save_pairs_plots']:
                 # plot_pair(halos_coords['halo1_u_rot_mpc'] , halos_coords['halo1_v_rot_mpc'] , halos_coords['halo2_u_rot_mpc'] , halos_coords['halo2_v_rot_mpc'] , u_mpc, v_mpc, g1sc, g2sc , close=False,nuse = 1,quiver_scale=15)
-                plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'],halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair,quiver_scale=2,nuse=1)
+                plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'],halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair,quiver_scale=2,nuse=1)      
             
-            tabletools.saveTable(filename_shears,pair_shears,append=True)          
-       
         elif config['shear_type'] == 'single':
+
+            tabletools.saveTable(filename_current_pair,pair_shears)
     
             if config['save_pairs_plots']:
                 # plot_pair(halo1,halo2,vpair,halo1['ra'], halo1['dec'], halo2['ra'], halo2['dec'], pair_shears['ra_deg'], pair_shears['dec_deg'], pair_shears['g1_orig'], pair_shears['g2_orig'],idp=ipair,filename_fig=filename_fig)
                 plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair)
-    
-            tabletools.saveTable(filename_current_pair,pair_shears)
-            
+               
         elif config['shear_type'] == 'minimal':
 
-            # dtype_shears_minimal = { 'names' : ['ra_deg','dec_deg','g1_orig','g2_orig','scinv','z'] , 'formats' : ['f4']*6 }
             tabletools.saveTable(filename_current_pair,pair_shears)
-            logger.info('saved %s' % filename_current_pair)
 
-            plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears_full['u_mpc'], pair_shears_full['v_mpc'], pair_shears_full['g1'], pair_shears_full['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair)
+            if config['save_pairs_plots']:
+                plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears_full['u_mpc'], pair_shears_full['v_mpc'], pair_shears_full['g1'], pair_shears_full['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair)
     
         else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
 
