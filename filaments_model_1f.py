@@ -1,4 +1,4 @@
-import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, nfw, plotstools
+import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament
 import numpy as np
 import pylab as pl
 import warnings
@@ -15,7 +15,7 @@ log.addHandler(stream_handler)
 log.propagate = False
 
 redshift_offset = 0.2
-weak_limit = 0.2
+weak_limit = 1000
 
 class modelfit():
 
@@ -77,7 +77,6 @@ class modelfit():
             pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
             pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
         elif unit=='Mpc':
-            # not finished yet
             pl.quiver(self.shear_u_mpc[::nuse],self.shear_v_mpc[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
             pl.xlim([min(self.shear_u_mpc),max(self.shear_u_mpc)])
             pl.ylim([min(self.shear_v_mpc),max(self.shear_v_mpc)])
@@ -192,12 +191,12 @@ class modelfit():
         filament_u1_mpc = self.halo1_u_mpc
         filament_u2_mpc = self.halo2_u_mpc
 
-        fg1 , fg2 = self.filament_model(self.shear_u_mpc,
-                                        self.shear_v_mpc,
-                                        filament_u1_mpc,
-                                        filament_u2_mpc,
-                                        filament_kappa0,
-                                        filament_radius)
+        pair_z = np.mean([self.halo1_z, self.halo2_z])
+
+        # fg1 , fg2 = self.filam.filament_model_with_pz_kron(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
+        fg1 , fg2 = self.filam.filament_model_with_pz(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
+        # fg1 , fg2 = self.filam.fast_filament_model_with_pz(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
+
 
         model_g1 = self.halos_g1 + fg1
         model_g2 = self.halos_g2 + fg2
@@ -207,6 +206,7 @@ class modelfit():
         return  model_g1 , model_g2 , limit_mask
 
     def log_posterior(self,theta):
+
 
         model_g1 , model_g2, limit_mask = self.draw_model(theta)
 
@@ -317,6 +317,17 @@ class modelfit():
 
         self.get_halo_signal()
 
+        self.filam = filament.filament()
+        self.filam.pair_z = (self.halo1_z + self.halo2_z) / 2. 
+        self.filam.grid_z_centers = self.grid_z_centers
+        self.filam.prob_z = self.prob_z
+        self.filam.set_mean_inv_sigma_crit(self.filam.grid_z_centers,self.filam.prob_z,self.filam.pair_z)
+
+        # self.filam.n_points = len(self.shear_u_mpc)
+        # self.filam.n_sigma_crit = len(self.grid_z_centers)
+        # self.filam.get_sigma_crit_krons(n_points=len(self.shear_u_mpc))
+        # self.filam.get_sigma_crit_krons(n_points=1000)
+
         grid_kappa0_min = self.parameters[0]['box']['min']
         grid_kappa0_max = self.parameters[0]['box']['max']
         grid_radius_min = self.parameters[1]['box']['min']
@@ -363,16 +374,6 @@ class modelfit():
         return  vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_kappa0 , vmax_radius
 
 
-
-
-
-    def get_concentr(self,M,z):
-
-        # Duffy et al 2008 from King and Mead 2011
-        concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
-
-        return concentr
-
     def get_bcc_pz(self):
 
         if self.prob_z == None:
@@ -383,20 +384,57 @@ class modelfit():
             self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
   
 
-    def filament_model(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc):
+    # def filament_model(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z):
+    #     """
+    #     @brief create filament model
+    #     @param shear_u_mpc array of u coordinates
+    #     @param shear_v_mpc array of v coordinates
+    #     @param u1_mpc start of the filament 
+    #     @param u2_mpc end of the filament 
+    #     @param kappa0 total mass of the filament 
+    #     """
 
-        r = np.abs(shear_v_mpc)
+    #     # profile             :  A / (1+r**2/rc**2) )
+    #     # kappa0=total mass :  r * pi * A
 
-        kappa = - kappa0 / (1. + (r / radius_mpc)**2 )
+    #     amplitude = kappa0 /  (r * np.pi) 
 
-        # zero the filament outside halos
-        # we shoud zero it at R200, but I have to check how to calculate it from M200 and concentr
-        select = ((shear_u_mpc > (u1_mpc) ) + (shear_u_mpc < (u2_mpc)  ))
-        kappa[select] *= 0.
-        g1 = kappa
-        g2 = g1*0.
+    #     r = np.abs(shear_v_mpc)
 
-        return g1 , g2
+    #     kappa = - amplitude / (1. + (r / radius_mpc)**2 )
+
+    #     # zero the filament outside halos
+    #     # we shoud zero it at R200, but I have to check how to calculate it from M200 and concentr
+    #     select = ((shear_u_mpc > (u1_mpc) ) + (shear_u_mpc < (u2_mpc)  ))
+    #     kappa[select] *= 0.
+    #     g1 = kappa
+    #     g2 = g1*0.
+
+
+    #     return g1 , g2
+
+    #     # 1/ (1+ r**2/rc**2) 
+    #     # pi *rc * arctan(r/rc) + 1/2
+
+    #     #  r  == tan( (0.25 - 1/2) / pi / rc ) / rc
+
+    # def filament_model_with_pz(shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z, grid_z_centers , prob_z,  redshift_offset=0.2):
+
+    #     list_h1g1 = []
+    #     list_h1g2 = []
+
+    #     for ib, vb in enumerate(grid_z_centers):
+    #         if vb < (pair_z+redshift_offset): continue
+    #         [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]= filament_model(,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc)
+    #         weight = prob_z[ib]
+    #         list_h1g1.append(h1g1*weight) 
+    #         list_h1g2.append(h1g2*weight) 
+    #         list_weight.append(weight)
+
+    #     h1g1 = np.sum(np.array(list_h1g1),axis=0) / np.sum(list_weight)
+    #     h1g2 = np.sum(np.array(list_h1g2),axis=0) / np.sum(list_weight)
+
+    #     return h1g1, h1g2
 
 
 
