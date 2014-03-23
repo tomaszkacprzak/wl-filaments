@@ -1,5 +1,6 @@
 import pyfits, os, yaml, argparse, sys, logging , cosmology , plotstools , tabletools
 import numpy as np
+import pylab as pl
 import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
 import warnings; warnings.simplefilter('once')
@@ -183,8 +184,9 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halo2_u_rot_arcmin , halo2_v_rot_arcmin = cosmology.rad_to_arcmin(halo2_u_rot_rad,halo2_v_rot_rad)
 
         logger.info('r_pair=%2.2fMpc    =%2.2farcmin ' , np.abs(halo1_u_rot_mpc - halo2_u_rot_mpc) , np.abs(halo1_u_rot_arcmin - halo2_u_rot_arcmin))
+        logger.info('using %d galaxies for that pair' , len(shear_u_stamp_arcmin))
 
-
+        
         if config['shear_type'] == 'stacked':
            
             pixel_size_arcmin,_ = cosmology.mpc_to_arcmin(config['pixel_size_mpc'],0.,pair_z) 
@@ -367,13 +369,24 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
     ephi=0.5*np.arctan2(shear_g2,shear_g1)              
 
     n_shears_total = len(shear_x)
-    select = np.random.permutation(n_shears_total)[:nuse]
+    if nuse < n_shears_total:
+        select = np.random.permutation(n_shears_total)[:nuse]
+    else:
+        # select all
+        select = shear_x < 1e100 
     pl.quiver(shear_x[select],shear_y[select],emag[select]*np.cos(ephi)[select],emag[select]*np.sin(ephi)[select],linewidths=0.005,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
     pl.scatter(halo1_x,halo1_y,100,c='b') 
     pl.scatter(halo2_x,halo2_y,100,c='c') 
 
+    mass1 , mass2 = 0 , 0
+    if 'm200' in halo1.dtype.names: mass1=halo1['m200']
+    if 'm200' in halo1.dtype.names: mass2=halo2['m200']
+    if 'snr' in halo1.dtype.names: mass1=halo1['snr']
+    if 'snr' in halo1.dtype.names: mass2=halo2['snr']
+
+
     if (halo1 != None) and (halo2 != None):
-        pl.title('%s r_pair=%2.2fMpc n_gals=%d M1=%2.2e M2=%2.2e' % (idp,r_pair,len(shear_g1),halo1['m200'],halo2['m200']))
+        pl.title('%s r_pair=%2.2fMpc n_gals=%d M1=%2.2e M2=%2.2e' % (idp,r_pair,len(shear_g1),mass1,mass2))
     else:
         pl.title('%s r_pair=%2.2fMpc n_gals=%d' % (idp,r_pair,len(shear_g1)))
     
@@ -388,6 +401,7 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
         pl.show()
     if close:
         pl.close()
+
 
 
 
@@ -571,6 +585,8 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
     if id_last == -1:
         id_last = len(halo_pairs) 
+    if id_last > len(halo_pairs):
+        id_last = len(halo_pairs)
 
     n_pairs = len(range(id_first,id_last))
 
@@ -607,26 +623,34 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
       
         if config['shear_type'] == 'stacked':
 
+
             tabletools.saveTable(filename_shears,pair_shears,append=True)          
 
             if config['save_pairs_plots']:
-                # plot_pair(halos_coords['halo1_u_rot_mpc'] , halos_coords['halo1_v_rot_mpc'] , halos_coords['halo2_u_rot_mpc'] , halos_coords['halo2_v_rot_mpc'] , u_mpc, v_mpc, g1sc, g2sc , close=False,nuse = 1,quiver_scale=15)
-                plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'],halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair,quiver_scale=2,nuse=1)      
-            
+
+                pl.figure()
+                plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'],halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair,quiver_scale=2)      
+                pl.close()
+
         elif config['shear_type'] == 'single':
 
             tabletools.saveTable(filename_current_pair,pair_shears)
     
             if config['save_pairs_plots']:
-                # plot_pair(halo1,halo2,vpair,halo1['ra'], halo1['dec'], halo2['ra'], halo2['dec'], pair_shears['ra_deg'], pair_shears['dec_deg'], pair_shears['g1_orig'], pair_shears['g2_orig'],idp=ipair,filename_fig=filename_fig)
+                
+                pl.figure()
                 plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears['u_mpc'], pair_shears['v_mpc'], pair_shears['g1'], pair_shears['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair)
-               
+                pl.close()
+
         elif config['shear_type'] == 'minimal':
 
             tabletools.saveTable(filename_current_pair,pair_shears)
 
             if config['save_pairs_plots']:
+                
+                pl.figure()
                 plot_pair(halos_coords['halo1_u_rot_mpc'], halos_coords['halo1_v_rot_mpc'], halos_coords['halo2_u_rot_mpc'], halos_coords['halo2_v_rot_mpc'], pair_shears_full['u_mpc'], pair_shears_full['v_mpc'], pair_shears_full['g1'], pair_shears_full['g2'],idp=ipair,filename_fig=filename_fig,halo1=halo1,halo2=halo2,pair_info=vpair)
+                pl.close()
     
         else: raise ValueError('wrong shear type in config: %s' % config['shear_type'])
 

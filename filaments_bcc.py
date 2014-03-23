@@ -111,12 +111,10 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         logger.debug('ra=(%2.2f,%2.2f) dec=(%2.2f,%2.2f) ' % (halo1['ra'],halo2['ra'],halo1['dec'],halo2['dec']))
 
         shear_base = tabletools.loadTable(filename_shearbase,dtype=dtype_shearbase)
-        
-        redshift_offset = 0.2
-
-        pair_dra = np.abs(halo1['ra'] - halo2['ra'])
-        pair_ddec = np.abs(halo1['dec'] - halo2['dec'])
-
+       
+        # redshift_offset = 0.2
+        # pair_dra = np.abs(halo1['ra'] - halo2['ra'])
+        # pair_ddec = np.abs(halo1['dec'] - halo2['dec'])
 
         halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
         halo2_ra_deg , halo2_de_deg = halo2['ra'],halo2['dec']
@@ -152,7 +150,6 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
             list_set.append(lenscat)
             logger.debug('opened %s with %d gals mean_ra=%2.2f, mean_de=%2.2f' % (vset,len(lenscat),np.mean(lenscat['ra']),np.mean(lenscat['dec'])))
 
-        
         lenscat_all = np.concatenate(list_set)
         shear_g1 , shear_g2 = -lenscat_all[shear1_col] , lenscat_all[shear2_col] 
         shear_ra_deg , shear_de_deg , shear_z = lenscat_all['ra'] , lenscat_all['dec'] ,  lenscat_all['z']

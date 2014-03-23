@@ -48,6 +48,10 @@ def fit_single_filament(save_plots=False):
     filename_halo2 = 'pairs_bcc.halos2.fits'
     filename_shears = args.filename_shears 
 
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
     filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
     filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.cat')
@@ -63,9 +67,6 @@ def fit_single_filament(save_plots=False):
 
     tabletools.writeHeader(filename_results_pairs,dtype_stats)
     
-    pairs_table = tabletools.loadTable(filename_pairs)
-    halo1_table = tabletools.loadTable(filename_halo1)
-    halo2_table = tabletools.loadTable(filename_halo2)
 
     # get prob_z
     fitobj = filaments_model_1f.modelfit()
@@ -138,7 +139,7 @@ def fit_single_filament(save_plots=False):
         # pl.show()
         # fitobj.save_all_models=False
         log.info('running grid search')
-        n_grid=200
+        n_grid=100
         log_post , params, grid_kappa0, grid_radius = fitobj.run_gridsearch(n_grid=n_grid)
 
         # get the normalised PDF and use the same normalisation on the log

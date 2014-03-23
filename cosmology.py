@@ -256,7 +256,8 @@ def get_sigma_crit(z_gal,z_lens,unit='Msol*h/pc^2'):
     DL = get_ang_diam_dist(z_lens)  # Mpc
     DLS = get_ang_diam_dist(z_gal,z_lens)   # Mpc
 
-    Sigma_crit = cospars.c**2 / (4.*np.pi * cospars.G ) *  DS/(DL*DLS) / cospars.Mpc_to_m # kg/m^2
+    # Sigma_crit = cospars.c**2 / (4.*np.pi * cospars.G ) *  DS/(DL*DLS) / cospars.Mpc_to_m # kg/m^2
+    Sigma_crit = cospars.c**2 / (4* np.pi * cospars.G) * DS / DLS / DL /cospars.M_solar * cospars.Mpc_to_m       
 
     if unit=='kg/m^2':
         return Sigma_crit

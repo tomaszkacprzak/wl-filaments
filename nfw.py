@@ -21,6 +21,7 @@ class NfwHalo:
         self.mn00type           ="crit" # don't remember
         self.theta_cx = 0               # center of the halo in arcmin
         self.theta_cy = 0               # center of the halo in arcmin
+        self.redshift_offset = 0.2
 
         self.update()
 
@@ -63,14 +64,20 @@ class NfwHalo:
 
         self.update()
 
-        Ds  = cosmology.get_ang_diam_dist(z_source,0.)            # in units of h^-1 Mpc
-        Dds = cosmology.get_ang_diam_dist(z_source,self.z_cluster)    # in units of h^-1 Mpc
-        Dds_over_Ds = Dds / Ds
+        # that may have been pre-calculated earlier
+        if self.mean_inv_sigma_crit == None:
+            
+            Ds  = cosmology.get_ang_diam_dist(z_source,0.)            # in units of h^-1 Mpc
+            Dds = cosmology.get_ang_diam_dist(z_source,self.z_cluster)    # in units of h^-1 Mpc
+            Dds_over_Ds = Dds / Ds
 
-        # critical lens density
-        Sigma_crit = cosmoparams.c**2 / (4* np.pi * cosmoparams.G) / Dds_over_Ds / self.Dd /cosmoparams.M_solar * cosmoparams.Mpc_to_m       
-        # Sigma_crit = cosmology.get_sigma_crit(z_source,self.z_cluster)
-        # print Sigma_crit
+            # critical lens density
+            Sigma_crit = cosmoparams.c**2 / (4* np.pi * cosmoparams.G) / Dds_over_Ds / self.Dd /cosmoparams.M_solar * cosmoparams.Mpc_to_m       
+            # Sigma_crit = cosmology.get_sigma_crit(z_source,self.z_cluster)
+            # print Sigma_crit
+        else:
+            warnings.warn('using pre-calculated Sigma_crit')
+            Sigma_crit = 1./self.mean_inv_sigma_crit
         
         # dimensionless lens distance parameter
         x = mod_theta* 1./60. *np.pi/180. * self.Dd /self.r_s 
@@ -156,6 +163,21 @@ class NfwHalo:
         h1g2 = np.sum(np.array(list_h1g2),axis=0) / np.sum(list_weight)
 
         return h1g1, h1g2
+
+    def get_shears_with_pz_fast(self,theta_x,theta_y , grid_z_centers , prob_z,  redshift_offset=0.2):
+
+        [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]= self.get_shears(theta_x,theta_y,None)
+
+        return h1g1, h1g2
+
+    def set_mean_inv_sigma_crit(self,grid_z_centers,prob_z,pair_z):
+
+        sigma_crit = cosmology.get_sigma_crit(grid_z_centers,pair_z,unit='kg/m^2')
+        prob_z_limit = prob_z
+        prob_z_limit[grid_z_centers < pair_z + self.redshift_offset] = 0
+        prob_z_limit /= sum(prob_z_limit)
+        self.mean_inv_sigma_crit = sum(prob_z_limit / sigma_crit)
+
 
 
 if __name__=='__main__':
