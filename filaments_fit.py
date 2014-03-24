@@ -372,7 +372,7 @@ def fit_2hf(save_plots=False):
 
     # get prob_z
     fitobj = filaments_model_2hf.modelfit()
-    fitobj.get_bcc_pz()
+    fitobj.get_bcc_pz(config['pz_file'])
     prob_z = fitobj.prob_z
 
 
