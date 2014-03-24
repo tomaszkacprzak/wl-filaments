@@ -4,7 +4,7 @@ if 'DISPLAY' in os.environ:
     mpl.use('tkagg')
 else:
     mpl.use('agg')
-import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
+import os, yaml, argparse, sys, logging , pyfits, galsim, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import pylab as pl
 print 'using matplotlib backend' , pl.get_backend()
