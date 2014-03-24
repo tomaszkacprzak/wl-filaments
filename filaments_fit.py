@@ -32,10 +32,6 @@ cospars = cosmology.cosmoparams()
 
 prob_z = None
 
-from guppy import hpy
-h = hpy()
-
-
 
 def fit_single_filament(save_plots=False):
 
