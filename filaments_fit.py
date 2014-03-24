@@ -1,8 +1,6 @@
 import os
 import matplotlib as mpl
-if 'DISPLAY' in os.environ:
-    mpl.use('tkagg')
-else:
+if 'DISPLAY' not in os.environ:
     mpl.use('agg')
 import os, yaml, argparse, sys, logging , pyfits, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
