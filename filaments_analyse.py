@@ -1,5 +1,5 @@
 import matplotlib as mpl
-mpl.use('agg')
+mpl.use('tkagg')
 import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import matplotlib.pyplot as pl
@@ -12,6 +12,7 @@ from sklearn.neighbors import BallTree as BallTree
 import cPickle as pickle
 import filaments_model_1h
 import filaments_model_1f
+import filaments_model_2hf
 import shutil
 
 
@@ -200,6 +201,96 @@ def analyse_stats():
 #     pl.imshow(prob_post_array)
 #     pl.show()
 
+def analyse_stats_samples():
+
+    filename_results_stats = 'results.stats.0048.0050.shears_bcc_g.cat'
+    stats = tabletools.loadTable(filename_results_stats,dtype=filaments_model_2hf.dtype_stats)
+
+    # plotstools.plot_dist( np.array([ stats['kappa0_map'] , stats['radius_map'] ]) )
+    # pl.show()
+    pl.figure()
+    pl.subplot(121)
+    pl.hist(stats['kappa0_map'],bins=50)
+    pl.xlabel('kappa0 ML')
+    pl.subplot(122)
+    pl.hist(stats['radius_map'],bins=50)
+    pl.xlabel('radius ML')
+
+    filename_fig = 'figs/stats.histograms.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' , filename_fig)
+
+    print 'fraction of filaments with kappa > 0.0005'
+    select_k = (stats['kappa0_map'] > 0.0005) * (stats['kappa0_map'] < 0.025)
+    print sum(select_k) 
+
+    print 'fraction of filaments with  0.5 > radius < 8 '
+    select_r = (stats['radius_map'] < 8) * (stats['radius_map'] > 0.25)
+    print sum(select_r) 
+
+    print 'fraction of filaments with valid kappa and radius'
+    print sum( select_r * select_k )           
+
+    valid_stats = stats[select_r * select_k]
+
+    import pdb; pdb.set_trace()
+    kappa0_mean = np.mean(valid_stats['kappa0_map']) 
+    kappa0_err = ( valid_stats['kappa0_err_hi'] + valid_stats['kappa0_err_lo'] ) / 2. 
+    kappa0_stdm = np.sqrt( sum(kappa0_err**2) ) / len(kappa0_err)
+
+    print kappa0_mean , kappa0_stdm
+
+    pl.figure()
+    pl.scatter(stats['kappa0_map'][select_r],stats['radius_map'][select_r],s=20,c='r',marker='o')
+    pl.scatter(stats['kappa0_map'][select_k],stats['radius_map'][select_k],s=20,c='g',marker='o')
+    pl.scatter(stats['kappa0_map'][select_r * select_k],stats['radius_map'][select_r * select_k],s=20,c='b',marker='o')
+    pl.xlabel('kappa0')
+    pl.ylabel('radius')
+    filename_fig = 'figs/stats.scatter_radius_kappa0.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' , filename_fig)
+    # pl.show()
+
+    filename_results_pdfs= 'results.chain.0048.0050.shears_bcc_g.pp2'
+    results_struct = np.array(tabletools.loadPickle(filename_results_pdfs))
+    
+    for i in range(4):
+        pl.figure()
+        pl.plot(results_struct[0]['list_params_marg'][i] , results_struct[0]['list_prob_marg'][i])
+
+    pl.show()
+
+    import pdb; pdb.set_trace()
+    
+    pdfs_sum = np.sum(pdfs[select_r * select_k],axis=0)
+
+    log_pdfs = np.log(pdfs)
+
+    pdfs_prod = np.sum(log_pdfs[select_r * select_k],axis=0)
+    pdfs_prod = np.exp(pdfs_prod - max(pdfs_prod)) 
+    pdfs_prod = pdfs_prod / sum(pdfs_prod)
+
+    n_grid = int(np.sqrt(len(pdfs[0])))
+    import pdb; pdb.set_trace()
+    
+    prob_post_matrix = np.reshape(  pdfs_prod , [n_grid, n_grid] )    
+    prob_post_kappa0 = prob_post_matrix.sum(axis=1)
+    prob_post_radius = prob_post_matrix.sum(axis=0)
+
+    # pl.imshow(prob_post_matrix)
+    # pl.show()
+
+    pl.figure()
+    plotstools.imshow_grid(grid['kappa0_post'],grid['radius_post'],pdfs_prod)
+    pl.show()
+
+
+    print pdfs.shape
+
+    import pdb; pdb.set_trace()
+
+
+    pass    
 
 
    
@@ -234,10 +325,9 @@ def main():
     # test_model(shears_info,pair_info)
 
     # fit_single_halo()
-    fit_single_filament(save_plots=args.save_plots)
+    # fit_single_filament(save_plots=args.save_plots)
     # process_results()
-    # analyse_results()
-    # analyse_stats()
+    analyse_stats_samples()
 
 
 main()

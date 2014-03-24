@@ -16,6 +16,32 @@ log.propagate = False
 redshift_offset = 0.2
 weak_limit = 1000
 
+dtype_stats = {'names' : ['id',
+                            'kappa0_signif',
+                            'kappa0_map',
+                            'kappa0_err_hi',
+                            'kappa0_err_lo',
+                            'radius_map',
+                            'radius_err_hi',
+                            'radius_err_lo',
+                            'h1M200_map',
+                            'h1M200_err_hi',
+                            'h1M200_err_lo',
+                            'h2M200_map',
+                            'h2M200_err_hi',
+                            'h2M200_err_lo',
+                            'chi2_red_null',
+                            'chi2_red_max',
+                            'chi2_red_D',
+                            'chi2_red_LRT' ,
+                            'chi2_null',
+                            'chi2_max',
+                            'chi2_D' ,
+                            'chi2_LRT' ,
+                            'sigma_g' ] ,
+                'formats' : ['i8'] + ['f8']*22 }
+
+
 class modelfit():
 
     def __init__(self):
@@ -29,6 +55,7 @@ class modelfit():
         self.sampler = None
         self.n_samples = 1000
         self.n_walkers = 10
+        self.n_grid = 10
         self.save_all_models = False
 
         self.n_dim = 4 
@@ -308,9 +335,9 @@ class modelfit():
 
         return chi2
 
-    def null_log_likelihood(self):
+    def null_log_likelihood(self,h1M200,h2M200):
 
-        theta_null = [0,1]
+        theta_null = [0,1,h1M200,h2M200]
         model_g1 , model_g2, limit_mask = self.draw_model(theta_null)
         null_log_like = self.log_likelihood(model_g1,model_g2,limit_mask)
         # null_log_post =  self.log_posterior(theta_null)
@@ -322,12 +349,31 @@ class modelfit():
 
     def run_mcmc(self):
 
-        self.get_halo_signal()
         self.n_model_evals = 0
 
+        self.pair_z  = (self.halo1_z + self.halo2_z) / 2.
+
+        self.filam = filament.filament()
+        self.filam.pair_z =self.pair_z
+        self.filam.grid_z_centers = self.grid_z_centers
+        self.filam.prob_z = self.prob_z
+        self.filam.set_mean_inv_sigma_crit(self.filam.grid_z_centers,self.filam.prob_z,self.filam.pair_z)
+
+        self.nh1 = nfw.NfwHalo()
+        self.nh1.z_cluster= self.halo1_z
+        self.nh1.theta_cx = self.halo1_u_arcmin
+        self.nh1.theta_cy = self.halo1_v_arcmin 
+        self.nh1.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.pair_z)
+
+        self.nh2 = nfw.NfwHalo()
+        self.nh2.z_cluster= self.halo2_z
+        self.nh2.theta_cx = self.halo2_u_arcmin
+        self.nh2.theta_cy = self.halo2_v_arcmin 
+        self.nh2.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.pair_z)
+
+
+
         log.info('getting self.sampler')
-
-
         self.sampler = emcee.EnsembleSampler(nwalkers=self.n_walkers, dim=self.n_dim , lnpostfn=self.log_posterior)
         
         theta0 = []
@@ -342,7 +388,7 @@ class modelfit():
         
         self.sampler.run_mcmc(theta0, self.n_samples)
 
-    def run_gridsearch(self,n_grid=100):
+    def run_gridsearch(self):
         
         self.pair_z  = (self.halo1_z + self.halo2_z) / 2.
 
@@ -374,7 +420,10 @@ class modelfit():
         grid_h2M200_min = self.parameters[3]['box']['min']
         grid_h2M200_max = self.parameters[3]['box']['max']
 
+        n_grid = self.n_grid
         n_total = n_grid**self.n_dim
+
+        self.n_model_evals = 0
 
         grid_kappa0 = np.linspace(grid_kappa0_min,grid_kappa0_max,n_grid)
         grid_radius = np.linspace(grid_radius_min,grid_radius_max,n_grid)
@@ -427,6 +476,22 @@ class modelfit():
 
         return  vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params
 
+    def get_samples_max(self,log_post,params):
+
+        vmax_post = log_post.max()
+        imax_post = log_post.argmax()
+        vmax_params = params[imax_post,:]
+        vmax_kappa0 = vmax_params[0]
+        vmax_radius = vmax_params[1]
+        vmax_h1M200 = vmax_params[2]
+        vmax_h2M200 = vmax_params[3]
+        vmax_params = vmax_params[:]
+
+        best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
+
+        log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , 10.**vmax_h1M200 , 10.**vmax_h2M200 )
+
+        return  vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params
 
   
 if __name__=='__main__':

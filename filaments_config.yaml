@@ -13,3 +13,13 @@ save_pairs_plots: False
 pixel_size_mpc : 0.25
 pair_first : 0
 pair_last : 3000
+
+
+n_samples : 100
+n_walkers : 10
+n_grid : 100
+save_plots : False
+kappa0 : { box: { min : 0.    , max : 1  }}
+radius : { box: { min : 0.001 , max : 10 }}
+h1M200 : { box: { min : 13    , max : 16 }}
+h1M200 : { box: { min : 13    , max : 16 }}

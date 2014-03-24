@@ -17,6 +17,10 @@ log.propagate = False
 redshift_offset = 0.2
 weak_limit = 1000
 
+dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ,'sigma_g' ] , 
+        'formats' : ['i8'] + ['f8']*16 }
+
+
 class modelfit():
 
     def __init__(self):

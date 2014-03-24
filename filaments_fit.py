@@ -6,7 +6,7 @@ else:
     mpl.use('agg')
 import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
-import matplotlib.pyplot as pl
+import pylab as pl
 print 'using matplotlib backend' , pl.get_backend()
 # import matplotlib as mpl;
 # from matplotlib import figure;
@@ -34,8 +34,8 @@ prob_z = None
 
 from guppy import hpy
 h = hpy()
-dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ,'sigma_g' ] , 
-        'formats' : ['i8'] + ['f8']*16 }
+
+
 
 def fit_single_filament(save_plots=False):
 
@@ -70,7 +70,7 @@ def fit_single_filament(save_plots=False):
         os.remove(filename_results_grid)
         log.warning('overwriting file %s ' , filename_results_grid)
 
-    tabletools.writeHeader(filename_results_pairs,dtype_stats)
+    tabletools.writeHeader(filename_results_pairs,filaments_model_1f.dtype_stats)
     
 
     # get prob_z
@@ -144,7 +144,7 @@ def fit_single_filament(save_plots=False):
         # pl.show()
         # fitobj.save_all_models=False
         log.info('running grid search')
-        n_grid=100
+        n_grid=config['n_grid']
         log_post , params, grid_kappa0, grid_radius = fitobj.run_gridsearch(n_grid=n_grid)
 
         # get the normalised PDF and use the same normalisation on the log
@@ -174,7 +174,7 @@ def fit_single_filament(save_plots=False):
         chi2_LRT = 1. - scipy.stats.chi2.cdf(chi2_D, ndof)
         # likelihood_ratio_test = scipy.stats.chi2.pdf(D, ndof)
 
-        table_stats = np.zeros(1 , dtype=dtype_stats)
+        table_stats = np.zeros(1 , dtype=filaments_model_1f.dtype_stats)
         table_stats['kappa0_signif'] = kappa0_significance
         table_stats['kappa0_err_lo'] = kappa0_err_hi
         table_stats['kappa0_map'] = vmax_kappa0
@@ -335,6 +335,8 @@ def fit_single_filament(save_plots=False):
         # print h.heap()
 
 
+
+
 def fit_2hf(save_plots=False):
 
     if args.first == -1: 
@@ -357,6 +359,7 @@ def fit_2hf(save_plots=False):
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
     filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
+    filename_results_chain = 'results.chain.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
     filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
         os.remove(filename_results_prob)
@@ -368,7 +371,7 @@ def fit_2hf(save_plots=False):
         os.remove(filename_results_grid)
         log.warning('overwriting file %s ' , filename_results_grid)
 
-    tabletools.writeHeader(filename_results_pairs,dtype_stats)
+    tabletools.writeHeader(filename_results_pairs,filaments_model_2hf.dtype_stats)
     
 
     # get prob_z
@@ -385,7 +388,7 @@ def fit_2hf(save_plots=False):
         # now we use that
         shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
 
-        log.info('--------- pair %d with %d shears--------' , id_pair , len(shears_info)) 
+        log.info('--------- pair %d with %d shears --------' , id_pair , len(shears_info)) 
 
 
         if len(shears_info) > 50000:
@@ -437,230 +440,271 @@ def fit_2hf(save_plots=False):
         fitobj.parameters[0]['box']['max'] = 1
         fitobj.parameters[1]['box']['min'] = 0.001
         fitobj.parameters[1]['box']['max'] = 10
-        fitobj.parameters[2]['box']['min'] = 14
-        fitobj.parameters[2]['box']['max'] = 15
-        fitobj.parameters[3]['box']['min'] = 14
-        fitobj.parameters[3]['box']['max'] = 15
+        fitobj.parameters[2]['box']['min'] = 13
+        fitobj.parameters[2]['box']['max'] = 16
+        fitobj.parameters[3]['box']['min'] = 13
+        fitobj.parameters[3]['box']['max'] = 16
         
         # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # pl.show()
         # fitobj.save_all_models=False
-        log.info('running grid search')
-        n_grid=10
-        log_post , params, grids = fitobj.run_gridsearch(n_grid=n_grid)
 
-        # get the normalised PDF and use the same normalisation on the log
-        prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)
-        # get the maximum likelihood solution
-        vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post,params)
-        # get the marginals
-        list_prob_marg, list_params_marg = mathstools.get_marginals(params,prob_post)
-        prob_post_kappa0 = list_prob_marg[0]
-        prob_post_radius = list_prob_marg[1]
-        prob_post_h1M200 = list_prob_marg[2]
-        prob_post_h2M200 = list_prob_marg[3]
-        pl.subplot(2,2,1)
-        pl.plot(list_params_marg[0], list_prob_marg[0])
-        pl.subplot(2,2,2)
-        pl.plot(list_params_marg[1], list_prob_marg[1])
-        pl.subplot(2,2,3)
-        pl.plot(list_params_marg[2], list_prob_marg[2])
-        pl.subplot(2,2,4)
-        pl.plot(list_params_marg[3], list_prob_marg[3])
+        if config['optimization_mode'] == 'mcmc':
+            log.info('running sampling')
+            fitobj.n_walkers = config['n_walkers']
+            fitobj.n_samples = config['n_samples']
+            fitobj.n_grid = config['n_grid']
+            fitobj.run_mcmc()
+            log_post = fitobj.sampler.flatlnprobability
+            params = fitobj.sampler.flatchain
+
+            n_grid = fitobj.n_grid                      
+            list_params_marg = [None]*fitobj.n_dim
+            list_params_marg[0] = np.linspace(fitobj.parameters[0]['box']['min'],fitobj.parameters[0]['box']['max'],n_grid)
+            list_params_marg[1] = np.linspace(fitobj.parameters[1]['box']['min'],fitobj.parameters[1]['box']['max'],n_grid)
+            list_params_marg[2] = np.linspace(fitobj.parameters[2]['box']['min'],fitobj.parameters[2]['box']['max'],n_grid)
+            list_params_marg[3] = np.linspace(fitobj.parameters[3]['box']['min'],fitobj.parameters[3]['box']['max'],n_grid)
+            grids = list_params_marg
+
+            list_prob_marg = []
+            for di in range(fitobj.n_dim):
+
+                bins = plotstools.get_bins_edges(list_params_marg[di])
+                marg_prob , _ =np.histogram(fitobj.sampler.flatchain[:,di] , bins = bins , normed=True)
+                marg_prob = marg_prob / sum(marg_prob)
+                list_prob_marg.append(marg_prob)
+            #     pl.figure()
+            #     pl.plot(list_params_marg[di] , list_prob_marg[di])
+            # pl.show()
+
+            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_samples_max(log_post,params)
+            chain_result = {}
+            chain_result['flatlnprobability'] = fitobj.sampler.flatlnprobability.astype(np.float32),
+            chain_result['flatchain'] = fitobj.sampler.flatchain.astype(np.float32),
+            chain_result['list_prob_marg'] = list_prob_marg
+            chain_result['list_params_marg'] = list_params_marg
+            tabletools.savePickle(filename_results_chain, chain_result ,append=True)
+
+
+        elif optimization_mode == 'gridsearch':
+            log.info('running grid search')
+            fitobj.n_grid = config['n_grid']
+            log_post , params, grids = fitobj.run_gridsearch()
+
+            # get the normalised PDF and use the same normalisation on the log
+            prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)
+            # get the maximum likelihood solution
+            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post,params)
+            # get the marginals
+            list_prob_marg, list_params_marg = mathstools.get_marginals(params,prob_post)
+
+            tabletools.savePickle(filename_results_prob,log_post,append=True)
+
+            grid_info = {}
+            grid_info['grid_kappa0'] = grids[0]
+            grid_info['grid_radius'] = grids[1]
+            grid_info['grid_h1M200'] = grids[2]
+            grid_info['grid_h2M200'] = grids[3]
+            grid_info['post_kappa0'] = params[:,0]
+            grid_info['post_radius'] = params[:,1]
+            grid_info['post_h1M200'] = params[:,2]
+            grid_info['post_h2M200'] = params[:,3]
+            
+            if id_pair == id_pair_first:
+                tabletools.savePickle(filename_results_grid,grid_info)
+
+            # pl.subplot(2,2,1)
+            # pl.plot(list_params_marg[0], list_prob_marg[0])
+            # pl.subplot(2,2,2)
+            # pl.plot(list_params_marg[1], list_prob_marg[1])
+            # pl.subplot(2,2,3)
+            # pl.plot(list_params_marg[2], list_prob_marg[2])
+            # pl.subplot(2,2,4)
+            # pl.plot(list_params_marg[3], list_prob_marg[3])
                
-        list_prob_marg, list_params_marg = mathstools.get_marginals_2d(params,prob_post)   
+            # list_prob_marg, list_params_marg = mathstools.get_marginals_2d(params,prob_post)   
+            # ia=0
+            # pl.figure()
+            # for i in range(4):
+            #     for j in range(4):
+            #         ia+=1
+            #         pl.subplot(4,4,ia)
+            #         pl.imshow(list_prob_marg[i][j].T,extent=[ min(list_params_marg[i][j][0]) , max(list_params_marg[i][j][0]) , min(list_params_marg[i][j][1]) , max(list_params_marg[i][j][1]) ] , aspect='auto')
 
-        ia=0
-        pl.figure()
-        for i in range(4):
-            for j in range(4):
-                ia+=1
-                pl.subplot(4,4,ia)
-                pl.imshow(list_prob_marg[i][j].T,extent=[ min(list_params_marg[i][j][0]) , max(list_params_marg[i][j][0]) , min(list_params_marg[i][j][1]) , max(list_params_marg[i][j][1]) ] , aspect='auto')
+        # get confidence intervals 
+        max_kappa0 , kappa0_err_hi , kappa0_err_lo = mathstools.estimate_confidence_interval(grids[0] , list_prob_marg[0])
+        max_radius , radius_err_hi , radius_err_lo = mathstools.estimate_confidence_interval(grids[1] , list_prob_marg[1])
+        max_h1M200 , h1M200_err_hi , h1M200_err_lo = mathstools.estimate_confidence_interval(grids[2] , list_prob_marg[2])
+        max_h2M200 , h2M200_err_hi , h2M200_err_lo = mathstools.estimate_confidence_interval(grids[3] , list_prob_marg[3])
 
-        import pdb; pdb.set_trace()
-        pl.figure()
-        plotstools.plot_dist_grid(params,prob_post)
-        pl.show()
+        err_use = np.mean([kappa0_err_hi,kappa0_err_lo])
+        kappa0_significance = max_kappa0/err_use
+        # get the likelihood test
+        v_reducing_null = len(fitobj.shear_u_arcmin) - 1
+        v_reducing_mod = len(fitobj.shear_u_arcmin) - 2 - 1
+        chi2_null = fitobj.null_log_likelihood(max_h1M200,max_h2M200)
+        chi2_max = vmax_post
+        chi2_red_null = chi2_null / v_reducing_null
+        chi2_red_max = chi2_max / v_reducing_mod
+        chi2_D = 2*(chi2_max - chi2_null)
+        chi2_D_red = 2*(chi2_red_max - chi2_red_null)
+        ndof=2
+        chi2_LRT_red = 1. - scipy.stats.chi2.cdf(chi2_D_red, ndof)
+        chi2_LRT = 1. - scipy.stats.chi2.cdf(chi2_D, ndof)
+        # likelihood_ratio_test = scipy.stats.chi2.pdf(D, ndof)
 
+        table_stats = np.zeros(1 , dtype=filaments_model_2hf.dtype_stats)
+        table_stats['kappa0_signif'] = kappa0_significance
+        table_stats['kappa0_map'] = vmax_params[0]
+        table_stats['kappa0_err_lo'] = kappa0_err_hi
+        table_stats['kappa0_err_hi'] = kappa0_err_lo
+        table_stats['radius_map'] = vmax_params[1]
+        table_stats['radius_err_hi'] = radius_err_hi
+        table_stats['radius_err_lo'] = radius_err_lo
+        table_stats['h1M200_map'] = vmax_params[2]
+        table_stats['h1M200_err_hi'] = h1M200_err_hi
+        table_stats['h1M200_err_lo'] = h1M200_err_lo
+        table_stats['h2M200_map'] = vmax_params[3]
+        table_stats['h2M200_err_hi'] = h2M200_err_hi
+        table_stats['h2M200_err_lo'] = h2M200_err_lo
+        table_stats['chi2_red_null'] = chi2_red_null
+        table_stats['chi2_red_max'] = chi2_red_max
+        table_stats['chi2_D'] = chi2_D
+        table_stats['chi2_LRT'] = chi2_LRT
+        table_stats['chi2_red_D'] = chi2_D_red
+        table_stats['chi2_red_LRT'] = chi2_LRT_red
+        table_stats['chi2_null'] = chi2_null
+        table_stats['chi2_max'] = chi2_max
+        table_stats['id'] = id_pair
+        table_stats['sigma_g'] = fitobj.sigma_g
 
-        # get confidence intervals on kappa0
-        # max_kappa0 , kappa0_err_hi , kappa0_err_lo = mathstools.estimate_confidence_interval(grid_kappa0 , prob_post_kappa0)
-        # max_radius , radius_err_hi , radius_err_lo = mathstools.estimate_confidence_interval(grid_radius , prob_post_radius)
-        # max_h1M200 , h1M200_err_hi , h1M200_err_lo = mathstools.estimate_confidence_interval(grid_h1M200 , prob_post_h1M200)
-        # max_h2M200 , h2M200_err_hi , h2M200_err_lo = mathstools.estimate_confidence_interval(grid_h2M200 , prob_post_h2M200)
-        # err_use = np.mean([kappa0_err_hi,kappa0_err_lo])
-        # kappa0_significance = max_kappa0/err_use
-        # # get the likelihood test
-        # v_reducing_null = len(fitobj.shear_u_arcmin) - 1
-        # v_reducing_mod = len(fitobj.shear_u_arcmin) - 2 - 1
-        # chi2_null = fitobj.null_log_likelihood()
-        # chi2_max = vmax_post
-        # chi2_red_null = chi2_null / v_reducing_null
-        # chi2_red_max = chi2_max / v_reducing_mod
-        # chi2_D = 2*(chi2_max - chi2_null)
-        # chi2_D_red = 2*(chi2_red_max - chi2_red_null)
-        # ndof=2
-        # chi2_LRT_red = 1. - scipy.stats.chi2.cdf(chi2_D_red, ndof)
-        # chi2_LRT = 1. - scipy.stats.chi2.cdf(chi2_D, ndof)
-        # # likelihood_ratio_test = scipy.stats.chi2.pdf(D, ndof)
-
-        # table_stats = np.zeros(1 , dtype=dtype_stats)
-        # table_stats['kappa0_signif'] = kappa0_significance
-        # table_stats['kappa0_err_lo'] = kappa0_err_hi
-        # table_stats['kappa0_map'] = vmax_kappa0
-        # table_stats['kappa0_err_hi'] = kappa0_err_lo
-        # table_stats['radius_map'] = vmax_radius
-        # table_stats['radius_err_hi'] = radius_err_hi
-        # table_stats['radius_err_lo'] = radius_err_lo
-        # table_stats['chi2_red_null'] = chi2_red_null
-        # table_stats['chi2_red_max'] = chi2_red_max
-        # table_stats['chi2_D'] = chi2_D
-        # table_stats['chi2_LRT'] = chi2_LRT
-        # table_stats['chi2_red_D'] = chi2_D_red
-        # table_stats['chi2_red_LRT'] = chi2_LRT_red
-        # table_stats['chi2_null'] = chi2_null
-        # table_stats['chi2_max'] = chi2_max
-        # table_stats['id'] = id_pair
-        # table_stats['sigma_g'] = fitobj.sigma_g
-
-        # tabletools.saveTable(filename_results_pairs, table_stats, append=True)
-        # tabletools.savePickle(filename_results_prob,prob_post,append=True)
+        tabletools.saveTable(filename_results_pairs, table_stats, append=True)
         
-        # grid_info = {}
-        # grid_info['kappa0_post_matrix'] = prob_post_kappa0
-        # grid_info['radius_post_matrix'] = prob_post_radius
-        # grid_info['kappa0_post'] = params[:,0]
-        # grid_info['radius_post'] = params[:,1]
-        # grid_info['grid_kappa0'] = grid_kappa0
-        # grid_info['grid_radius'] = grid_radius
-        # if id_pair == id_pair_first:
-        #     tabletools.savePickle(filename_results_grid,grid_info)
-
         # log.info('ML-ratio test: chi2_red_max=% 10.3f chi2_red_null=% 10.3f D_red=% 8.4e p-val_red=%1.5f' , chi2_red_max, chi2_red_null , chi2_D_red, chi2_LRT_red )
-        # log.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
-        # log.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
+        log.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
+        log.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
 
-        # if save_plots:
-
-
-        #     pl.figure()
-        #     pl.rcParams.update({'font.size': 2})
-        #     pl.clf()
-        #     import matplotlib.gridspec as gridspec
-        #     gs = gridspec.GridSpec(4, 6)
-
-        #     pl.subplot(gs[0,0])
-        #     plotstools.imshow_grid(params[:,0],params[:,1],prob_post,nx=n_grid,ny=n_grid)
-        #     pl.plot( vmax_kappa0 , vmax_radius , 'rx' )
-        #     pl.xlabel('kappa0')
-        #     pl.ylabel('radius [Mpc]')
-
-        #     pl.subplot(gs[0,1])
-        #     plotstools.imshow_grid(params[:,0],params[:,1],log_post,nx=n_grid,ny=n_grid)
-        #     pl.plot( vmax_kappa0 , vmax_radius , 'rx' )
-        #     pl.xlabel('kappa0')
-        #     pl.ylabel('radius [Mpc]')
-
+        if save_plots:
             
-        #     pl.subplot(gs[0,2])
-        #     pl.plot(grid_kappa0 , prob_post_kappa0 )
-        #     pl.axvline(x=max_kappa0 - kappa0_err_lo,linewidth=1, color='r')
-        #     pl.axvline(x=max_kappa0 + kappa0_err_hi,linewidth=1, color='r')
-        #     pl.xlabel('kappa0')
+            pl.rcParams.update({'font.size': 8})
+            pl.figure()
+            pl.clf()
 
-        #     pl.subplot(gs[0,3])
-        #     pl.plot(grid_radius , prob_post_radius )
-        #     pl.xlabel('radius [Mpc]')
+            if config['optimization_mode'] == 'mcmc':
 
-        #     halo_marker_size = 10
+                plotstools.plot_dist(fitobj.sampler.flatchain,labels=[r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$' , 'radius Mpc' , r'halo1_M200 $M_{*}$' , 'halo2_M200 $M_{*}$'])
 
-           
-        #     res1  = (fitobj.shear_g1 - best_model_g1) 
-        #     res2  = (fitobj.shear_g2 - best_model_g2) 
+            elif config['optimization_mode'] == 'gridsearch':
+                                  
+                
+                 plotstools.plot_dist_grid(params,prob_post,labels=[r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$' , 'radius Mpc' , r'halo1_M200 $M_{*}$' , 'halo2_M200 $M_{*}$'])
 
+            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
+            title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
+            pl.suptitle(title_str)
 
-        #     pl.subplot(gs[1,0:2])
-        #     fitobj.plot_shears(fitobj.shear_g1,fitobj.shear_g2,limit_mask,unit='Mpc')
-        #     pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
-        #     pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
-        #     pl.axhline(y= vmax_radius,linewidth=1, color='r')
-        #     pl.axhline(y=-vmax_radius,linewidth=1, color='r')
+            filename_fig = 'figs/result.%04d.%s.dist.pdf' % (id_pair,filename_shears.replace('.fits',''))
+            try:
+                pl.savefig(filename_fig, dpi=300)
+                log.info('saved %s' , filename_fig)
+            except Exception , errmsg: 
+                log.error('saving figure %s failed: %s' , filename_fig , errmsg)
 
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.clf()
+            pl.close('all')
 
-        #     pl.subplot(gs[2,0:2])
-        #     fitobj.plot_shears(best_model_g1,best_model_g2,limit_mask,unit='Mpc')
-        #     pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
-        #     pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.figure()
 
-        #     pl.subplot(gs[3,0:2])
-        #     fitobj.plot_shears(res1 , res2,limit_mask,unit='Mpc')
-        #     pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
-        #     pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            import matplotlib.gridspec as gridspec          
+            gs = gridspec.GridSpec(3, 6)
+
+            halo_marker_size = 10
+         
+            res1  = (fitobj.shear_g1 - best_model_g1) 
+            res2  = (fitobj.shear_g2 - best_model_g2) 
 
 
-        #     scatter_size = 3.5
-        #     maxg = max( [ max(abs(fitobj.shear_g1.flatten())) ,  max(abs(fitobj.shear_g2.flatten())) , max(abs(best_model_g1.flatten())) , max(abs(best_model_g1.flatten()))   ])
+            pl.subplot(gs[0,0:2])
+            fitobj.plot_shears(fitobj.shear_g1,fitobj.shear_g2,limit_mask,unit='Mpc')
+            pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
+            pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
+            pl.axhline(y= vmax_params[1],linewidth=1, color='r')
+            pl.axhline(y=-vmax_params[1],linewidth=1, color='r')
 
-        #     pl.subplot(gs[1,2:4])
-        #     pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, fitobj.shear_g1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
-        #     # plotstools.imshow_grid(fitobj.shear_u_mpc, fitobj.shear_v_mpc, fitobj.shear_g1)
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+
+            pl.subplot(gs[1,0:2])
+            fitobj.plot_shears(best_model_g1,best_model_g2,limit_mask,unit='Mpc')
+            pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
+            pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+
+            pl.subplot(gs[2,0:2])
+            fitobj.plot_shears(res1 , res2,limit_mask,unit='Mpc')
+            pl.scatter(fitobj.halo1_u_mpc,fitobj.halo1_v_mpc,halo_marker_size,c='r')
+            pl.scatter(fitobj.halo2_u_mpc,fitobj.halo2_v_mpc,halo_marker_size,c='r')
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+
+
+            scatter_size = 3.5
+            maxg = max( [ max(abs(fitobj.shear_g1.flatten())) ,  max(abs(fitobj.shear_g2.flatten())) , max(abs(best_model_g1.flatten())) , max(abs(best_model_g1.flatten()))   ])
+
+            pl.subplot(gs[0,2:4])
+            pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, fitobj.shear_g1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            # plotstools.imshow_grid(fitobj.shear_u_mpc, fitobj.shear_v_mpc, fitobj.shear_g1)
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
             
-        #     pl.subplot(gs[2,2:4])
-        #     pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, best_model_g1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.subplot(gs[1,2:4])
+            pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, best_model_g1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
             
-        #     pl.subplot(gs[3,2:4])
-        #     pl.axis('equal')
-        #     pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, res1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.subplot(gs[2,2:4])
+            pl.axis('equal')
+            pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, res1 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
 
-        #     pl.subplot(gs[1,4:])
-        #     pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, fitobj.shear_g2 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.subplot(gs[0,4:])
+            pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, fitobj.shear_g2 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
             
-        #     pl.subplot(gs[2,4:])
-        #     pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, best_model_g2 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.subplot(gs[1,4:])
+            pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, best_model_g2 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
             
-        #     pl.subplot(gs[3,4:])
-        #     pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, res2 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
-        #     pl.axis('equal')
-        #     pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
-        #     pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
+            pl.subplot(gs[2,4:])
+            pl.scatter(fitobj.shear_u_mpc, fitobj.shear_v_mpc, scatter_size, res2 , lw = 0 , vmax=maxg , vmin=-maxg , marker='s')
+            pl.axis('equal')
+            pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
+            pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
 
-        #     title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f max_shear=%2.3f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance , maxg)
-        #     title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
-        #     pl.suptitle(title_str)
+            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f max_shear=%2.3f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance , maxg)
+            title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
+            pl.suptitle(title_str)
 
-        #     filename_fig = filename_fig = 'figs/result.%04d.%s.pdf' % (id_pair,filename_shears.replace('.fits',''))
-        #     try:
-        #         pl.savefig(filename_fig, dpi=300)
-        #         log.info('saved %s' , filename_fig)
-        #     except Exception , errmsg: 
-        #         log.error('saving figure %s failed: %s' , filename_fig , errmsg)
+            filename_fig = filename_fig = 'figs/result.%04d.%s.model.pdf' % (id_pair,filename_shears.replace('.fits',''))
+            try:
+                pl.savefig(filename_fig, dpi=300)
+                log.info('saved %s' , filename_fig)
+            except Exception , errmsg: 
+                log.error('saving figure %s failed: %s' , filename_fig , errmsg)
 
-        #     pl.clf()
-        #     pl.close('all')
+            pl.clf()
+            pl.close('all')
 
         # matplotlib leaks memory
         # print h.heap()
@@ -678,8 +722,8 @@ def main():
     # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
     parser.add_argument('-n', '--num', default=-1,type=int, action='store', help='number of pairs to process')
-    parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
+    parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     global args
@@ -693,6 +737,12 @@ def main():
     logging_level = logging_levels[args.verbosity]
     log.setLevel(logging_level)
 
+    global config 
+
+    config = yaml.load(open(args.filename_config))
+    filaments_tools.config = config
+
+
     filaments_model_1f.log = log
     # plotstools.log = log
 
@@ -701,7 +751,7 @@ def main():
 
     # fit_single_halo()
     # fit_single_filament(save_plots=args.save_plots)
-    fit_2hf(save_plots=args.save_plots)
+    fit_2hf(save_plots=config['save_plots'])
     # process_results()
     # analyse_results()
     # analyse_stats()
