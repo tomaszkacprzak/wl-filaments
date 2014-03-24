@@ -436,6 +436,3 @@ class modelfit():
 
     #     return h1g1, h1g2
 
-
-
-

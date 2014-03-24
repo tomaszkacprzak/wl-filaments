@@ -6,7 +6,7 @@ import warnings
 warnings.simplefilter('once')
 
 log = logging.getLogger("fil_mod_2hf") 
-log.setLevel(logging.INFO)  
+log.setLevel(logging.DEBUG)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
@@ -247,12 +247,12 @@ class modelfit():
             posterior = likelihood 
 
         if log.level == logging.DEBUG:
-            n_progress = 1
+            n_progress = 100
         elif log.level == logging.INFO:
             n_progress = 100
         if self.n_model_evals % n_progress == 0:
 
-            log.info('%7d post=% 2.4e like=% 2.4e prior=% 2.4e kappa0=% 6.3f radius=% 6.3f h1M200=% 5.2e h1M200=% 5.2e' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1],10.**theta[2],10.**theta[3]))
+            log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e kappa0=% 6.3f radius=% 6.3f h1M200=% 5.2e h1M200=% 5.2e' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1],10.**theta[2],10.**theta[3]))
 
         if np.isnan(posterior):
             import pdb; pdb.set_trace()
@@ -262,7 +262,7 @@ class modelfit():
             self.plot_residual_whisker(model_g1,model_g2,limit_mask)
 
             pl.rcParams['font.size'] = 4
-            pl.suptitle('model post=% 10.4e kappa0=%5.2e radius=%2.4f h1M200=% 5.2e h1M200=% 5.2e' % (posterior,theta[0],theta[1],10.**theta[2],10.**theta[3])) 
+            pl.suptitle('model post=% 10.8e kappa0=%5.2e radius=%2.4f h1M200=% 5.2e h1M200=% 5.2e' % (posterior,theta[0],theta[1],10.**theta[2],10.**theta[3])) 
             filename_fig = 'models/res1.%04d.pdf' % self.n_model_evals
             pl.savefig(filename_fig,dpi=100)
             log.debug('saved %s' % filename_fig)
@@ -270,7 +270,7 @@ class modelfit():
 
             self.plot_residual_g1g2(model_g1,model_g2,limit_mask)
 
-            pl.suptitle('model post=% 10.4e kappa0=%5.2e radius=%2.4f h1M200=% 5.2e h1M200=% 5.2e' % (posterior,theta[0],theta[1],10.**theta[2],10.**theta[3]) )
+            pl.suptitle('model post=% 10.8e kappa0=%5.2e radius=%2.4f h1M200=% 5.2e h1M200=% 5.2e' % (posterior,theta[0],theta[1],10.**theta[2],10.**theta[3]) )
             filename_fig = 'models/res2.%04d.pdf' % self.n_model_evals
             pl.savefig(filename_fig,dpi=100)
             log.debug('saved %s' % filename_fig)
@@ -471,8 +471,8 @@ if __name__=='__main__':
     fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
     fitobj.halo2_z =  pairs_table['z'][id_pair]
 
-    fitobj.parameters[0]['box']['min'] = 50
-    fitobj.parameters[0]['box']['max'] = 1.5e2
+    fitobj.parameters[0]['box']['min'] = 0
+    fitobj.parameters[0]['box']['max'] = 1
     fitobj.parameters[1]['box']['min'] = 1
     fitobj.parameters[1]['box']['max'] = 10
     fitobj.parameters[2]['box']['min'] = 14
@@ -487,7 +487,7 @@ if __name__=='__main__':
 
     # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
     # pl.show()
-    # fitobj.save_all_models=False
+    fitobj.save_all_models=False
     log.info('running grid search')
     n_grid=10
     log_post , params, grids = fitobj.run_gridsearch(n_grid=n_grid)

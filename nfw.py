@@ -22,6 +22,7 @@ class NfwHalo:
         self.theta_cx = 0               # center of the halo in arcmin
         self.theta_cy = 0               # center of the halo in arcmin
         self.redshift_offset = 0.2
+        self.mean_inv_sigma_crit = None
 
         self.update()
 
@@ -67,6 +68,7 @@ class NfwHalo:
         # that may have been pre-calculated earlier
         if self.mean_inv_sigma_crit == None:
             
+            warnings.warn('using re-calculated Sigma_crit')
             Ds  = cosmology.get_ang_diam_dist(z_source,0.)            # in units of h^-1 Mpc
             Dds = cosmology.get_ang_diam_dist(z_source,self.z_cluster)    # in units of h^-1 Mpc
             Dds_over_Ds = Dds / Ds

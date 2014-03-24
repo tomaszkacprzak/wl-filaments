@@ -20,6 +20,7 @@ class filament:
         self.pair_z = None
         self.redshift_offset = 0.2
         self.mean_inv_sigma_crit = None
+        self.scale_dens = 1e14
 
     def proj_mass_density(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc):
 
@@ -38,6 +39,7 @@ class filament:
         # amplitude = kappa0 /  (radius_mpc * np.pi) 
         r = np.abs(shear_v_mpc)
         dens = kappa0 / (1. + (r / radius_mpc)**2 )
+        dens *=  self.scale_dens
 
         # # zero the filament outside halos
         # # we shoud zero it at R200, but I have to check how to calculate it from M200 and concentr
@@ -72,7 +74,7 @@ class filament:
         """
 
         dens = self.proj_mass_density(shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc)
-        sigma_crit = cosmology.get_sigma_crit(shear_z,pair_z,unit='Msol*h/pc^2')
+        sigma_crit = cosmology.get_sigma_crit(shear_z,pair_z,unit='kg/m^2')
         # print 'sigma_crit' , sigma_crit
         # print 'max dens' , max(dens)
         kappa = dens / sigma_crit 
@@ -84,7 +86,7 @@ class filament:
 
     def set_mean_inv_sigma_crit(self,grid_z_centers,prob_z,pair_z):
 
-        sigma_crit = cosmology.get_sigma_crit(grid_z_centers,pair_z,unit='Msol*h/pc^2')
+        sigma_crit = cosmology.get_sigma_crit(grid_z_centers,pair_z,unit='kg/m^2')
         prob_z_limit = prob_z
         prob_z_limit[grid_z_centers < pair_z + self.redshift_offset] = 0
         prob_z_limit /= sum(prob_z_limit)
@@ -93,8 +95,9 @@ class filament:
 
     def filament_model_with_pz(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z, grid_z_centers , prob_z,  redshift_offset=0.2):
 
+
         dens = self.proj_mass_density(shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc)
-        kappa = dens * self.mean_inv_sigma_crit 
+        kappa = dens * self.mean_inv_sigma_crit
         g1 = -kappa
         g2 = np.zeros_like(kappa)
 

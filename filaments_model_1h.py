@@ -36,6 +36,20 @@ class modelfit():
         self.gaussian_prior_theta = [{'mean' : 14, 'std': 1}]
         self.box_prior_theta = [{'min' : 5, 'max': 25}]
         self.save_all_models = False
+        self.mean_inv_sigma_crit = None
+        self.grid_z_edges = np.linspace(0,2,10);
+        self.grid_z_centers = plotstools.get_bins_centers(self.grid_z_edges)
+
+    def get_bcc_pz(self):
+
+        if self.prob_z == None:
+
+
+            filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+            lenscat = tabletools.loadTable(filename_lenscat)
+            self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
+
+
 
 
     def plot_shears(self,g1,g2,limit_mask=None):
@@ -113,7 +127,6 @@ class modelfit():
         self.n_model_evals +=1
 
         M200 = 10**params[0]
-        # conc = 2.1
         conc = self.get_concentr(M200,self.halo_z)
 
         # halo_pos = galsim.PositionD(x=self.halo_u_arcmin*60.,y=self.halo_v_arcmin*60.)
@@ -121,12 +134,12 @@ class modelfit():
 
         # nfw=galsim.NFWHalo(conc=conc, redshift=self.halo_z, mass=M200, omega_m = cosmology.cospars.Omega_m, halo_pos=halo_pos)
 
-        nh = nfw.NfwHalo()
-        nh.M_200=M200
-        nh.concentr=conc
-        nh.z_cluster= self.halo_z
-        nh.theta_cx = self.halo_u_arcmin
-        nh.theta_cy = self.halo_v_arcmin 
+        # nh = nfw.NfwHalo()
+        self.nh.M_200=M200
+        self.nh.concentr=conc
+        # nh.z_cluster= self.halo_z
+        # nh.theta_cx = self.halo_u_arcmin
+        # nh.theta_cy = self.halo_v_arcmin 
 
         list_h1g1 = []
         list_h1g2 = []
@@ -143,7 +156,8 @@ class modelfit():
         # h1g1 = np.sum(np.array(list_h1g1),axis=0) / np.sum(list_weight)
         # h1g2 = np.sum(np.array(list_h1g2),axis=0) / np.sum(list_weight)
 
-        h1g1 , h1g2  = nh.get_shears_with_pz(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        # h1g1 , h1g2  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        h1g1 , h1g2  = self.nh.get_shears_with_pz(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
 
         # median_redshift = 0.8
         # [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(self.shear_u_arcmin , self.shear_v_arcmin , median_redshift )
@@ -240,6 +254,15 @@ class modelfit():
         grid_M200_n = M200_n
         log_post = np.zeros(grid_M200_n)
         grid_M200 = np.linspace(grid_M200_min,grid_M200_max,grid_M200_n)
+
+        self.get_bcc_pz()
+
+        self.nh = nfw.NfwHalo()
+        self.nh.z_cluster= self.halo_z
+        self.nh.theta_cx = self.halo_u_arcmin
+        self.nh.theta_cy = self.halo_v_arcmin 
+        self.nh.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.halo_z)
+
         for im200,vm200 in enumerate(grid_M200):
 
             # log.info('%5d m200=%2.2e' %(im200,M200))
@@ -259,7 +282,10 @@ class modelfit():
     def get_concentr(self,M,z):
 
         # Duffy et al 2008 from King and Mead 2011
-        concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
+        # concentr = 5.72/(1.+z)**0.71 * (M / 1e14 )**(-0.081)
+
+        warnings.warn('using pre-set concentration')
+        concentr = self.conc        
 
         return concentr
 
@@ -271,4 +297,96 @@ class modelfit():
         self.prob_z , _ , _ = pl.hist(lenscat['z'],bins=self.grid_z_edges,normed=True)
 
 
+def get_post_from_log(log_post):
+
+    log_post = log_post - max(log_post.flatten())
+    post = np.exp(log_post)
+    norm = np.sum(post)
+    post = post / norm
+
+    return post
+
+
+
     
+if __name__ == '__main__':
+
+    id_pair = 4
+    filename_shears = 'shears_bcc_g.fits' 
+    filename_pairs = 'pairs_bcc.fits'
+    filename_halo1 = 'pairs_bcc.halos1.fits'
+    filename_halo2 = 'pairs_bcc.halos2.fits'
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
+    true1_M200 = np.log10(halo1_table['m200'][id_pair])
+    true2_M200 = np.log10(halo2_table['m200'][id_pair])
+    conc1 = halo1_table['r200'][id_pair]/halo1_table['rs'][id_pair]*1000.
+    conc2 = halo2_table['r200'][id_pair]/halo2_table['rs'][id_pair]*1000.
+    log.info( 'halo1 M200 %5.2e',halo1_table['m200'][id_pair] )
+    log.info( 'halo2 M200 %5.2e',halo2_table['m200'][id_pair] )
+    log.info( 'halo1 conc %5.2f',conc1)
+    log.info( 'halo2 conc %5.2f',conc2)
+
+
+    fitobj = modelfit()
+    fitobj.get_bcc_pz()
+    fitobj.conc = conc1
+    fitobj.sigma_g =  0.001
+    fitobj.shear_g1 =  shears_info['g1'] + np.random.randn(len(shears_info['g1']))*fitobj.sigma_g
+    fitobj.shear_g2 =  shears_info['g2'] + np.random.randn(len(shears_info['g2']))*fitobj.sigma_g
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.halo_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
+    fitobj.halo_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
+    fitobj.halo_z =  pairs_table['z'][id_pair]
+    fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
+    pl.show()
+
+    pair_info = pairs_table[id_pair]
+
+    log.info('running grid search')
+    log_post , grid_M200, best_g1, best_g2, best_limit_mask = fitobj.run_gridsearch(M200_min=13.5,M200_max=16,M200_n=1000)
+    prob_post = get_post_from_log(log_post)
+    pl.figure()
+    pl.plot(grid_M200 , log_post , '.-')
+    pl.figure()
+    pl.plot(grid_M200 , prob_post , '.-')
+    plotstools.adjust_limits()
+    pl.figure()
+    fitobj.plot_residual(best_g1, best_g2)
+    pl.show()
+
+
+    log.info('running mcmc - type c to continue')
+    import pdb; pdb.set_trace()
+    fitobj.run_mcmc()
+    print fitobj.sampler
+    pl.figure()
+    pl.hist(fitobj.sampler.flatchain, bins=np.linspace(13,16,100), color="k", histtype="step")
+    # pl.plot(fitobj.sampler.flatchain,'x')
+    pl.show()
+    median_m = [np.median(fitobj.sampler.flatchain)]
+    print median_m
+    fitobj.plot_model(median_m)
+    filename_fig = 'halo_model_median.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' % filename_fig)
+
+
+    pl.figure()
+    pl.hist(fitobj.sampler.flatchain, 100, color="k", histtype="step")
+    pl.show()
+
+    median_m = [np.median(fitobj.sampler.flatchain)]
+    print 'median_m %2.2e' % 10**median_m
+    fitobj.plot_model(median_m)
+
+
+    import pdb;pdb.set_trace()
+
+
+
