@@ -371,9 +371,6 @@ class modelfit():
         self.nh2.theta_cy = self.halo2_v_arcmin 
         self.nh2.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.pair_z)
 
-
-
-        log.info('getting self.sampler')
         self.sampler = emcee.EnsembleSampler(nwalkers=self.n_walkers, dim=self.n_dim , lnpostfn=self.log_posterior)
         
         theta0 = []

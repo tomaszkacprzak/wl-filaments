@@ -1,4 +1,5 @@
 import os
+if os.environ['USER'] == 'ucabtok': os.environ['MPLCONFIGDIR']='.'
 import matplotlib as mpl
 if 'DISPLAY' not in os.environ:
     mpl.use('agg')
@@ -42,10 +43,10 @@ def fit_single_filament(save_plots=False):
 
     log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
-    filename_pairs = 'pairs_bcc.fits'
-    filename_halo1 = 'pairs_bcc.halos1.fits'
-    filename_halo2 = 'pairs_bcc.halos2.fits'
-    filename_shears = args.filename_shears 
+    filename_pairs = config['filename_pairs']                                  
+    filename_halo1 = config['filename_pairs'].replace('.fits' , '.halos1.fits')
+    filename_halo2 = config['filename_pairs'].replace('.fits' , '.halos1.fits')
+    filename_shears =config['filename_shears']                                 
 
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
@@ -342,19 +343,19 @@ def fit_2hf(save_plots=False):
 
     log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
-    filename_pairs = 'pairs_bcc.fits'
-    filename_halo1 = 'pairs_bcc.halos1.fits'
-    filename_halo2 = 'pairs_bcc.halos2.fits'
-    filename_shears = args.filename_shears 
+    filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
+    filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
+    filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos2.fits'
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
 
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
 
-    filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
-    filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
-    filename_results_chain = 'results.chain.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.pp2')
-    filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + filename_shears.replace('.fits','.cat')
+    filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
+    filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
+    filename_results_chain = 'results.chain.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.pp2')
+    filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
         os.remove(filename_results_prob)
         log.warning('overwriting file %s ' , filename_results_prob)
@@ -370,7 +371,7 @@ def fit_2hf(save_plots=False):
 
     # get prob_z
     fitobj = filaments_model_2hf.modelfit()
-    fitobj.get_bcc_pz(config['pz_file'])
+    fitobj.get_bcc_pz(config['filename_pz'])
     prob_z = fitobj.prob_z
 
 
@@ -597,7 +598,7 @@ def fit_2hf(save_plots=False):
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
-            filename_fig = 'figs/result.%04d.%s.dist.pdf' % (id_pair,filename_shears.replace('.fits',''))
+            filename_fig = 'figs/result.%04d.%s.dist.pdf' % (id_pair,os.path.basename(filename_shears).replace('.fits',''))
             try:
                 pl.savefig(filename_fig, dpi=300)
                 log.info('saved %s' , filename_fig)
@@ -690,7 +691,7 @@ def fit_2hf(save_plots=False):
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
-            filename_fig = filename_fig = 'figs/result.%04d.%s.model.pdf' % (id_pair,filename_shears.replace('.fits',''))
+            filename_fig = filename_fig = 'figs/result.%04d.%s.model.pdf' % (id_pair,os.path.basename(filename_shears).replace('.fits',''))
             try:
                 pl.savefig(filename_fig, dpi=300)
                 log.info('saved %s' , filename_fig)
@@ -716,8 +717,8 @@ def main():
     # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
     parser.add_argument('-n', '--num', default=-1,type=int, action='store', help='number of pairs to process')
-    parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
+    # parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     global args
