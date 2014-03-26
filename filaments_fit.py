@@ -1,10 +1,8 @@
 import os
 import matplotlib as mpl
-if 'DISPLAY' in os.environ:
-    mpl.use('tkagg')
-else:
+if 'DISPLAY' not in os.environ:
     mpl.use('agg')
-import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
+import os, yaml, argparse, sys, logging , pyfits, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import pylab as pl
 print 'using matplotlib backend' , pl.get_backend()
@@ -31,10 +29,6 @@ log.propagate = False
 cospars = cosmology.cosmoparams()
 
 prob_z = None
-
-from guppy import hpy
-h = hpy()
-
 
 
 def fit_single_filament(save_plots=False):
@@ -376,7 +370,7 @@ def fit_2hf(save_plots=False):
 
     # get prob_z
     fitobj = filaments_model_2hf.modelfit()
-    fitobj.get_bcc_pz()
+    fitobj.get_bcc_pz(config['pz_file'])
     prob_z = fitobj.prob_z
 
 

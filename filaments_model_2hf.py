@@ -1,4 +1,4 @@
-import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament
+import os, yaml, argparse, sys, logging , pyfits,  emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament
 import numpy as np
 import pylab as pl
 import warnings
@@ -6,7 +6,7 @@ import warnings
 warnings.simplefilter('once')
 
 log = logging.getLogger("fil_mod_2hf") 
-log.setLevel(logging.DEBUG)  
+log.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
@@ -276,7 +276,7 @@ class modelfit():
         if log.level == logging.DEBUG:
             n_progress = 100
         elif log.level == logging.INFO:
-            n_progress = 100
+            n_progress = 10000
         if self.n_model_evals % n_progress == 0:
 
             log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e kappa0=% 6.3f radius=% 6.3f h1M200=% 5.2e h1M200=% 5.2e' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1],10.**theta[2],10.**theta[3]))
@@ -449,12 +449,13 @@ class modelfit():
         return log_post , params , grids 
 
 
-    def get_bcc_pz(self):
+    def get_bcc_pz(self,filename_lenscat):
 
         if self.prob_z == None:
 
 
-            filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+            # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+            # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
             lenscat = tabletools.loadTable(filename_lenscat)
             self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
 
