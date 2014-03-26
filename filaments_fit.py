@@ -3,7 +3,7 @@ if os.environ['USER'] == 'ucabtok': os.environ['MPLCONFIGDIR']='.'
 import matplotlib as mpl
 if 'DISPLAY' not in os.environ:
     mpl.use('agg')
-import os, yaml, argparse, sys, logging , pyfits, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
+import os, yaml, argparse, sys, logging , pyfits, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats, time
 import numpy as np
 import pylab as pl
 print 'using matplotlib backend' , pl.get_backend()
@@ -100,7 +100,7 @@ def fit_single_filament(save_plots=False):
 
         log.info( 'M200=[ %1.2e , %1.2e ] , conc=[ %1.2f , %1.2f ]',halo1_table['m200'][id_pair] , halo2_table['m200'][id_pair] , halo1_conc , halo2_conc)
         
-        sigma_g_add =  0.001
+        sigma_g_add =  config['sigma_add']
 
         fitobj = filaments_model_1f.modelfit()
         fitobj.prob_z = prob_z
@@ -401,7 +401,7 @@ def fit_2hf(save_plots=False):
 
         log.info( 'M200=[ %1.2e , %1.2e ] , conc=[ %1.2f , %1.2f ]',halo1_table['m200'][id_pair] , halo2_table['m200'][id_pair] , halo1_conc , halo2_conc)
         
-        sigma_g_add =  0.02
+        sigma_g_add =  config['sigma_add']
 
         fitobj = filaments_model_2hf.modelfit()
         fitobj.prob_z = prob_z
@@ -411,7 +411,7 @@ def fit_2hf(save_plots=False):
         fitobj.shear_v_mpc =  shears_info['v_mpc']
         fitobj.shear_g1 =  shears_info['g1'] + np.random.randn(len(shears_info['g1']))*sigma_g_add
         fitobj.shear_g2 =  shears_info['g2'] + np.random.randn(len(shears_info['g2']))*sigma_g_add
-        fitobj.sigma_g =  np.std(shears_info['g2'],ddof=1)
+        fitobj.sigma_g =  np.std(fitobj.shear_g2,ddof=1)
 
         log.info('using sigma_g=%2.5f' , fitobj.sigma_g)
         
@@ -741,6 +741,8 @@ def main():
     filaments_model_1f.log = log
     # plotstools.log = log
 
+    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+
     # grid_search(pair_info,shears_info)
     # test_model(shears_info,pair_info)
 
@@ -750,6 +752,8 @@ def main():
     # process_results()
     # analyse_results()
     # analyse_stats()
+
+    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 
 main()

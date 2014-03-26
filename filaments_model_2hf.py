@@ -454,8 +454,14 @@ class modelfit():
             # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
             # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
             lenscat = tabletools.loadTable(filename_lenscat)
-            self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
 
+            if 'z' in lenscat.dtype.names:
+                self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
+            elif 'z-phot' in lenscat.dtype.names:
+                self.prob_z , _  = pl.histogram(lenscat['z-phot'],bins=self.grid_z_edges,normed=True)
+
+            if 'e1' in lenscat.dtype.names:
+                self.sigma_ell = np.std(lenscat['e1'],ddof=1)
 
     def get_grid_max(self,log_post,params):
 
