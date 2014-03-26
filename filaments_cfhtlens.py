@@ -1,7 +1,9 @@
+import os
 import matplotlib as mpl 
-mpl.use('tkagg')
+if 'DISPLAY' not in os.environ:
+    mpl.use('agg')
 print 'using backend %s' % mpl.get_backend()
-import os, yaml, argparse, sys, logging , time, pyfits , cosmology , tabletools
+import yaml, argparse, sys, logging , time, pyfits , cosmology , tabletools
 import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
