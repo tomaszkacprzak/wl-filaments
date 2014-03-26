@@ -28,3 +28,4 @@ filename_shears : /scratch/scratch/ucabtok/140324_filaments_fit/140324-run-bcc/s
 filename_pz : /scratch/scratch/ucabtok/140324_filaments_fit/140324-run-bcc/aardvarkv1.0_des_lenscat_s2n10.351.fit
 optimization_mode : mcmc
 sigma_add : 0.02
+sigma_method : orig # add or orig

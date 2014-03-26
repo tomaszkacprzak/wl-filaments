@@ -51,6 +51,7 @@ class modelfit():
         self.grid_z_centers = plotstools.get_bins_centers(self.grid_z_edges)
         self.prob_z = None
         self.sigma_g = 0.2
+        self.inv_sq_sigma_g = None
         self.n_model_evals = 0
         self.sampler = None
         self.n_samples = 1000
@@ -77,6 +78,7 @@ class modelfit():
 
         self.shear_g1 = None
         self.shear_g2 = None
+        self.shear_n_gals = None
         self.shear_u_arcmin = None
         self.shear_v_arcmin = None
         self.shear_u_mpc = None
@@ -326,12 +328,12 @@ class modelfit():
        
     def log_likelihood(self,model_g1,model_g2,limit_mask):
 
-        res1 = (model_g1 - self.shear_g1) #* limit_mask
-        res2 = (model_g2 - self.shear_g2) #* limit_mask
+        res1_sq = ((model_g1 - self.shear_g1)**2) * self.inv_sq_sigma_g #* limit_mask
+        res2_sq = ((model_g2 - self.shear_g2)**2) * self.inv_sq_sigma_g #* limit_mask
         # n_points = len(np.nonzero(limit_mask))
 
         # chi2 = -0.5 * ( np.sum( ((res1)/self.sigma_g) **2) + np.sum( ((res2)/self.sigma_g) **2) ) / n_points
-        chi2 = -0.5 * ( np.sum( ((res1)/self.sigma_g) **2 ) ) 
+        chi2 = -0.5 * ( np.sum( res1_sq )  + np.sum( res2_sq  ) )
 
         return chi2
 
@@ -462,6 +464,11 @@ class modelfit():
 
             if 'e1' in lenscat.dtype.names:
                 self.sigma_ell = np.std(lenscat['e1'],ddof=1)
+
+    def set_shear_sigma(self):
+
+        self.inv_sq_sigma_g = ( np.sqrt(self.shear_n_gals) / self.sigma_ell )**2
+
 
     def get_grid_max(self,log_post,params):
 

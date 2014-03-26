@@ -293,6 +293,63 @@ def analyse_stats_samples():
     pass    
 
 
+def process_results():
+
+    name_data = 'shears_bcc_e'
+    filename_results_cat = 'results.stats.%s.cat' % name_data
+    stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
+
+    n_files = 300
+    n_per_file = 10
+
+    from scipy.stats import kde
+
+    list_DeltaSigma = []
+
+    ia=0
+    for nf in range(n_files):
+    # for nf in range(10):
+
+        filename_pickle = 'results/results.chain.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
+        try:
+            results_pickle = tabletools.loadPickle(filename_pickle)
+        except:
+            print 'missing %s' % results_pickle
+            continue
+
+        for ni in range(n_per_file):
+            
+            k = kde.gaussian_kde(results_pickle[ni]['flatchain'][0][:,0])
+            grid_DeltaSigma = np.linspace(0,1,200)
+            prob_DeltaSigma = k(grid_DeltaSigma)
+            logprob_DeltaSigma = np.log(prob_DeltaSigma)
+            list_DeltaSigma.append(logprob_DeltaSigma)
+            
+            print filename_pickle , ni , grid_DeltaSigma[prob_DeltaSigma.argmax()]
+
+            if ia % 300 == 0:
+
+                arr_list_DeltaSigma = np.array(list_DeltaSigma)
+                sum_log_DeltaSigma = np.sum(arr_list_DeltaSigma,axis=0)
+                prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)
+
+                pl.plot(grid_DeltaSigma , prod_DeltaSigma , label='using %d pairs' % ia)
+
+            ia += 1
+
+    pl.legend()
+    pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
+    pl.ylabel('likelihood')
+    filename_fig = 'figs/prod_DeltaSigma.shears_bcc_e.png'
+    pl.savefig(filename_fig)
+    log.info( 'saved %s' , filename_fig )
+    pl.show()
+
+  
+
+
+
+
    
 def main():
 
@@ -327,7 +384,8 @@ def main():
     # fit_single_halo()
     # fit_single_filament(save_plots=args.save_plots)
     # process_results()
-    analyse_stats_samples()
+    # analyse_stats_samples()
+    process_results()
 
 
 main()
