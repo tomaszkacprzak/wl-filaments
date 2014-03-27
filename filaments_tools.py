@@ -506,12 +506,9 @@ def stats_pairs(filename_pairs):
 # def remove_subhalos(vh1,vh2): 
 #     return select
 
-def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs='pairs_bcc.fits',n_unpaired=3000,range_Dxy=[6,18],Dlos=6):
+def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pairs_bcc.fits',n_unpaired=3000,range_Dxy=[6,18],Dlos=6):
 
-    pairs = tabletools.loadTable(filename_pairs)
-    halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
-    halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
-
+    pairs = tabletools.loadTable(filename_pairs_exclude)
     halos = tabletools.loadTable(filename_halos)
 
     select = np.array([ (  (x not in pairs['ih1']) * (x not in pairs['ih2']) ) for x in range(len(halos))])==1
