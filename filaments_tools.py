@@ -506,16 +506,19 @@ def stats_pairs(filename_pairs):
 # def remove_subhalos(vh1,vh2): 
 #     return select
 
-def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pairs_bcc.fits',n_unpaired=3000,range_Dxy=[6,18],Dlos=6):
+def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pairs_bcc.fits',range_Dxy=[6,18],Dlos=6):
 
     pairs = tabletools.loadTable(filename_pairs_exclude)
     halos = tabletools.loadTable(filename_halos)
 
-    select = np.array([ (  (x not in pairs['ih1']) * (x not in pairs['ih2']) ) for x in range(len(halos))])==1
-    unpaired_halos = halos[select]
-    logger.info('unpaired_halos %d all_halos %d using %d' , len(unpaired_halos) , len(halos) , n_unpaired )
-
-    unpaired_halos = unpaired_halos[ np.random.permutation(len(unpaired_halos))[:n_unpaired] ]
+    if config['mode'] == 'null1_unpaired':
+        select = np.array([ (  (x not in pairs['ih1']) * (x not in pairs['ih2']) ) for x in range(len(halos))])==1
+        unpaired_halos = halos[select]
+    elif config['mode'] == 'null1_all':
+        unpaired_halos = halos.copy()
+    
+    n_unpaired = len(unpaired_halos)
+    logger.info('running in mode %s n_usable_halos %d n_all_halos %d using %d' , config['mode'], len(unpaired_halos) , len(halos) , n_unpaired )
 
     ipair = np.arange(n_unpaired)
     ih1 = unpaired_halos['id']
@@ -538,7 +541,7 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pair
     vh2 = fake_halos
 
     halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(vh1['ra'],vh1['dec']) 
-    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(vh1['ra'],vh2['dec'])
+    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(vh2['ra'],vh2['dec'])
 
     d_xy  = (vh1['DA'] + vh2['DA'])/2. * cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)
     # true for flat universe

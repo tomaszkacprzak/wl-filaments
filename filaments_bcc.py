@@ -226,6 +226,7 @@ def main():
     # n_pairs = config['n_pairs']
     filename_halos=config['filename_halos']
     filename_pairs = config['filename_pairs']
+    filename_shears = config['filename_shears']
         
     # get_shear_files_catalog()
     
@@ -234,19 +235,16 @@ def main():
         select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
         filaments_tools.add_phys_dist(filename_halos=filename_halos)
         get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-        filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-        filaments_tools.boundary_mpc=config['boundary_mpc']
 
     elif config['mode'] == 'null1_unpaired':
 
         filename_pairs_exclude = config['filename_pairs_exclude']
         get_pairs_null1(filename_pairs_null1 = filename_pairs, filename_pairs = filename_pairs_exclude ,  filename_halos=filename_halos , range_Dxy=range_Dxy)
-        filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-        filaments_tools.boundary_mpc=config['boundary_mpc']
 
+    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    filaments_tools.boundary_mpc=config['boundary_mpc']
     
     logger.info('getting shear catalogs with shear columns %s %s' % (config['shear1_col'],config['shear2_col']))
-    filename_shears = config['filename_shears']
     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
     # filaments_tools.get_halo_map(filename_pairs_bcc_null1)
 
