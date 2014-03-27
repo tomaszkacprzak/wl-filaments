@@ -306,7 +306,11 @@ def process_results():
 
     list_DeltaSigma = []
 
-    ia=0
+    n_colors = 10
+    ic =0 
+    colors = plotstools.get_colorscale(n_colors)
+
+    ia=1
     for nf in range(n_files):
     # for nf in range(10):
 
@@ -320,20 +324,21 @@ def process_results():
         for ni in range(n_per_file):
             
             k = kde.gaussian_kde(results_pickle[ni]['flatchain'][0][:,0])
-            grid_DeltaSigma = np.linspace(0,1,200)
+            grid_DeltaSigma = np.linspace(0,0.2,200)
             prob_DeltaSigma = k(grid_DeltaSigma)
             logprob_DeltaSigma = np.log(prob_DeltaSigma)
             list_DeltaSigma.append(logprob_DeltaSigma)
             
-            print filename_pickle , ni , grid_DeltaSigma[prob_DeltaSigma.argmax()]
 
+            print filename_pickle , ni , grid_DeltaSigma[prob_DeltaSigma.argmax()]
             if ia % 300 == 0:
 
                 arr_list_DeltaSigma = np.array(list_DeltaSigma)
                 sum_log_DeltaSigma = np.sum(arr_list_DeltaSigma,axis=0)
                 prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)
 
-                pl.plot(grid_DeltaSigma , prod_DeltaSigma , label='using %d pairs' % ia)
+                pl.plot(grid_DeltaSigma , prod_DeltaSigma , label='using %d pairs' % ia , color=colors[ic])
+                ic+=1
 
             ia += 1
 

@@ -37,14 +37,6 @@ prob_z = None
 
 def fit_2hf(save_plots=False):
 
-    if args.first == -1: 
-        id_pair_first = 0 ; 
-    else: 
-        id_pair_first = args.first
-    
-    id_pair_last = args.first + args.num 
-
-    log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
     filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
@@ -54,6 +46,22 @@ def fit_2hf(save_plots=False):
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
+
+    if args.first == -1: 
+        id_pair_first = 0 ; 
+    else: 
+        id_pair_first = args.first
+    
+    id_pair_last = args.first + args.num 
+    n_pairs_available = len(pairs_table)
+
+    if id_pair_first > len(pairs_table):
+        raise Exception('id_pair_first=%d greater than number of pairs=%d' % (id_pair_first, len(pairs_table) ))
+
+    if id_pair_last > (n_pairs_available-1):
+        id_pair_last = n_pairs_available
+
+    log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
     filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
