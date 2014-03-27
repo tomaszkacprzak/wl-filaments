@@ -33,7 +33,7 @@ def get_halo_map(filename_pairs):
     table_pairs = tabletools.loadTable(filename_pairs)
     table_halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
     table_halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
-    table_halos = tabletools.loadTable('/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
+    table_halos = tabletools.loadTable(os.environ['HOME']+'/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
     # table_halo3 = table_halos[:10000]
 
 
@@ -528,7 +528,8 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs='pairs_bcc.fi
     fake_halos = unpaired_halos.copy()
 
 
-    dtheta = np.random.uniform(low=range_Dxy[0],high=range_Dxy[1]) / cosmology.get_ang_diam_dist(fake_halos['z']) 
+    dtheta = np.random.uniform(low=range_Dxy[0],high=range_Dxy[1],size=n_unpaired) / cosmology.get_ang_diam_dist(fake_halos['z']) 
+    dtheta = dtheta * 180. / np.pi
     dalpha = np.random.uniform(low=0,high=np.pi*2)
     dra = (dtheta * np.exp(dalpha*1j) ).real
     ddec = (dtheta * np.exp(dalpha*1j) ).imag
