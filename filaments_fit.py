@@ -103,16 +103,7 @@ def fit_2hf(save_plots=False):
             result_dict = {'id' : id_pair}
             tabletools.savePickle(filename_results_prob,prob_result,append=True)
             continue
-
-
-        true1_M200 = np.log10(halo1_table['m200'][id_pair])
-        true2_M200 = np.log10(halo2_table['m200'][id_pair])
-
-        halo1_conc = halo1_table['r200'][id_pair]/halo1_table['rs'][id_pair]*1000.
-        halo2_conc = halo2_table['r200'][id_pair]/halo2_table['rs'][id_pair]*1000.
-
-        log.info( 'M200=[ %1.2e , %1.2e ] , conc=[ %1.2f , %1.2f ]',halo1_table['m200'][id_pair] , halo2_table['m200'][id_pair] , halo1_conc , halo2_conc)
-        
+       
         sigma_g_add =  config['sigma_add']
 
         fitobj = filaments_model_2hf.modelfit()
