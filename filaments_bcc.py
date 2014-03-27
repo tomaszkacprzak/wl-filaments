@@ -1,7 +1,9 @@
+import os
 import matplotlib as mpl 
-mpl.use('agg')
+if 'DISPLAY' not in os.environ:
+    mpl.use('agg')
 print 'using backend %s' % mpl.get_backend()
-import os, yaml, argparse, sys, logging , time, pyfits , cosmology , tabletools
+import yaml, argparse, sys, logging , time, pyfits , cosmology , tabletools
 import numpy as np
 import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
@@ -33,6 +35,16 @@ shear2_col = 's2'
 def fix_case(arr):
 
     arr.dtype.names = [n.lower() for n in arr.dtype.names]
+
+def get_pairs_null1(filename_pairs_null1 = 'pairs_bcc_null1.fits', filename_pairs = 'pairs_bcc.fits', filename_halos='halos_bcc.fits',range_Dxy=[6,10]):
+
+    n_unpaired =config['pair_last'] - config['pair_first']
+    pairs_table, halos1, halos2 = filaments_tools.get_pairs_null1(range_Dxy=range_Dxy,Dlos=6,filename_halos=filename_halos,n_unpaired=n_unpaired)
+
+    tabletools.saveTable(filename_pairs_null1,pairs_table)   
+    tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos1.fits'), halos1)    
+    tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos2.fits'), halos2)    
+
 
 def get_pairs(filename_pairs = 'pairs_bcc.fits',filename_halos='halos_bcc.fits',range_Dxy=[6,10]):
 
@@ -209,6 +221,7 @@ def main():
     # n_pairs = config['n_pairs']
     filename_halos=config['filename_halos']
     filename_pairs = config['filename_pairs']
+    pairs_bcc_null1 = config['filename_pairs_bcc_null1']
     
     # get_shear_files_catalog()
     # select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
@@ -218,23 +231,29 @@ def main():
     # filaments_tools.boundary_mpc=config['boundary_mpc']
 
 
-    if config['create_ellip']:
-        logger.info('getting noisy shear catalogs')
-        filename_shears = config['filename_ells']
-        save_pairs_plots = config['save_pairs_plots'] 
-        config['save_pairs_plots'] = False # always no plots in ellipticity mode
-        global shear1_col , shear2_col 
-        shear1_col = 'e1'
-        shear2_col = 'e2'
-        filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+    # if config['create_ellip']:
+    #     logger.info('getting noisy shear catalogs')
+    #     filename_shears = config['filename_ells']
+    #     save_pairs_plots = config['save_pairs_plots'] 
+    #     config['save_pairs_plots'] = False # always no plots in ellipticity mode
+    #     global shear1_col , shear2_col 
+    #     shear1_col = 'e1'
+    #     shear2_col = 'e2'
+    #     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
 
-    logger.info('getting noiseless shear catalogs')
-    filename_shears = config['filename_shears']
-    config['save_pairs_plots'] = save_pairs_plots 
-    global shear1_col , shear2_col 
-    shear1_col = 's1'
-    shear2_col = 's2'
-    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+    # logger.info('getting noiseless shear catalogs')
+    # filename_shears = config['filename_shears']
+    # config['save_pairs_plots'] = save_pairs_plots 
+    # global shear1_col , shear2_col 
+    # shear1_col = 's1'
+    # shear2_col = 's2'
+    # filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+
+    # filaments_tools.get_halo_map(filename_pairs)
+    filename_shears = config['filename_shears_null1']
+    get_pairs_null1(filename_pairs_null1 = pairs_bcc_null1, filename_pairs = filename_pairs ,  filename_halos=filename_halos , range_Dxy=[6,10])
+    filaments_tools.get_shears_for_pairs(filename_pairs=pairs_bcc_null1, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 

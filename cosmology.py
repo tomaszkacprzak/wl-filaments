@@ -73,7 +73,7 @@ def get_ang_diam_dist(z1, z2=0.):
     @return in Mpc
     """
     if (type(z1) is np.ndarray) and (type(z2) is np.ndarray):
-        select1 = z1>z2 
+        select1 = z1>=z2 
         select2 = z1<z2 
         new_z1 = z1 * select1 + z2 * select2
         new_z2 = z2 * select1 + z1 * select2

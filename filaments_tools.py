@@ -28,6 +28,63 @@ logger.propagate = False
 
 config = {}
 
+def get_halo_map(filename_pairs):
+
+    table_pairs = tabletools.loadTable(filename_pairs)
+    table_halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
+    table_halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
+    table_halos = tabletools.loadTable('/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
+    # table_halo3 = table_halos[:10000]
+
+
+    import numpy as np
+    select = table_halos['M200'] > 1e12
+    table_halo3 = table_halos[select]
+    table_halo3 = table_halo3[np.random.permutation(len(table_halo3))[:10000]]
+    print(len(table_halo3))
+
+    # ra1 , dec1 = cosmology.deg_to_rad( table_pairs['ra1'] , table_pairs['dec1'] )
+    # ra2 , dec2 = cosmology.deg_to_rad( table_pairs['ra2'] , table_pairs['dec2'] )
+    ra1 , dec1 = table_pairs['ra1'] , table_pairs['dec1'] 
+    ra2 , dec2 = table_pairs['ra2'] , table_pairs['dec2'] 
+    ra3 , dec3 = table_halo3['RA']  , table_halo3['DEC'] 
+
+
+    from mpl_toolkits.basemap import Basemap
+    import numpy as np
+    # import matplotlib.pyplot as plt
+    m = Basemap(projection='ortho',lat_0=-35,lon_0=-10,resolution='c')
+    m.drawparallels(np.arange(-90.,120.,30.))
+    m.drawmeridians(np.arange(0.,420.,60.))
+    m.drawmapboundary()
+
+
+
+    lats = dec1
+    lons = ra1
+    x1,y1 = m(ra1,dec1)
+    x2,y2 = m(ra2,dec2)
+    x3,y3 = m(ra3,dec3)
+
+    def mass(x):
+        ll  = np.log10(x)
+        ll[ll==-np.inf] = 0
+        # return (ll - min(ll) )/ max(ll) * 50. + 10
+        return ll , (ll - min(ll)) * 100. + 10
+
+    print max(table_halos['Z']) , min(table_halos['Z'])
+    m.scatter(x1,y1, mass(table_halo1['m200'])[1] , table_halo1['z'] , marker = 'o') #
+    m.scatter(x2,y2, mass(table_halo2['m200'])[1] , table_halo2['z'] , marker = 'o') #
+    m.scatter(x3,y3, mass(table_halo3['M200'])[1] , table_halo3['Z'] , marker = 'o') #
+    for i in range(len(table_pairs)):
+        m.plot([x1[i],x2[i]],[y1[i],y2[i]])
+
+    pl.colorbar()
+    pl.show()
+
+
+
+
 def get_galaxy_density(shear_ra_deg,shear_de_deg):
 
     shear_ra_arcmin , shear_de_arcmin = cosmology.deg_to_arcmin(shear_ra_deg , shear_de_deg)
@@ -448,6 +505,70 @@ def stats_pairs(filename_pairs):
 
 # def remove_subhalos(vh1,vh2): 
 #     return select
+
+def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs='pairs_bcc.fits',n_unpaired=3000,range_Dxy=[6,18],Dlos=6):
+
+    pairs = tabletools.loadTable(filename_pairs)
+    halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
+    halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
+
+    halos = tabletools.loadTable(filename_halos)
+
+    select = np.array([ (  (x not in pairs['ih1']) * (x not in pairs['ih2']) ) for x in range(len(halos))])==1
+    unpaired_halos = halos[select]
+    logger.info('unpaired_halos %d all_halos %d using %d' , len(unpaired_halos) , len(halos) , n_unpaired )
+
+    unpaired_halos = unpaired_halos[ np.random.permutation(len(unpaired_halos))[:n_unpaired] ]
+
+    ipair = np.arange(n_unpaired)
+    ih1 = unpaired_halos['id']
+    ih2 = np.ones(n_unpaired)*1000
+    n_gal = np.zeros(n_unpaired)
+
+    fake_halos = unpaired_halos.copy()
+
+
+    dtheta = np.random.uniform(low=range_Dxy[0],high=range_Dxy[1]) / cosmology.get_ang_diam_dist(fake_halos['z']) 
+    dalpha = np.random.uniform(low=0,high=np.pi*2)
+    dra = (dtheta * np.exp(dalpha*1j) ).real
+    ddec = (dtheta * np.exp(dalpha*1j) ).imag
+
+    fake_halos['ra'] = fake_halos['ra'] + dra
+    fake_halos['dec'] = fake_halos['dec'] + ddec
+
+    vh1 = unpaired_halos
+    vh2 = fake_halos
+
+    halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(vh1['ra'],vh1['dec']) 
+    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(vh1['ra'],vh2['dec'])
+
+    d_xy  = (vh1['DA'] + vh2['DA'])/2. * cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)
+    # true for flat universe
+    # d_los = np.abs(vh1['DA'] - vh2['DA'])
+    d_los = cosmology.get_ang_diam_dist( vh1['z'] , vh2['z'] )
+    DA = d_xy
+
+    ra_mid = (vh1['ra'] + vh2['ra'])/2.
+    dec_mid = (vh1['dec'] + vh2['dec'])/2.
+    z = (vh1['z'] + vh2['z'])/2.
+    R_pair = d_xy
+    drloss = d_los
+    dz=  np.abs(vh1['z'] - vh2['z'])
+    n_gal = dz*0 
+
+
+    row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
+            DA[:,None],d_los[:,None],d_xy[:,None],
+            ra_mid[:,None],dec_mid[:,None],z[:,None],
+            vh1['ra'][:,None],vh1['dec'][:,None],vh2['ra'][:,None],vh2['dec'][:,None],
+            ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0, # these fields will be filled in later
+            R_pair[:,None],drloss[:,None],dz[:,None]]
+    pairs_table = np.concatenate(row,axis=1)
+    pairs_table = tabletools.array2recarray(pairs_table,dtype_pairs)
+    
+    return (pairs_table, vh1, vh2)
+
+    
 
 def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
 
