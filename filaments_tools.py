@@ -33,21 +33,21 @@ def get_halo_map(filename_pairs):
     table_pairs = tabletools.loadTable(filename_pairs)
     table_halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
     table_halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
-    table_halos = tabletools.loadTable('/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
+    # table_halos = tabletools.loadTable('/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
     # table_halo3 = table_halos[:10000]
 
 
-    import numpy as np
-    select = table_halos['M200'] > 1e12
-    table_halo3 = table_halos[select]
-    table_halo3 = table_halo3[np.random.permutation(len(table_halo3))[:10000]]
-    print(len(table_halo3))
+    # import numpy as np
+    # select = table_halos['M200'] > 1e12
+    # table_halo3 = table_halos[select]
+    # table_halo3 = table_halo3[np.random.permutation(len(table_halo3))[:10000]]
+    # print(len(table_halo3))
 
     # ra1 , dec1 = cosmology.deg_to_rad( table_pairs['ra1'] , table_pairs['dec1'] )
     # ra2 , dec2 = cosmology.deg_to_rad( table_pairs['ra2'] , table_pairs['dec2'] )
     ra1 , dec1 = table_pairs['ra1'] , table_pairs['dec1'] 
     ra2 , dec2 = table_pairs['ra2'] , table_pairs['dec2'] 
-    ra3 , dec3 = table_halo3['RA']  , table_halo3['DEC'] 
+    # ra3 , dec3 = table_halo3['RA']  , table_halo3['DEC'] 
 
 
     from mpl_toolkits.basemap import Basemap
@@ -64,7 +64,7 @@ def get_halo_map(filename_pairs):
     lons = ra1
     x1,y1 = m(ra1,dec1)
     x2,y2 = m(ra2,dec2)
-    x3,y3 = m(ra3,dec3)
+    # x3,y3 = m(ra3,dec3)
 
     def mass(x):
         ll  = np.log10(x)
@@ -72,11 +72,16 @@ def get_halo_map(filename_pairs):
         # return (ll - min(ll) )/ max(ll) * 50. + 10
         return ll , (ll - min(ll)) * 100. + 10
 
-    print max(table_halos['Z']) , min(table_halos['Z'])
-    m.scatter(x1,y1, mass(table_halo1['m200'])[1] , table_halo1['z'] , marker = 'o') #
-    m.scatter(x2,y2, mass(table_halo2['m200'])[1] , table_halo2['z'] , marker = 'o') #
-    m.scatter(x3,y3, mass(table_halo3['M200'])[1] , table_halo3['Z'] , marker = 'o') #
+    # print max(table_halos['Z']) , min(table_halos['Z'])
+    # m.scatter(x1,y1, mass(table_halo1['m200'])[1] , table_halo1['z'] , marker = 'o') #
+    # m.scatter(x2,y2, mass(table_halo2['m200'])[1] , table_halo2['z'] , marker = 'o') #
+    # m.scatter(x3,y3, mass(table_halo3['M200'])[1] , table_halo3['Z'] , marker = 'o') #
+
+    m.scatter(x1,y1, table_halo1['snr']*50 , table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+    m.scatter(x2,y2, table_halo2['snr']*50 , table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+
     for i in range(len(table_pairs)):
+        # m.scatter([x1[i],x2[i]],[y1[i],y2[i]] , c=table_halo2['z'][i] , cmap=pl.matplotlib.cm.jet)
         m.plot([x1[i],x2[i]],[y1[i],y2[i]])
 
     pl.colorbar()

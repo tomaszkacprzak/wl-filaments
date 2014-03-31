@@ -61,6 +61,12 @@ def fit_2hf(save_plots=False):
     if id_pair_last > (n_pairs_available-1):
         id_pair_last = n_pairs_available
 
+
+    if config['mode']=='selftest':
+        id_pair_first = args.first
+        id_pair_last = args.first + args.num 
+
+
     log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
@@ -93,7 +99,12 @@ def fit_2hf(save_plots=False):
     for id_pair in range(id_pair_first,id_pair_last):
 
         # now we use that
-        shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+        if config['mode']=='selftest':
+            shears_info = tabletools.loadTable(filename_shears,hdu=1)
+            log.info('selftest mode - using HDU=1 and adding noise')
+        else:
+            shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+
 
         log.info('--------- pair %d with %d shears --------' , id_pair , len(shears_info)) 
 
@@ -122,7 +133,7 @@ def fit_2hf(save_plots=False):
             fitobj.sigma_g =  np.std(fitobj.shear_g2,ddof=1)
             fitobj.sigma_ell = fitobj.sigma_g
             fitobj.inv_sq_sigma_g = 1./fitobj.sigma_g**2
-            log.info('using sigma_g=%2.5f' , fitobj.sigma_g)
+            log.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
         elif config['sigma_method'] == 'orig':
             fitobj.shear_n_gals = shears_info['n_gals']
             fitobj.set_shear_sigma()
@@ -448,7 +459,6 @@ def main():
     log.setLevel(logging_level)
 
     global config 
-
     config = yaml.load(open(args.filename_config))
     filaments_tools.config = config
 
