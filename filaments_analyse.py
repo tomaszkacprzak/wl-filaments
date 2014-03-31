@@ -8,6 +8,7 @@ print 'using matplotlib backend' , pl.get_backend()
 # from matplotlib import figure;
 pl.rcParams['image.interpolation'] = 'nearest' ; 
 import scipy.interpolate as interp
+from pyqt_fit import kde
 from sklearn.neighbors import BallTree as BallTree
 import cPickle as pickle
 import filaments_model_1h
@@ -303,18 +304,20 @@ def process_results():
     n_files = args.n_results_files
     log.info('n_files=%d',n_files)
 
-    from scipy.stats import kde
-
     list_DeltaSigma = []
 
     n_colors = 10
     ic =0 
-    grid_DeltaSigma = np.linspace(0,1,100)
-    grid_radius = np.linspace(0,10,100)
+    grid_DeltaSigma_edges = np.linspace(0,1,500)
+    grid_DeltaSigma_centers = plotstools.get_bins_centers(grid_DeltaSigma_edges)
+    grid_radius_edges = np.linspace(0,10,500)
+    grid_radius_centers = plotstools.get_bins_centers(grid_radius_edges)
     # select_low_range = grid_DeltaSigma[grid_DeltaSigma<0.1]
     # grid_DeltaSigma_lowrange=grid_DeltaSigma[select_low_range]
     list_ids = []
 
+    kde_bandwidth = 0.1
+    log.info('using kde_bandwidth=%f' % kde_bandwidth)
     ia=0
     for nf in range(n_files):
     # for nf in range(2):
@@ -330,28 +333,35 @@ def process_results():
 
         for ni in range(n_per_file):
             
-            # k = kde.gaussian_kde(results_pickle[ni]['flatchain'][0][:,0])
-            # prob_DeltaSigma = k(grid_DeltaSigma)
-            prob_DeltaSigma , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,0], bins=plotstools.get_bins_edges(grid_DeltaSigma),normed=True)
-            prob_DeltaSigma /= np.sum(prob_DeltaSigma)
+            chain = results_pickle[ni]['flatchain'][0][:,0]
+            est_ren = kde.KDE1D(chain, lower=0 , method='linear_combination')
+            
+            # kde.set_bandwidth(kde_bandwidth)
+            prob_DeltaSigma_kde = est_ren(grid_DeltaSigma_centers)
+            prob_DeltaSigma_hist , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,0], bins=grid_DeltaSigma_edges,normed=True)
+            # print est_ren.bandwidth , np.sum(prob_DeltaSigma_kde)
+            prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
+            prob_DeltaSigma_hist /= np.sum(prob_DeltaSigma_hist)
 
-            prob_radius , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,1], bins=plotstools.get_bins_edges(grid_radius),normed=True)
-            prob_radius /= np.sum(prob_radius)
+            # prob_radius , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,1], bins=grid_radius_edges,normed=True)
+            # prob_radius /= np.sum(prob_radius)
 
-            pl.subplot(1,2,1)
-            pl.plot(grid_radius,prob_radius)
-            pl.subplot(1,2,2)
-            pl.plot(grid_DeltaSigma,prob_DeltaSigma)
-            pl.show()
+            # pl.subplot(1,2,1)
+            # pl.plot(grid_radius_centers,prob_radius)
+            # pl.subplot(1,2,2)
+            # pl.figure()
+            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_hist,'bo-')
+            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_kde,'rx-')
+            # pl.show()
 
-            logprob_DeltaSigma = np.log(prob_DeltaSigma)
+            logprob_DeltaSigma = np.log(prob_DeltaSigma_kde)
             list_DeltaSigma.append(logprob_DeltaSigma)
             list_ids.append(ia)
             ia+=1
 
     arr_list_DeltaSigma = np.array(list_DeltaSigma)
     filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
-    tabletools.savePickle(filename_DeltaSigma, { 'logpdf_DeltaSigma' : arr_list_DeltaSigma , 'ids' : list_ids ,  'grid_DeltaSigma' : grid_DeltaSigma } )    
+    tabletools.savePickle(filename_DeltaSigma, { 'logpdf_DeltaSigma' : arr_list_DeltaSigma , 'ids' : list_ids ,  'grid_DeltaSigma' : grid_DeltaSigma_centers } )    
             
 
 def plot_prob_product():
@@ -366,23 +376,30 @@ def plot_prob_product():
     # for il in range(logpdf_DeltaSigma.shape[0]):
     #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
-    n_step = 1000    
+    n_step = 1000
     n_pairs = logpdf_DeltaSigma.shape[0]
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
     ic=0
     for ia in range(n_pairs):
-        if ia % n_step == 0:
+        pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
+        pl.show()
+    # for ia in range(10):
+        if (ia+1) % n_step == 0:
+            print ia+1
 
             # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)
             sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia,:],axis=0)
             prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)
 
-            pl.plot(grid_DeltaSigma , prod_DeltaSigma , label='using %d pairs' % ia , color=colors[ic])
+            pl.plot(grid_DeltaSigma , prod_DeltaSigma , 'x-', label='using %d pairs' % ia , color=colors[ic])
             ic+=1
 
     pl.legend()
+    pl.xlim([0,0.1])
+    pl.axvline(0,0,1)
+    pl.axvline(0.05,0,1)
     pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
     pl.ylabel('likelihood')
     filename_fig = 'figs/prod_DeltaSigma.%s.png' % name_data
@@ -433,6 +450,6 @@ def main():
     # process_results()
     # analyse_stats_samples()
     process_results()
-    plot_prob_product()
+    # plot_prob_product()
 
 main()
