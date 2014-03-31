@@ -17,6 +17,7 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
+from pyqt_fit import kde
 
 
 log = logging.getLogger("filam..fit") 
@@ -179,23 +180,26 @@ def fit_2hf(save_plots=False):
             params = fitobj.sampler.flatchain
 
             n_grid = fitobj.n_grid                      
-            list_params_marg = [None]*fitobj.n_dim
-            list_params_marg[0] = np.linspace(fitobj.parameters[0]['box']['min'],fitobj.parameters[0]['box']['max'],n_grid)
-            list_params_marg[1] = np.linspace(fitobj.parameters[1]['box']['min'],fitobj.parameters[1]['box']['max'],n_grid)
-            list_params_marg[2] = np.linspace(fitobj.parameters[2]['box']['min'],fitobj.parameters[2]['box']['max'],n_grid)
-            list_params_marg[3] = np.linspace(fitobj.parameters[3]['box']['min'],fitobj.parameters[3]['box']['max'],n_grid)
-            grids = list_params_marg
 
             list_prob_marg = []
+            list_params_marg = []
             for di in range(fitobj.n_dim):
 
-                bins = plotstools.get_bins_edges(list_params_marg[di])
-                marg_prob , _ =np.histogram(fitobj.sampler.flatchain[:,di] , bins = bins , normed=True)
-                marg_prob = marg_prob / sum(marg_prob)
+                list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
+
+                chain = fitobj.sampler.flatchain[:,di]
+                kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
+                marg_prob = kde_est(list_params_marg[di])
+                # marg_prob , _ =np.histogram(fitobj.sampler.flatchain[:,di] , bins = bins , normed=True)
+                # marg_prob = marg_prob / sum(marg_prob)
                 list_prob_marg.append(marg_prob)
-            #     pl.figure()
-            #     pl.plot(list_params_marg[di] , list_prob_marg[di])
-            # pl.show()
+
+                pl.figure()
+                pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
+                pl.xlabel(str(di))
+                pl.show()
+
+            grids = list_params_marg
 
             vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_samples_max(log_post,params)
             chain_result = {}
