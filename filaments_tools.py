@@ -33,7 +33,7 @@ def get_halo_map(filename_pairs):
     table_pairs = tabletools.loadTable(filename_pairs)
     table_halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
     table_halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
-    # table_halos = tabletools.loadTable('/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
+    table_halos = tabletools.loadTable(os.environ['HOME']+'/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
     # table_halo3 = table_halos[:10000]
 
 
@@ -511,19 +511,19 @@ def stats_pairs(filename_pairs):
 # def remove_subhalos(vh1,vh2): 
 #     return select
 
-def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs='pairs_bcc.fits',n_unpaired=3000,range_Dxy=[6,18],Dlos=6):
+def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pairs_bcc.fits',range_Dxy=[6,18],Dlos=6):
 
-    pairs = tabletools.loadTable(filename_pairs)
-    halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
-    halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
-
+    pairs = tabletools.loadTable(filename_pairs_exclude)
     halos = tabletools.loadTable(filename_halos)
 
-    select = np.array([ (  (x not in pairs['ih1']) * (x not in pairs['ih2']) ) for x in range(len(halos))])==1
-    unpaired_halos = halos[select]
-    logger.info('unpaired_halos %d all_halos %d using %d' , len(unpaired_halos) , len(halos) , n_unpaired )
-
-    unpaired_halos = unpaired_halos[ np.random.permutation(len(unpaired_halos))[:n_unpaired] ]
+    if config['mode'] == 'null1_unpaired':
+        select = np.array([ (  (x not in pairs['ih1']) * (x not in pairs['ih2']) ) for x in range(len(halos))])==1
+        unpaired_halos = halos[select]
+    elif config['mode'] == 'null1_all':
+        unpaired_halos = halos.copy()
+    
+    n_unpaired = len(unpaired_halos)
+    logger.info('running in mode %s n_usable_halos %d n_all_halos %d using %d' , config['mode'], len(unpaired_halos) , len(halos) , n_unpaired )
 
     ipair = np.arange(n_unpaired)
     ih1 = unpaired_halos['id']
@@ -533,7 +533,8 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs='pairs_bcc.fi
     fake_halos = unpaired_halos.copy()
 
 
-    dtheta = np.random.uniform(low=range_Dxy[0],high=range_Dxy[1]) / cosmology.get_ang_diam_dist(fake_halos['z']) 
+    dtheta = np.random.uniform(low=range_Dxy[0],high=range_Dxy[1],size=n_unpaired) / cosmology.get_ang_diam_dist(fake_halos['z']) 
+    dtheta = dtheta * 180. / np.pi
     dalpha = np.random.uniform(low=0,high=np.pi*2)
     dra = (dtheta * np.exp(dalpha*1j) ).real
     ddec = (dtheta * np.exp(dalpha*1j) ).imag
@@ -545,7 +546,7 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs='pairs_bcc.fi
     vh2 = fake_halos
 
     halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(vh1['ra'],vh1['dec']) 
-    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(vh1['ra'],vh2['dec'])
+    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(vh2['ra'],vh2['dec'])
 
     d_xy  = (vh1['DA'] + vh2['DA'])/2. * cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)
     # true for flat universe

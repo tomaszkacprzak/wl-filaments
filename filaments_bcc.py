@@ -29,9 +29,6 @@ dtype_shearbase = { 'names' : ['id','n_gals', 'file','x','y','z'] , 'formats' : 
 dirname_data = os.getenv("HOME") + '/data/'
 filename_shearbase = 'shear_base.txt'
 
-shear1_col = 's1'
-shear2_col = 's2'
-
 def fix_case(arr):
 
     arr.dtype.names = [n.lower() for n in arr.dtype.names]
@@ -44,6 +41,11 @@ def get_pairs_null1(filename_pairs_null1 = 'pairs_bcc_null1.fits', filename_pair
     tabletools.saveTable(filename_pairs_null1,pairs_table)   
     tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos1.fits'), halos1)    
     tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos2.fits'), halos2)    
+
+    # import pylab as pl
+    # pl.scatter(pairs_table['ra1'] , pairs_table['dec1'])
+    # pl.scatter(pairs_table['ra2'] , pairs_table['dec2'])
+    # pl.show()
 
 
 def get_pairs(filename_pairs = 'pairs_bcc.fits',filename_halos='halos_bcc.fits',range_Dxy=[6,10]):
@@ -63,7 +65,7 @@ def select_halos(range_z=[0.1,0.6],range_M=[1e14,1e16],filename_halos='halos_bcc
 
     big_catalog = []
     for filename in files['file'][:n_bcc_halo_files]:
-        filename_aardvark_halos = '%s/BCC/bcc_a1.0b/aardvark_v1.0/halos/halos/%s' % (dirname_data,filename)
+        filename_aardvark_halos = '%s/BCC/bcc_a1.0b/aardvark_v1.0/halos/%s' % (dirname_data,filename)
         halocat = pyfits.getdata(filename_aardvark_halos)
         logger.info('%s total number of halos %d' % (filename,len(halocat)))
 
@@ -124,7 +126,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
         shear_base = tabletools.loadTable(filename_shearbase,dtype=dtype_shearbase)
        
-        # redshift_offset = 0.2
+        redshift_offset = 0.2
         # pair_dra = np.abs(halo1['ra'] - halo2['ra'])
         # pair_ddec = np.abs(halo1['dec'] - halo2['dec'])
 
@@ -161,6 +163,9 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
             list_set.append(lenscat)
             logger.debug('opened %s with %d gals mean_ra=%2.2f, mean_de=%2.2f' % (vset,len(lenscat),np.mean(lenscat['ra']),np.mean(lenscat['dec'])))
+
+        shear1_col = config['shear1_col']
+        shear2_col = config['shear2_col']
 
         lenscat_all = np.concatenate(list_set)
         shear_g1 , shear_g2 = -lenscat_all[shear1_col] , lenscat_all[shear2_col] 
@@ -221,39 +226,27 @@ def main():
     # n_pairs = config['n_pairs']
     filename_halos=config['filename_halos']
     filename_pairs = config['filename_pairs']
-    pairs_bcc_null1 = config['filename_pairs_bcc_null1']
-    
+    filename_shears = config['filename_shears']
+        
     # get_shear_files_catalog()
-    # select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
-    # filaments_tools.add_phys_dist(filename_halos=filename_halos)
-    # get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-    # filaments_tools.stats_pairs(filename_pairs=filename_pairs)
-    # filaments_tools.boundary_mpc=config['boundary_mpc']
+    
+    if config['mode'] == 'pairs':
 
+        select_halos(filename_halos=filename_halos,range_M=range_M,n_bcc_halo_files=config['n_bcc_halo_files'])
+        filaments_tools.add_phys_dist(filename_halos=filename_halos)
+        get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 
-    # if config['create_ellip']:
-    #     logger.info('getting noisy shear catalogs')
-    #     filename_shears = config['filename_ells']
-    #     save_pairs_plots = config['save_pairs_plots'] 
-    #     config['save_pairs_plots'] = False # always no plots in ellipticity mode
-    #     global shear1_col , shear2_col 
-    #     shear1_col = 'e1'
-    #     shear2_col = 'e2'
-    #     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+    elif config['mode'] == 'null1_unpaired':
 
-    # logger.info('getting noiseless shear catalogs')
-    # filename_shears = config['filename_shears']
-    # config['save_pairs_plots'] = save_pairs_plots 
-    # global shear1_col , shear2_col 
-    # shear1_col = 's1'
-    # shear2_col = 's2'
-    # filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+        filename_pairs_exclude = config['filename_pairs_exclude']
+        get_pairs_null1(filename_pairs_null1 = filename_pairs, filename_pairs = filename_pairs_exclude ,  filename_halos=filename_halos , range_Dxy=range_Dxy)
 
-    # filaments_tools.get_halo_map(filename_pairs)
-    filename_shears = config['filename_shears_null1']
-    get_pairs_null1(filename_pairs_null1 = pairs_bcc_null1, filename_pairs = filename_pairs ,  filename_halos=filename_halos , range_Dxy=[6,10])
-    filaments_tools.get_shears_for_pairs(filename_pairs=pairs_bcc_null1, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
-
+    filaments_tools.stats_pairs(filename_pairs=filename_pairs)
+    filaments_tools.boundary_mpc=config['boundary_mpc']
+    
+    logger.info('getting shear catalogs with shear columns %s %s' % (config['shear1_col'],config['shear2_col']))
+    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+    # filaments_tools.get_halo_map(filename_pairs_bcc_null1)
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
