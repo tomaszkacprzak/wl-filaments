@@ -8,6 +8,7 @@ print 'using matplotlib backend' , pl.get_backend()
 # from matplotlib import figure;
 pl.rcParams['image.interpolation'] = 'nearest' ; 
 import scipy.interpolate as interp
+from pyqt_fit import kde
 from sklearn.neighbors import BallTree as BallTree
 import cPickle as pickle
 import filaments_model_1h
@@ -295,57 +296,113 @@ def analyse_stats_samples():
 
 def process_results():
 
-    name_data = 'shears_bcc_e'
+    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
     filename_results_cat = 'results.stats.%s.cat' % name_data
     stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
 
-    n_files = 300
     n_per_file = 10
-
-    from scipy.stats import kde
+    n_files = args.n_results_files
+    log.info('n_files=%d',n_files)
 
     list_DeltaSigma = []
 
     n_colors = 10
     ic =0 
-    colors = plotstools.get_colorscale(n_colors)
+    grid_DeltaSigma_edges = np.linspace(0,1,500)
+    grid_DeltaSigma_centers = plotstools.get_bins_centers(grid_DeltaSigma_edges)
+    grid_radius_edges = np.linspace(0,10,500)
+    grid_radius_centers = plotstools.get_bins_centers(grid_radius_edges)
+    # select_low_range = grid_DeltaSigma[grid_DeltaSigma<0.1]
+    # grid_DeltaSigma_lowrange=grid_DeltaSigma[select_low_range]
+    list_ids = []
 
-    ia=1
+    kde_bandwidth = 0.1
+    log.info('using kde_bandwidth=%f' % kde_bandwidth)
+    ia=0
     for nf in range(n_files):
-    # for nf in range(10):
+    # for nf in range(2):
 
         filename_pickle = 'results/results.chain.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
         try:
             results_pickle = tabletools.loadPickle(filename_pickle)
+            log.info('%4d %s' , nf , filename_pickle)
         except:
-            print 'missing %s' % results_pickle
+            log.info('missing %s' % filename_pickle)
+            ia+=1
             continue
 
         for ni in range(n_per_file):
             
-            k = kde.gaussian_kde(results_pickle[ni]['flatchain'][0][:,0])
-            grid_DeltaSigma = np.linspace(0,0.2,200)
-            prob_DeltaSigma = k(grid_DeltaSigma)
-            logprob_DeltaSigma = np.log(prob_DeltaSigma)
+            chain = results_pickle[ni]['flatchain'][0][:,0]
+            est_ren = kde.KDE1D(chain, lower=0 , method='linear_combination')
+            
+            # kde.set_bandwidth(kde_bandwidth)
+            prob_DeltaSigma_kde = est_ren(grid_DeltaSigma_centers)
+            prob_DeltaSigma_hist , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,0], bins=grid_DeltaSigma_edges,normed=True)
+            # print est_ren.bandwidth , np.sum(prob_DeltaSigma_kde)
+            prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
+            prob_DeltaSigma_hist /= np.sum(prob_DeltaSigma_hist)
+
+            # prob_radius , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,1], bins=grid_radius_edges,normed=True)
+            # prob_radius /= np.sum(prob_radius)
+
+            # pl.subplot(1,2,1)
+            # pl.plot(grid_radius_centers,prob_radius)
+            # pl.subplot(1,2,2)
+            # pl.figure()
+            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_hist,'bo-')
+            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_kde,'rx-')
+            # pl.show()
+
+            logprob_DeltaSigma = np.log(prob_DeltaSigma_kde)
             list_DeltaSigma.append(logprob_DeltaSigma)
+            list_ids.append(ia)
+            ia+=1
+
+    arr_list_DeltaSigma = np.array(list_DeltaSigma)
+    filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
+    tabletools.savePickle(filename_DeltaSigma, { 'logpdf_DeltaSigma' : arr_list_DeltaSigma , 'ids' : list_ids ,  'grid_DeltaSigma' : grid_DeltaSigma_centers } )    
             
 
-            print filename_pickle , ni , grid_DeltaSigma[prob_DeltaSigma.argmax()]
-            if ia % 300 == 0:
+def plot_prob_product():
 
-                arr_list_DeltaSigma = np.array(list_DeltaSigma)
-                sum_log_DeltaSigma = np.sum(arr_list_DeltaSigma,axis=0)
-                prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)
+    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+    filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
+    dict_DeltaSigma = tabletools.loadPickle(filename_DeltaSigma)
+    logpdf_DeltaSigma = dict_DeltaSigma['logpdf_DeltaSigma'] 
+    grid_DeltaSigma   = dict_DeltaSigma['grid_DeltaSigma']
 
-                pl.plot(grid_DeltaSigma , prod_DeltaSigma , label='using %d pairs' % ia , color=colors[ic])
-                ic+=1
+    # 'normalising'
+    # for il in range(logpdf_DeltaSigma.shape[0]):
+    #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
-            ia += 1
+    n_step = 1000
+    n_pairs = logpdf_DeltaSigma.shape[0]
+    n_colors = n_pairs/n_step+1
+    colors = plotstools.get_colorscale(n_colors)
+
+    ic=0
+    for ia in range(n_pairs):
+        pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
+        pl.show()
+    # for ia in range(10):
+        if (ia+1) % n_step == 0:
+            print ia+1
+
+            # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)
+            sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia,:],axis=0)
+            prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)
+
+            pl.plot(grid_DeltaSigma , prod_DeltaSigma , 'x-', label='using %d pairs' % ia , color=colors[ic])
+            ic+=1
 
     pl.legend()
+    pl.xlim([0,0.1])
+    pl.axvline(0,0,1)
+    pl.axvline(0.05,0,1)
     pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
     pl.ylabel('likelihood')
-    filename_fig = 'figs/prod_DeltaSigma.shears_bcc_e.png'
+    filename_fig = 'figs/prod_DeltaSigma.%s.png' % name_data
     pl.savefig(filename_fig)
     log.info( 'saved %s' , filename_fig )
     pl.show()
@@ -362,9 +419,8 @@ def main():
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
-    # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
-    parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
-    parser.add_argument('-n', '--num', default=-1,type=int, action='store', help='number of pairs to process')
+    parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
+    parser.add_argument('-n', '--n_results_files', default=-1,type=int, action='store', help='number of results files to use')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
@@ -383,6 +439,9 @@ def main():
     filaments_model_1f.log = log
     # plotstools.log = log
 
+    global config 
+    config = yaml.load(open(args.filename_config))
+   
     # grid_search(pair_info,shears_info)
     # test_model(shears_info,pair_info)
 
@@ -391,6 +450,6 @@ def main():
     # process_results()
     # analyse_stats_samples()
     process_results()
-
+    # plot_prob_product()
 
 main()

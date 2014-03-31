@@ -86,6 +86,24 @@ def get_pairs_null1(filename_pairs_null1 = 'pairs_cfhtlens_null1.fits', filename
     # pl.show()
 
 
+def get_pairs_null1(filename_pairs_null1 = 'pairs_cfhtlens_null1.fits', filename_pairs = 'pairs_cfhtlens.fits', filename_halos='halos_cfhtlens.fits',range_Dxy=[6,10]):
+
+    if config['pair_last'] == -1:
+        n_unpaired = -1
+    else:    
+        n_unpaired =config['pair_last'] - config['pair_first']
+
+
+    pairs_table, halos1, halos2 = filaments_tools.get_pairs_null1(range_Dxy=range_Dxy,Dlos=6,filename_halos=filename_halos,n_unpaired=n_unpaired)
+
+    tabletools.saveTable(filename_pairs_null1,pairs_table)   
+    tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos1.fits'), halos1)    
+    tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos2.fits'), halos2)    
+
+    # import pylab as pl
+    # pl.scatter(pairs_table['ra1'] , pairs_table['dec1'])
+    # pl.scatter(pairs_table['ra2'] , pairs_table['dec2'])
+    # pl.show()
 
 def get_pairs(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtlens.fits',range_Dxy=[6,10]):
 

@@ -72,11 +72,17 @@ def get_halo_map(filename_pairs):
         # return (ll - min(ll) )/ max(ll) * 50. + 10
         return ll , (ll - min(ll)) * 100. + 10
 
+
     print max(table_halos['Z']) , min(table_halos['Z'])
     m.scatter(x1,y1, mass(table_halo1['m200'])[1] , table_halo1['z'] , marker = 'o') #
     m.scatter(x2,y2, mass(table_halo2['m200'])[1] , table_halo2['z'] , marker = 'o') #
     # m.scatter(x3,y3, mass(table_halo3['M200'])[1] , table_halo3['Z'] , marker = 'o') #
+
+    m.scatter(x1,y1, table_halo1['snr']*50 , table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+    m.scatter(x2,y2, table_halo2['snr']*50 , table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+
     for i in range(len(table_pairs)):
+        # m.scatter([x1[i],x2[i]],[y1[i],y2[i]] , c=table_halo2['z'][i] , cmap=pl.matplotlib.cm.jet)
         m.plot([x1[i],x2[i]],[y1[i],y2[i]])
 
     pl.colorbar()

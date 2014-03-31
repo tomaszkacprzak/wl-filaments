@@ -145,7 +145,7 @@ class NfwHalo:
         Delta_Sigma_1 = gamma_1*Sigma_crit
         Delta_Sigma_2 = gamma_2*Sigma_crit
 
-        return gamma_1 , gamma_2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit 
+        return gamma_1 , gamma_2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit , kappa
 
     def get_shears_with_pz(self,theta_x,theta_y , grid_z_centers , prob_z,  redshift_offset=0.2):
 
@@ -155,7 +155,7 @@ class NfwHalo:
 
         for ib, vb in enumerate(grid_z_centers):
             if vb < (self.z_cluster+redshift_offset): continue
-            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]= self.get_shears(theta_x,theta_y,vb)
+            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,vb)
             weight = prob_z[ib]
             list_h1g1.append(h1g1*weight) 
             list_h1g2.append(h1g2*weight) 
@@ -168,7 +168,7 @@ class NfwHalo:
 
     def get_shears_with_pz_fast(self,theta_x,theta_y , grid_z_centers , prob_z,  redshift_offset=0.2):
 
-        [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]= self.get_shears(theta_x,theta_y,None)
+        [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,None)
 
         return h1g1, h1g2
 
