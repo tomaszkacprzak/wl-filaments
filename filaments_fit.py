@@ -17,6 +17,7 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
+from pyqt_fit import kde
 
 
 log = logging.getLogger("filam..fit") 
@@ -100,9 +101,11 @@ def fit_2hf(save_plots=False):
 
         # now we use that
         if config['mode']=='selftest':
+            id_pair_in_catalog = 0
             shears_info = tabletools.loadTable(filename_shears,hdu=1)
             log.info('selftest mode - using HDU=1 and adding noise')
         else:
+            id_pair_in_catalog = id_pair
             shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
 
 
@@ -140,20 +143,20 @@ def fit_2hf(save_plots=False):
             log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
 
         
-        fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
-        fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
-        fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair]
-        fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair]
-        fitobj.halo1_z =  pairs_table['z'][id_pair]
-        # fitobj.halo1_M200 = halo1_table['m200'][id_pair]
+        fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
+        fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
+        fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair_in_catalog]
+        fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair_in_catalog]
+        fitobj.halo1_z =  pairs_table['z'][id_pair_in_catalog]
+        # fitobj.halo1_M200 = halo1_table['m200'][id_pair_in_catalog]
         # fitobj.halo1_conc = halo1_conc
 
-        fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
-        fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
-        fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
-        fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
-        fitobj.halo2_z =  pairs_table['z'][id_pair]
-        # fitobj.halo2_M200 = halo2_table['m200'][id_pair]
+        fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair_in_catalog]
+        fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair_in_catalog]
+        fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair_in_catalog]
+        fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair_in_catalog]
+        fitobj.halo2_z =  pairs_table['z'][id_pair_in_catalog]
+        # fitobj.halo2_M200 = halo2_table['m200'][id_pair_in_catalog]
         # fitobj.halo2_conc = halo2_conc
 
         fitobj.parameters[0]['box']['min'] = 0.
@@ -179,23 +182,27 @@ def fit_2hf(save_plots=False):
             params = fitobj.sampler.flatchain
 
             n_grid = fitobj.n_grid                      
-            list_params_marg = [None]*fitobj.n_dim
-            list_params_marg[0] = np.linspace(fitobj.parameters[0]['box']['min'],fitobj.parameters[0]['box']['max'],n_grid)
-            list_params_marg[1] = np.linspace(fitobj.parameters[1]['box']['min'],fitobj.parameters[1]['box']['max'],n_grid)
-            list_params_marg[2] = np.linspace(fitobj.parameters[2]['box']['min'],fitobj.parameters[2]['box']['max'],n_grid)
-            list_params_marg[3] = np.linspace(fitobj.parameters[3]['box']['min'],fitobj.parameters[3]['box']['max'],n_grid)
-            grids = list_params_marg
 
             list_prob_marg = []
+            list_params_marg = []
             for di in range(fitobj.n_dim):
 
-                bins = plotstools.get_bins_edges(list_params_marg[di])
-                marg_prob , _ =np.histogram(fitobj.sampler.flatchain[:,di] , bins = bins , normed=True)
-                marg_prob = marg_prob / sum(marg_prob)
+                list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
+
+                chain = fitobj.sampler.flatchain[:,di]
+                kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
+                marg_prob = kde_est(list_params_marg[di])
+                log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
+                # marg_prob , _ =np.histogram(fitobj.sampler.flatchain[:,di] , bins = bins , normed=True)
+                # marg_prob = marg_prob / sum(marg_prob)
                 list_prob_marg.append(marg_prob)
-            #     pl.figure()
-            #     pl.plot(list_params_marg[di] , list_prob_marg[di])
-            # pl.show()
+
+                # pl.figure()
+                # pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
+                # pl.xlabel(str(di))
+                # pl.show()
+
+            grids = list_params_marg
 
             vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_samples_max(log_post,params)
             chain_result = {}
@@ -320,7 +327,7 @@ def fit_2hf(save_plots=False):
                 
                  plotstools.plot_dist_grid(params,prob_post,labels=[r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$' , 'radius Mpc' , r'halo1_M200 $M_{*}$' , 'halo2_M200 $M_{*}$'])
 
-            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
+            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f' % (id_pair, pairs_table[id_pair_in_catalog]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
@@ -413,7 +420,7 @@ def fit_2hf(save_plots=False):
             pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
             pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
 
-            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f max_shear=%2.3f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance , maxg)
+            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f max_shear=%2.3f' % (id_pair, pairs_table[id_pair_in_catalog]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance , maxg)
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 

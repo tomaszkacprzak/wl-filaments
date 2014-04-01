@@ -1,6 +1,6 @@
 import matplotlib as mpl
 mpl.use('tkagg')
-import os, yaml, argparse, sys, logging , pyfits, galsim, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
+import os, yaml, argparse, sys, logging , pyfits, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import matplotlib.pyplot as pl
 print 'using matplotlib backend' , pl.get_backend()
@@ -308,16 +308,12 @@ def process_results():
 
     n_colors = 10
     ic =0 
-    grid_DeltaSigma_edges = np.linspace(0,1,500)
+    n_grid = 200
+    grid_DeltaSigma_edges = np.linspace(0,0.2,n_grid)
     grid_DeltaSigma_centers = plotstools.get_bins_centers(grid_DeltaSigma_edges)
-    grid_radius_edges = np.linspace(0,10,500)
-    grid_radius_centers = plotstools.get_bins_centers(grid_radius_edges)
-    # select_low_range = grid_DeltaSigma[grid_DeltaSigma<0.1]
-    # grid_DeltaSigma_lowrange=grid_DeltaSigma[select_low_range]
+    pixel_size = grid_DeltaSigma_centers[1] - grid_DeltaSigma_centers[0]
     list_ids = []
 
-    kde_bandwidth = 0.1
-    log.info('using kde_bandwidth=%f' % kde_bandwidth)
     ia=0
     for nf in range(n_files):
     # for nf in range(2):
@@ -334,25 +330,21 @@ def process_results():
         for ni in range(n_per_file):
             
             chain = results_pickle[ni]['flatchain'][0][:,0]
-            est_ren = kde.KDE1D(chain, lower=0 , method='linear_combination')
+            est_ren = kde.KDE1D(chain, lower=0 , upper=1, method='linear_combination')
             
             # kde.set_bandwidth(kde_bandwidth)
-            prob_DeltaSigma_kde = est_ren(grid_DeltaSigma_centers)
+            prob_DeltaSigma_kde      = est_ren(np.linspace(0,1,100))
+            prob_DeltaSigma_kde_fine = est_ren(np.linspace(0,1,1000))
+            print sum(prob_DeltaSigma_kde)/100. , sum(prob_DeltaSigma_kde_fine)/1000.
             prob_DeltaSigma_hist , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,0], bins=grid_DeltaSigma_edges,normed=True)
-            # print est_ren.bandwidth , np.sum(prob_DeltaSigma_kde)
-            prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
+            # prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
             prob_DeltaSigma_hist /= np.sum(prob_DeltaSigma_hist)
 
-            # prob_radius , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,1], bins=grid_radius_edges,normed=True)
-            # prob_radius /= np.sum(prob_radius)
-
-            # pl.subplot(1,2,1)
-            # pl.plot(grid_radius_centers,prob_radius)
-            # pl.subplot(1,2,2)
             # pl.figure()
             # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_hist,'bo-')
-            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_kde,'rx-')
+            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_kde*pixel_size,'rx-')
             # pl.show()
+            # import pdb; pdb.set_trace()
 
             logprob_DeltaSigma = np.log(prob_DeltaSigma_kde)
             list_DeltaSigma.append(logprob_DeltaSigma)

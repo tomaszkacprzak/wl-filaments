@@ -20,7 +20,7 @@ weak_limit = 1000
 def self_fit():
 
 
-    fixed_kappa  = 0.0
+    fixed_kappa  = 0.05
     fixed_radius = 2
     fixed_m200 = 14
     fixed_m200 = 14
@@ -40,7 +40,7 @@ def self_fit():
     pz = fitobj.get_bcc_pz('cfhtlens_cat_sample.fits')
     prob_z = fitobj.prob_z
 
-    id_pair = 48
+    id_pair = 0
 
     shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
     fitobj = filaments_model_2hf.modelfit()
