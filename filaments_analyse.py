@@ -361,8 +361,14 @@ def process_results():
     arr_list_DeltaSigma = np.array(list_DeltaSigma)
     filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
     tabletools.savePickle(filename_DeltaSigma, { 'logpdf_DeltaSigma' : arr_list_DeltaSigma , 'ids' : list_ids ,  'grid_DeltaSigma' : grid_DeltaSigma_centers } )    
-            
-def test_boundary():
+
+
+
+    
+
+
+    
+def test_kde_methods():
 
     name_data = os.path.basename(config['filename_shears']).replace('.fits','')
     filename_results_cat = 'results.stats.%s.cat' % name_data
@@ -376,7 +382,7 @@ def test_boundary():
 
     n_colors = 10
     ic =0 
-    n_grid = 200
+    n_grid = 10001
     grid_DeltaSigma_edges = np.linspace(0,1,n_grid)
     grid_DeltaSigma_centers = plotstools.get_bins_centers(grid_DeltaSigma_edges)
     pixel_size = grid_DeltaSigma_centers[1] - grid_DeltaSigma_centers[0]
@@ -402,11 +408,11 @@ def test_boundary():
 
             chain = results_pickle[ni]['flatchain'][0][:,0]
             est_ref = kde.KDE1D(chain, lower=0 , upper=1, method='reflexion')           
-            est_lin = kde.KDE1D(chain, lower=0 , upper=1, method='linear_combination')           
-            prob_DeltaSigma_kde_ref      = est_ref(grid_DeltaSigma_centers)
-            prob_DeltaSigma_kde_lin      = est_lin(grid_DeltaSigma_centers)
-            # print sum(prob_DeltaSigma_kde)/100. , sum(prob_DeltaSigma_kde)/1000.
+            est_lin = kde.KDE1D(chain, lower=0 , upper=1, method='linear_combination')                   
+            prob_DeltaSigma_kde_lin = mathstools.get_func_split(func=est_ref,grid=grid_DeltaSigma_centers)
+            prob_DeltaSigma_kde_ref = mathstools.get_func_split(func=est_ref,grid=grid_DeltaSigma_centers)          
             prob_DeltaSigma_hist , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,0], bins=grid_DeltaSigma_edges,normed=True)
+
             prob_DeltaSigma_kde_ref /= np.sum(prob_DeltaSigma_kde_ref)
             prob_DeltaSigma_kde_lin /= np.sum(prob_DeltaSigma_kde_lin)
             prob_DeltaSigma_hist /= np.sum(prob_DeltaSigma_hist)
@@ -416,7 +422,9 @@ def test_boundary():
             pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_hist,'rd')
             pl.xlim([0,0.1])
             pl.legend()
-            pl.show()          
+            pl.show()    
+
+
 
 def plot_prob_product():
 
@@ -513,11 +521,10 @@ def main():
     logging_level = logging_levels[args.verbosity]
     log.setLevel(logging_level)
 
-    filaments_model_1f.log = log
-    # plotstools.log = log
-
     global config 
     config = yaml.load(open(args.filename_config))
+
+
    
     # grid_search(pair_info,shears_info)
     # test_model(shears_info,pair_info)
@@ -528,6 +535,6 @@ def main():
     # analyse_stats_samples()
     # process_results()
     # plot_prob_product()
-    test_boundary()
+    test_kde_methods()
 
 main()

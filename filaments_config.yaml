@@ -33,5 +33,5 @@ sigma_add : 0.001
 sigma_method : orig # add or orig
 save_plots: False
 
-get_marginals_for_params: [0]
-get_confidence_intervals: False # true or false, true is untested
+get_marginals_for_params: [0,1]
+get_confidence_intervals: False # true or false, true is untested -- requires get_marginals_for_params=[0,1,2,3]
