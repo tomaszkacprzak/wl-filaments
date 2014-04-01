@@ -101,9 +101,11 @@ def fit_2hf(save_plots=False):
 
         # now we use that
         if config['mode']=='selftest':
+            id_pair_in_catalog = 0
             shears_info = tabletools.loadTable(filename_shears,hdu=1)
             log.info('selftest mode - using HDU=1 and adding noise')
         else:
+            id_pair_in_catalog = id_pair
             shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
 
 
@@ -141,20 +143,20 @@ def fit_2hf(save_plots=False):
             log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
 
         
-        fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
-        fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
-        fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair]
-        fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair]
-        fitobj.halo1_z =  pairs_table['z'][id_pair]
-        # fitobj.halo1_M200 = halo1_table['m200'][id_pair]
+        fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
+        fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
+        fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair_in_catalog]
+        fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair_in_catalog]
+        fitobj.halo1_z =  pairs_table['z'][id_pair_in_catalog]
+        # fitobj.halo1_M200 = halo1_table['m200'][id_pair_in_catalog]
         # fitobj.halo1_conc = halo1_conc
 
-        fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
-        fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
-        fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
-        fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
-        fitobj.halo2_z =  pairs_table['z'][id_pair]
-        # fitobj.halo2_M200 = halo2_table['m200'][id_pair]
+        fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair_in_catalog]
+        fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair_in_catalog]
+        fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair_in_catalog]
+        fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair_in_catalog]
+        fitobj.halo2_z =  pairs_table['z'][id_pair_in_catalog]
+        # fitobj.halo2_M200 = halo2_table['m200'][id_pair_in_catalog]
         # fitobj.halo2_conc = halo2_conc
 
         fitobj.parameters[0]['box']['min'] = 0.
@@ -325,7 +327,7 @@ def fit_2hf(save_plots=False):
                 
                  plotstools.plot_dist_grid(params,prob_post,labels=[r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$' , 'radius Mpc' , r'halo1_M200 $M_{*}$' , 'halo2_M200 $M_{*}$'])
 
-            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
+            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f' % (id_pair, pairs_table[id_pair_in_catalog]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
@@ -418,7 +420,7 @@ def fit_2hf(save_plots=False):
             pl.xlim([min(fitobj.shear_u_mpc),max(fitobj.shear_u_mpc)])
             pl.ylim([min(fitobj.shear_v_mpc),max(fitobj.shear_v_mpc)])
 
-            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f max_shear=%2.3f' % (id_pair, pairs_table[id_pair]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance , maxg)
+            title_str = 'id=%d R_pair=%.2f max=%1.2e (+%1.2e -%1.2e) nsig=%5.2f max_shear=%2.3f' % (id_pair, pairs_table[id_pair_in_catalog]['R_pair'], max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance , maxg)
             title_str += '\nML-ratio test: chi2_red_max=%1.3f chi2_red_null=%1.3f D=%8.4e p-val=%1.3f' % (chi2_red_max, chi2_red_null , chi2_D, chi2_LRT)
             pl.suptitle(title_str)
 
