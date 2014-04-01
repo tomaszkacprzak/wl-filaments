@@ -190,14 +190,15 @@ def fit_2hf(save_plots=False):
                 chain = fitobj.sampler.flatchain[:,di]
                 kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
                 marg_prob = kde_est(list_params_marg[di])
+                log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
                 # marg_prob , _ =np.histogram(fitobj.sampler.flatchain[:,di] , bins = bins , normed=True)
                 # marg_prob = marg_prob / sum(marg_prob)
                 list_prob_marg.append(marg_prob)
 
-                pl.figure()
-                pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
-                pl.xlabel(str(di))
-                pl.show()
+                # pl.figure()
+                # pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
+                # pl.xlabel(str(di))
+                # pl.show()
 
             grids = list_params_marg
 
