@@ -1,5 +1,7 @@
+import os
 import matplotlib as mpl
-mpl.use('tkagg')
+if 'DISPLAY' not in os.environ:
+    mpl.use('agg')
 import os, yaml, argparse, sys, logging , pyfits, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import matplotlib.pyplot as pl
@@ -8,7 +10,10 @@ print 'using matplotlib backend' , pl.get_backend()
 # from matplotlib import figure;
 pl.rcParams['image.interpolation'] = 'nearest' ; 
 import scipy.interpolate as interp
-from pyqt_fit import kde
+try:
+    from pyqt_fit import kde
+except:
+    print 'loading pyqt_fit failed'
 from sklearn.neighbors import BallTree as BallTree
 import cPickle as pickle
 import filaments_model_1h
@@ -297,8 +302,8 @@ def analyse_stats_samples():
 def process_results():
 
     name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-    filename_results_cat = 'results.stats.%s.cat' % name_data
-    stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
+    # filename_results_cat = 'results.stats.%s.cat' % name_data
+    # stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
 
     n_per_file = 10
     n_files = args.n_results_files
@@ -314,6 +319,7 @@ def process_results():
     # pixel_size = grid_DeltaSigma_centers[1] - grid_DeltaSigma_centers[0]
     list_ids = []
 
+    n_missing=0
     ia=0
     for nf in range(n_files):
     # for nf in range(2):
@@ -324,6 +330,7 @@ def process_results():
             log.info('%4d %s' , nf , filename_pickle)
         except:
             log.info('missing %s' % filename_pickle)
+            n_missing +=1
             ia+=1
             continue
 
@@ -352,11 +359,22 @@ def process_results():
             # import pdb; pdb.set_trace()
 
             prob_DeltaSigma_kde = results_pickle[ni]['list_prob_marg'][0]
+            nans = np.nonzero(np.isnan(prob_DeltaSigma_kde))[0]
+            # infs = np.nonzero(np.isinf(prob_DeltaSigma_kde))[0]
+            # zeros = np.nonzero(prob_DeltaSigma_kde == 0.0)[0]
+            if len(nans) > 0:
+                log.info('%d %s n_nans=%d', ni, filename_pickle , len(np.nonzero(np.isnan(prob_DeltaSigma_kde))[0]) )
+            prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
             logprob_DeltaSigma = np.log(prob_DeltaSigma_kde)
+            nans = np.nonzero(np.isnan(logprob_DeltaSigma))[0]
+            infs = np.nonzero(np.isinf(logprob_DeltaSigma))[0]
+            zeros = np.nonzero(logprob_DeltaSigma == 0.0)[0]
+            
             list_DeltaSigma.append(logprob_DeltaSigma)
             list_ids.append(ia)
             ia+=1
 
+    log.info('n_missing=%d' , n_missing)
     grid_DeltaSigma_centers = results_pickle[0]['list_params_marg'][0]
     arr_list_DeltaSigma = np.array(list_DeltaSigma)
     filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
@@ -438,73 +456,40 @@ def plot_prob_product():
     # for il in range(logpdf_DeltaSigma.shape[0]):
     #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
-    n_step = 800
+    n_step = 100
     n_pairs = logpdf_DeltaSigma.shape[0]
-    # n_pairs = 5000
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
     perm=np.random.permutation(len(logpdf_DeltaSigma))
     logpdf_DeltaSigma = logpdf_DeltaSigma[perm]
-    # list_conf = []
-
-    include = np.ones(logpdf_DeltaSigma.shape[0])==0
+    list_conf = []
 
     ic=0
-    n_use = 0
-    n_nan_pairs = 0
     for ia in range(n_pairs):
-        # pl.figure(2)
+    # for ia in range(10):
         # pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
-
+        # pl.show()
         nans=np.nonzero(np.isnan(logpdf_DeltaSigma[ia]))[0]
-        if len(nans)>0:
-            n_nan_pairs +=1
-            # print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
-            # if np.isnan(logpdf_DeltaSigma[ia,0]):
-                # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
-            # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
-            mask = np.isnan(logpdf_DeltaSigma[ia,:])
-            logpdf_DeltaSigma[ia,:] = np.exp(logpdf_DeltaSigma[ia,:])
-            logpdf_DeltaSigma[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf_DeltaSigma[ia,~mask]) / 2.
-            logpdf_DeltaSigma[ia,:] = np.log(logpdf_DeltaSigma[ia,:]) 
+        pl.figure(2)
+        pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
 
-            # pl.figure(2)
-            # pl.plot(grid_DeltaSigma[~mask],np.exp(logpdf_DeltaSigma[ia,~mask]) , '.-') ; 
-            # pl.plot(grid_DeltaSigma[mask],np.exp(logpdf_DeltaSigma[ia,mask]),'ro');
-            # include[ia] = True
-        else: 
-            include[ia] = True
-            
-        # norm=np.sum(np.exp(logpdf_DeltaSigma[ia,:]))
-        # print norm
-        prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(logpdf_DeltaSigma[ia,:])  
-        logpdf_DeltaSigma[ia,:] = prod_log_DeltaSigma
+        if len(nans)>0:
+            # print 'min(nans)' , min(nans)
+            logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
 
         if (ia+1) % n_step == 0:
             print 'passing' , ia+1
 
-            # pl.show()
-            # pl.show()
-            # use_logpdf_DeltaSigma = logpdf_DeltaSigma[include,:]
             # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)          
-
-            sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[include,:],axis=0)
+            sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia,:],axis=0)
             prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)  
             max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo = mathstools.estimate_confidence_interval(grid_DeltaSigma , prod_DeltaSigma)
-            # list_conf.append([ia,max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo])
+            list_conf.append([ia,max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo])
         
             pl.figure(1)
-            pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
+            pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
             ic+=1
-
-    sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[include,:],axis=0)
-    prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)  
-    max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo = mathstools.estimate_confidence_interval(grid_DeltaSigma , prod_DeltaSigma)
-    pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-d', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
-    label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo)
-    print label
-
 
     pl.figure(1)
     pl.legend()
@@ -517,12 +502,12 @@ def plot_prob_product():
     pl.savefig(filename_fig)
     log.info( 'saved %s' , filename_fig )
 
-    # list_conf = np.array(list_conf)
-    # pl.figure(3)
-    # pl.plot(list_conf[:,0],list_conf[:,2])
-    # pl.plot(list_conf[:,0],list_conf[:,3])
-    # pl.show()
-    # print list_conf
+    list_conf = np.array(list_conf)
+    pl.figure(3)
+    pl.plot(list_conf[:,0],list_conf[:,2])
+    pl.plot(list_conf[:,0],list_conf[:,3])
+    pl.show()
+    print list_conf
     pl.show()
 
   
@@ -538,9 +523,11 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
-    parser.add_argument('-n', '--n_results_files', default=-1,type=int, action='store', help='number of results files to use')
+    parser.add_argument('-n', '--n_results_files',type=int, action='store', help='number of results files to use')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
+    parser.add_argument('-a','--actions', nargs='+', default=['plot_prob_product'] , action='store', help='which actions to run, available: {process_results, plot_prob_product, test_kde_methods} ' )
+
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     global args
@@ -557,17 +544,11 @@ def main():
     global config 
     config = yaml.load(open(args.filename_config))
 
+    if args.actions==[]:
+        'choose one or more actions: '
 
-   
-    # grid_search(pair_info,shears_info)
-    # test_model(shears_info,pair_info)
-
-    # fit_single_halo()
-    # fit_single_filament(save_plots=args.save_plots)
-    # process_results()
-    # analyse_stats_samples()
-    # process_results()
-    plot_prob_product()
-    # test_kde_methods()
+    if 'process_results' in args.actions: process_results()
+    if 'plot_prob_product' in args.actions: plot_prob_product()
+    if 'test_kde_methods' in args.actions: test_kde_methods()
 
 main()
