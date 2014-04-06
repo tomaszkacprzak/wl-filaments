@@ -438,40 +438,73 @@ def plot_prob_product():
     # for il in range(logpdf_DeltaSigma.shape[0]):
     #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
-    n_step = 100
+    n_step = 800
     n_pairs = logpdf_DeltaSigma.shape[0]
+    # n_pairs = 5000
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
     perm=np.random.permutation(len(logpdf_DeltaSigma))
     logpdf_DeltaSigma = logpdf_DeltaSigma[perm]
-    list_conf = []
+    # list_conf = []
+
+    include = np.ones(logpdf_DeltaSigma.shape[0])==0
 
     ic=0
+    n_use = 0
+    n_nan_pairs = 0
     for ia in range(n_pairs):
-    # for ia in range(10):
+        # pl.figure(2)
         # pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
-        # pl.show()
-        nans=np.nonzero(np.isnan(logpdf_DeltaSigma[ia]))[0]
-        pl.figure(2)
-        pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
 
+        nans=np.nonzero(np.isnan(logpdf_DeltaSigma[ia]))[0]
         if len(nans)>0:
-            # print 'min(nans)' , min(nans)
-            logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
+            n_nan_pairs +=1
+            # print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
+            # if np.isnan(logpdf_DeltaSigma[ia,0]):
+                # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
+            # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
+            mask = np.isnan(logpdf_DeltaSigma[ia,:])
+            logpdf_DeltaSigma[ia,:] = np.exp(logpdf_DeltaSigma[ia,:])
+            logpdf_DeltaSigma[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf_DeltaSigma[ia,~mask]) / 2.
+            logpdf_DeltaSigma[ia,:] = np.log(logpdf_DeltaSigma[ia,:]) 
+
+            # pl.figure(2)
+            # pl.plot(grid_DeltaSigma[~mask],np.exp(logpdf_DeltaSigma[ia,~mask]) , '.-') ; 
+            # pl.plot(grid_DeltaSigma[mask],np.exp(logpdf_DeltaSigma[ia,mask]),'ro');
+            # include[ia] = True
+        else: 
+            include[ia] = True
+            
+        # norm=np.sum(np.exp(logpdf_DeltaSigma[ia,:]))
+        # print norm
+        prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(logpdf_DeltaSigma[ia,:])  
+        logpdf_DeltaSigma[ia,:] = prod_log_DeltaSigma
 
         if (ia+1) % n_step == 0:
             print 'passing' , ia+1
 
+            # pl.show()
+            # pl.show()
+            # use_logpdf_DeltaSigma = logpdf_DeltaSigma[include,:]
             # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)          
-            sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia,:],axis=0)
+
+            sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[include,:],axis=0)
             prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)  
             max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo = mathstools.estimate_confidence_interval(grid_DeltaSigma , prod_DeltaSigma)
-            list_conf.append([ia,max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo])
+            # list_conf.append([ia,max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo])
         
             pl.figure(1)
-            pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
+            pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
             ic+=1
+
+    sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[include,:],axis=0)
+    prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)  
+    max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo = mathstools.estimate_confidence_interval(grid_DeltaSigma , prod_DeltaSigma)
+    pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-d', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
+    label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo)
+    print label
+
 
     pl.figure(1)
     pl.legend()
@@ -484,12 +517,12 @@ def plot_prob_product():
     pl.savefig(filename_fig)
     log.info( 'saved %s' , filename_fig )
 
-    list_conf = np.array(list_conf)
-    pl.figure(3)
-    pl.plot(list_conf[:,0],list_conf[:,2])
-    pl.plot(list_conf[:,0],list_conf[:,3])
-    pl.show()
-    print list_conf
+    # list_conf = np.array(list_conf)
+    # pl.figure(3)
+    # pl.plot(list_conf[:,0],list_conf[:,2])
+    # pl.plot(list_conf[:,0],list_conf[:,3])
+    # pl.show()
+    # print list_conf
     pl.show()
 
   
@@ -534,7 +567,7 @@ def main():
     # process_results()
     # analyse_stats_samples()
     # process_results()
-    # plot_prob_product()
-    test_kde_methods()
+    plot_prob_product()
+    # test_kde_methods()
 
 main()
