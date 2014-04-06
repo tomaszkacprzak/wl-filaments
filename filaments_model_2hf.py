@@ -389,6 +389,8 @@ class modelfit():
 
     def run_gridsearch(self):
         
+        self.n_model_evals = 0
+
         self.pair_z  = (self.halo1_z + self.halo2_z) / 2.
 
         self.filam = filament.filament()
@@ -409,25 +411,15 @@ class modelfit():
         self.nh2.theta_cy = self.halo2_v_arcmin 
         self.nh2.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.pair_z)
 
-
-        grid_kappa0_min = self.parameters[0]['box']['min']
-        grid_kappa0_max = self.parameters[0]['box']['max']
-        grid_radius_min = self.parameters[1]['box']['min']
-        grid_radius_max = self.parameters[1]['box']['max']
-        grid_h1M200_min = self.parameters[2]['box']['min']
-        grid_h1M200_max = self.parameters[2]['box']['max']
-        grid_h2M200_min = self.parameters[3]['box']['min']
-        grid_h2M200_max = self.parameters[3]['box']['max']
-
         n_grid = self.n_grid
         n_total = n_grid**self.n_dim
 
         self.n_model_evals = 0
 
-        grid_kappa0 = np.linspace(grid_kappa0_min,grid_kappa0_max,n_grid)
-        grid_radius = np.linspace(grid_radius_min,grid_radius_max,n_grid)
-        grid_h1M200 = np.linspace(grid_h1M200_min,grid_h1M200_max,n_grid)
-        grid_h2M200 = np.linspace(grid_h2M200_min,grid_h2M200_max,n_grid)
+        grid_kappa0 = np.linspace(self.parameters[0]['box']['min'],self.parameters[0]['box']['max'],n_grid)
+        grid_radius = np.linspace(self.parameters[1]['box']['min'],self.parameters[1]['box']['max'],n_grid)
+        grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'],n_grid)
+        grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'],n_grid)
         log_post = np.zeros(n_total)
         params = np.zeros([n_total,self.n_dim])
 

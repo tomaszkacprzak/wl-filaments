@@ -32,8 +32,7 @@ cospars = cosmology.cosmoparams()
 
 prob_z = None
 
-
-
+N_BURNIN = 1000
 
 
 def fit_2hf(save_plots=False):
@@ -191,7 +190,7 @@ def fit_2hf(save_plots=False):
 
                 list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
 
-                chain = fitobj.sampler.flatchain[:,di]
+                chain = fitobj.sampler.flatchain[N_BURNIN:,di]
                 kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
                 marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
                 log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
@@ -214,7 +213,7 @@ def fit_2hf(save_plots=False):
             tabletools.savePickle(filename_results_chain, chain_result ,append=True)
 
 
-        elif optimization_mode == 'gridsearch':
+        elif config['optimization_mode'] == 'gridsearch':
             log.info('running grid search')
             fitobj.n_grid = config['n_grid']
             log_post , params, grids = fitobj.run_gridsearch()
