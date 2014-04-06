@@ -456,7 +456,7 @@ def plot_prob_product():
     # for il in range(logpdf_DeltaSigma.shape[0]):
     #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
-    n_step = 100
+    n_step = 500
     n_pairs = logpdf_DeltaSigma.shape[0]
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
@@ -466,17 +466,22 @@ def plot_prob_product():
     list_conf = []
 
     ic=0
+    n_use = 0
+    n_nan_pairs = 0
     for ia in range(n_pairs):
-    # for ia in range(10):
-        # pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
-        # pl.show()
-        nans=np.nonzero(np.isnan(logpdf_DeltaSigma[ia]))[0]
-        pl.figure(2)
-        pl.plot(np.exp(logpdf_DeltaSigma[ia,:]))
 
+        nans=np.nonzero(np.isnan(logpdf_DeltaSigma[ia]))[0]
         if len(nans)>0:
-            # print 'min(nans)' , min(nans)
-            logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
+            
+            n_nan_pairs +=1
+            # print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
+            # if np.isnan(logpdf_DeltaSigma[ia,0]):
+                # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
+            # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
+            mask = np.isnan(logpdf_DeltaSigma[ia,:])
+            logpdf_DeltaSigma[ia,:] = np.exp(logpdf_DeltaSigma[ia,:])
+            logpdf_DeltaSigma[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf_DeltaSigma[ia,~mask]) / 2.
+            logpdf_DeltaSigma[ia,:] = np.log(logpdf_DeltaSigma[ia,:]) 
 
         if (ia+1) % n_step == 0:
             print 'passing' , ia+1
