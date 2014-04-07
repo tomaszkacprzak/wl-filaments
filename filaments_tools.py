@@ -288,6 +288,11 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             # in case we divided by zero
             mean_g1[hist_n == 0] = 0
             mean_g2[hist_n == 0] = 0
+            mean_g1sc[hist_n == 0] = 0
+            mean_g2sc[hist_n == 0] = 0
+            hist_w[hist_n == 0] = 0
+            hist_m[hist_n == 0] = 0
+
 
             # import pdb; pdb.set_trace()
             # pl.hist(mean_g1.flatten(),bins=50,histtype='step'); pl.hist(hist_g1.flatten()/sum(shear_weight_stamp.flatten()),bins=50,histtype='step'); pl.show()
@@ -740,7 +745,10 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
 
 
-        filename_current_pair = filename_shears.replace('.fits', '.%04d.fits' % (ipair))
+        # filename_current_pair = filename_shears.replace('.fits', '.%04d.fits' % (ipair))
+        filename_current_pair = filename_shears.split('.')
+        filename_current_pair[-1]='%04d.fits' % (ipair)
+        filename_current_pair = '.'.join(filename_current_pair)
         filename_fig = 'figs/' +  filename_current_pair.replace('.fits','.png')
 
         halo1 = halo_pairs1[ipair]
@@ -765,8 +773,10 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
       
         if config['shear_type'] == 'stacked':
 
-
-            tabletools.saveTable(filename_shears,pair_shears,append=True)          
+            if '.fits' in filename_shears:
+                tabletools.saveTable(filename_shears,pair_shears,append=True)          
+            elif '.pp2' in filename_shears:
+                tabletools.savePickle(filename_shears,pair_shears,append=True)          
 
             if config['save_pairs_plots']:
 

@@ -276,7 +276,7 @@ class modelfit():
             posterior = likelihood 
 
         if log.level == logging.DEBUG:
-            n_progress = 100
+            n_progress = 10
         elif log.level == logging.INFO:
             n_progress = 10000
         if self.n_model_evals % n_progress == 0:

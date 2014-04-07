@@ -41,8 +41,8 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
     if cfhtlens_shear_catalog == None:
-        # cfhtlens_shear_catalog = tabletools.loadTable(os.environ['HOME']+ '/data/CFHTLens/cfhtlens_cat_full.fits')
-        cfhtlens_shear_catalog = tabletools.loadTable(os.environ['HOME']+ '/data/CFHTLens/cfhtlens.niall.fits')
+        filename_chftlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+        cfhtlens_shear_catalog = tabletools.loadTable(filename_chftlens_shears)
         if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
             select = cfhtlens_shear_catalog['star_flag'] == 0
             cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
@@ -214,7 +214,7 @@ def main():
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', default='cfhtlens.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
-    parser.add_argument('-l', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
+    parser.add_argument('-n', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     args = parser.parse_args()

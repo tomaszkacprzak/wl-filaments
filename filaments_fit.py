@@ -99,18 +99,23 @@ def fit_2hf(save_plots=False):
 
     for id_pair in range(id_pair_first,id_pair_last):
 
+        log.info('--------- pair %d  --------' , id_pair) 
         # now we use that
         if config['mode']=='selftest':
             id_pair_in_catalog = 0
-            shears_info = tabletools.loadTable(filename_shears,hdu=1)
+            if '.fits' in filename_shears:
+                shears_info = tabletools.loadTable(filename_shears,hdu=1)
+            elif '.pp2' in filename_shears:
+                shears_info = tabletools.loadPickle(filename_shears,pos=0)
             log.info('selftest mode - using HDU=1 and adding noise')
         else:
             id_pair_in_catalog = id_pair
-            shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+            if '.fits' in filename_shears:
+                shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+            elif '.pp2' in filename_shears:
+                shears_info = tabletools.loadPickle(filename_shears,pos=id_pair)
 
-
-        log.info('--------- pair %d with %d shears --------' , id_pair , len(shears_info)) 
-
+        log.info('using %d shears' , len(shears_info) )
 
         if len(shears_info) > 50000:
             log.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
@@ -189,8 +194,11 @@ def fit_2hf(save_plots=False):
             for di in config['get_marginals_for_params']:
 
                 list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
-
-                chain = fitobj.sampler.flatchain[N_BURNIN:,di]
+                
+                if N_BURNIN < len(fitobj.sampler.flatchain):
+                    chain = fitobj.sampler.flatchain[N_BURNIN:,di]
+                else:
+                    chain = fitobj.sampler.flatchain[:,di]
                 kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
                 marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
                 log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
