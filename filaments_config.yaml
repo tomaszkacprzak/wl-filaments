@@ -17,8 +17,6 @@ shear_type : stacked # single, stacked, minimal
 Sigma_crit_unit :  kg/m^2 # kg/m^2 or Msol*h/pc^2
 save_pairs_plots: True
 pixel_size_mpc : 0.25
-pair_first : 0
-pair_last : 10
 
 
 n_samples : 50

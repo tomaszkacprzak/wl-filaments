@@ -123,7 +123,12 @@ def wrap_angle_deg(ang_deg):
     return ang_deg
 
 
-def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,shear_z,pair_z,lenscat=None):
+def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,shear_ra_deg,shear_de_deg,shear_g1,shear_g2,shear_z,pair_z,lenscat=None,shear_bias_m=None, shear_weight=None):
+
+        if shear_weight == None:
+            shear_weight==np.ones(shear_g1)
+        if shear_bias_m == None:
+            shear_bias_m==np.zeros(shear_g1)
 
         # convert to radians
         halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(halo1_ra_deg, halo1_de_deg)
@@ -209,6 +214,8 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         shear_z_stamp = shear_z[select]
         shear_ra_stamp_deg = shear_ra_deg[select]
         shear_de_stamp_deg = shear_de_deg[select]
+        shear_bias_m_stamp = shear_bias_m[select] 
+        shear_weight_stamp = shear_weight[select]
 
         if lenscat != None:
             lenscat_stamp = lenscat[select]
@@ -262,22 +269,29 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
 
             logger.info('len grid_u_mpc=%d grid_v_mpc=%d' , len(grid_u_mpc) ,  len(grid_v_mpc))
             
-            hist_g1, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g1_stamp)
-            hist_g2, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g2_stamp)
-            hist_g1sc, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=g1sc)
-            hist_g2sc, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=g2sc)
+            hist_g1, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g1_stamp * shear_weight_stamp)
+            hist_g2, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_g2_stamp * shear_weight_stamp)
+            hist_g1sc, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=g1sc * shear_weight_stamp)
+            hist_g2sc, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=g2sc * shear_weight_stamp)
             hist_n,  _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) )
             hist_scinv, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=1./sc )
+            hist_m , _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=(1+shear_bias_m_stamp) * shear_weight_stamp )
+            hist_w , _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_weight_stamp)
 
-            mean_g1 = hist_g1 / hist_n
-            mean_g2 = hist_g2 / hist_n
-            mean_scinv = hist_scinv / hist_n
-            mean_g1sc = hist_g1sc / hist_n
-            mean_g2sc = hist_g2sc / hist_n
+            mean_g1 = hist_g1  / hist_m
+            mean_g2 = hist_g2  / hist_m
+            
+            mean_scinv = hist_scinv / hist_m
+            mean_g1sc = hist_g1sc / hist_m
+            mean_g2sc = hist_g2sc / hist_m
 
             # in case we divided by zero
             mean_g1[hist_n == 0] = 0
             mean_g2[hist_n == 0] = 0
+
+            # import pdb; pdb.set_trace()
+            # pl.hist(mean_g1.flatten(),bins=50,histtype='step'); pl.hist(hist_g1.flatten()/sum(shear_weight_stamp.flatten()),bins=50,histtype='step'); pl.show()
+
 
             u_mid_mpc,v_mid_mpc = plotstools.get_bins_centers(grid_u_mpc) , plotstools.get_bins_centers(grid_v_mpc)
             u_mid_arcmin,v_mid_arcmin = plotstools.get_bins_centers(grid_u_arcmin) , plotstools.get_bins_centers(grid_v_arcmin)

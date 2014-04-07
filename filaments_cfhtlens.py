@@ -13,7 +13,7 @@ import filaments_tools
 # logging.basicConfig(format='%(asctime)s %(name)s %(levelname)s %(message)s',datefmt='%Y-%m-%d %H:%M:%S',level=logging.INFO)
 # logger = logging.getLogger("filaments_bcc") 
 
-logger = logging.getLogger("fil..cfhtlens") 
+logger = logging.getLogger("fil..cfhtl") 
 logger.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
@@ -41,16 +41,19 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
     if cfhtlens_shear_catalog == None:
-        cfhtlens_shear_catalog = tabletools.loadTable(os.environ['HOME']+ '/data/CFHTLens/cfhtlens_cat_full.fits')
-        select = cfhtlens_shear_catalog['star_flag'] == 0
-        cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
-        logger.info('removed stars, remaining %d' , len(cfhtlens_shear_catalog))
+        # cfhtlens_shear_catalog = tabletools.loadTable(os.environ['HOME']+ '/data/CFHTLens/cfhtlens_cat_full.fits')
+        cfhtlens_shear_catalog = tabletools.loadTable(os.environ['HOME']+ '/data/CFHTLens/cfhtlens.niall.fits')
+        if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
+            select = cfhtlens_shear_catalog['star_flag'] == 0
+            cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
+            logger.info('removed stars, remaining %d' , len(cfhtlens_shear_catalog))
 
-        select = (cfhtlens_shear_catalog['e1'] != 0.0) * (cfhtlens_shear_catalog['e2'] != 0.0)
-        cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
-        logger.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
+            select = (cfhtlens_shear_catalog['e1'] != 0.0) * (cfhtlens_shear_catalog['e2'] != 0.0)
+            cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
+            logger.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
 
-    shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , cfhtlens_shear_catalog['e2'] 
+    # correcting additive systematics
+    shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2']
     shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ra'] , cfhtlens_shear_catalog['dec'] ,  cfhtlens_shear_catalog['z']
 
     halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
@@ -59,12 +62,11 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
     pair_ra_deg,  pair_de_deg = cosmology.get_midpoint_deg(halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg)
     pair_z = np.mean([halo1['z'],halo2['z']])
 
-
     pairs_shear , halos_coords , pairs_shear_full   = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
                             halo2_ra_deg, halo2_de_deg, 
                             shear_ra_deg, shear_de_deg, 
                             shear_g1, shear_g2, shear_z, 
-                            pair_z, cfhtlens_shear_catalog )
+                            pair_z, lenscat=cfhtlens_shear_catalog , shear_bias_m=cfhtlens_shear_catalog['m'] , shear_weight=cfhtlens_shear_catalog['weight'] )
 
     if len(pairs_shear) < 100:
         logger.error('found only %d shears' % len(pairs_shear))
@@ -100,6 +102,10 @@ def get_pairs_null1(filename_pairs_null1 = 'pairs_cfhtlens_null1.fits', filename
     tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos1.fits'), halos1)    
     tabletools.saveTable(filename_pairs_null1.replace('.fits','.halos2.fits'), halos2)    
 
+    n_pairs = len(pairs_table)
+    return n_pairs
+
+
     # import pylab as pl
     # pl.scatter(pairs_table['ra1'] , pairs_table['dec1'])
     # pl.scatter(pairs_table['ra2'] , pairs_table['dec2'])
@@ -112,6 +118,9 @@ def get_pairs(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtl
     tabletools.saveTable(filename_pairs,pairs_table)   
     tabletools.saveTable(filename_pairs.replace('.fits','.halos1.fits'), halos1)    
     tabletools.saveTable(filename_pairs.replace('.fits','.halos2.fits'), halos2)    
+
+    n_pairs = len(pairs_table)
+    return n_pairs
 
 def fix_case(arr):
 
@@ -205,7 +214,7 @@ def main():
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', default='cfhtlens.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
-    parser.add_argument('-l', '--last', default=-1 ,type=int, action='store', help='last pairs to process')
+    parser.add_argument('-l', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     args = parser.parse_args()
@@ -234,18 +243,21 @@ def main():
 
         select_halos(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         filaments_tools.add_phys_dist(filename_halos=filename_halos)
-        get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+        n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 
     elif (config['mode'] == 'null1_unpaired') or (config['mode'] == 'null1_all'):
 
         filename_pairs_exclude = config['filename_pairs_exclude']
-        get_pairs_null1(filename_pairs_null1 = filename_pairs, filename_pairs_exclude = filename_pairs_exclude ,  filename_halos=filename_halos , range_Dxy=range_Dxy)
+        n_pairs = get_pairs_null1(filename_pairs_null1 = filename_pairs, filename_pairs_exclude = filename_pairs_exclude ,  filename_halos=filename_halos , range_Dxy=range_Dxy)
 
     filaments_tools.stats_pairs(filename_pairs=filename_pairs)
     filaments_tools.boundary_mpc=config['boundary_mpc']
 
-    logger.info('getting noisy shear catalogs')
-    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=config['pair_first'],id_last=config['pair_last'])
+    id_pair_first = args.first
+    id_pair_last = n_pairs if args.num == -1 else id_pair_first + args.num
+
+    logger.info('getting noisy shear catalogs for pairs from %d to %d' , id_pair_first, id_pair_last)
+    filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=id_pair_first,id_last=id_pair_last)
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
