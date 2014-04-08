@@ -17,7 +17,11 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
-from pyqt_fit import kde
+try:
+    from pyqt_fit import kde
+except: 
+    print 'importing pyqt_fit failed'
+
 
 
 log = logging.getLogger("filam..fit") 

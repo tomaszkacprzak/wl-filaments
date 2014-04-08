@@ -309,18 +309,22 @@ def process_results():
     n_files = args.n_results_files
     log.info('n_files=%d',n_files)
 
-    list_DeltaSigma = []
-
+    n_params = 4
     n_colors = 10
     ic =0 
     n_grid = 200
-    # grid_DeltaSigma_edges = np.linspace(0,0.2,n_grid)
-    # grid_DeltaSigma_centers = plotstools.get_bins_centers(grid_DeltaSigma_edges)
-    # pixel_size = grid_DeltaSigma_centers[1] - grid_DeltaSigma_centers[0]
+    list_logprob = [None]*n_params
+    list_grid_centers = [None]*n_params
     list_ids = []
 
     n_missing=0
     ia=0
+
+    for ip in range(n_params):
+        list_logprob[ip] = []
+        list_grid_centers[ip] = []
+
+
     for nf in range(n_files):
     # for nf in range(2):
 
@@ -336,49 +340,28 @@ def process_results():
 
         for ni in range(n_per_file):
 
-
-            # prob_DeltaSigma_kde = results_pickle[ni]['list_prob_marg'][0]
-            # grid_DeltaSigma_kde = results_pickle[ni]['list_params_marg'][0]
-            # pl.plot(grid_DeltaSigma_kde,prob_DeltaSigma_kde)
-            # pl.show()          
-
-            # chain = results_pickle[ni]['flatchain'][0][:,0]
-            # est_ren = kde.KDE1D(chain, lower=0 , upper=1, method='linear_combination')           
-            # kde.set_bandwidth(kde_bandwidth)
-            # prob_DeltaSigma_kde      = est_ren(np.linspace(0,1,100))
-            # prob_DeltaSigma_kde_fine = est_ren(np.linspace(0,1,1000))
-            # print sum(prob_DeltaSigma_kde)/100. , sum(prob_DeltaSigma_kde_fine)/1000.
-            # prob_DeltaSigma_hist , _ = np.histogram(results_pickle[ni]['flatchain'][0][:,0], bins=grid_DeltaSigma_edges,normed=True)
-            # # prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
-            # prob_DeltaSigma_hist /= np.sum(prob_DeltaSigma_hist)
-
-            # pl.figure()
-            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_hist,'bo-')
-            # pl.plot(grid_DeltaSigma_centers,prob_DeltaSigma_kde*pixel_size,'rx-')
-            # pl.show()
-            # import pdb; pdb.set_trace()
-
-            prob_DeltaSigma_kde = results_pickle[ni]['list_prob_marg'][0]
-            nans = np.nonzero(np.isnan(prob_DeltaSigma_kde))[0]
-            # infs = np.nonzero(np.isinf(prob_DeltaSigma_kde))[0]
-            # zeros = np.nonzero(prob_DeltaSigma_kde == 0.0)[0]
-            if len(nans) > 0:
-                log.info('%d %s n_nans=%d', ni, filename_pickle , len(np.nonzero(np.isnan(prob_DeltaSigma_kde))[0]) )
-            prob_DeltaSigma_kde /= np.sum(prob_DeltaSigma_kde)
-            logprob_DeltaSigma = np.log(prob_DeltaSigma_kde)
-            nans = np.nonzero(np.isnan(logprob_DeltaSigma))[0]
-            infs = np.nonzero(np.isinf(logprob_DeltaSigma))[0]
-            zeros = np.nonzero(logprob_DeltaSigma == 0.0)[0]
-            
-            list_DeltaSigma.append(logprob_DeltaSigma)
-            list_ids.append(ia)
+            for ip in range(n_params):
+                prob = results_pickle[ni]['list_prob_marg'][ip]
+                nans = np.nonzero(np.isnan(prob))[0]
+                if len(nans) > 0:
+                    log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
+                prob /= np.sum(prob)
+                logprob = np.log(prob)
+                nans = np.nonzero(np.isnan( logprob))[0]
+                infs = np.nonzero(np.isinf( logprob))[0]
+                zeros = np.nonzero( logprob == 0.0)[0]
+                
+                list_logprob[ip].append(logprob)
+                list_ids.append(ia)
             ia+=1
 
     log.info('n_missing=%d' , n_missing)
-    grid_DeltaSigma_centers = results_pickle[0]['list_params_marg'][0]
-    arr_list_DeltaSigma = np.array(list_DeltaSigma)
-    filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
-    tabletools.savePickle(filename_DeltaSigma, { 'logpdf_DeltaSigma' : arr_list_DeltaSigma , 'ids' : list_ids ,  'grid_DeltaSigma' : grid_DeltaSigma_centers } )    
+    for ip in range(n_params):  
+        list_logprob[ip] = np.array(list_logprob[ip])
+        list_grid_centers[ip] = np.array(results_pickle[0]['list_params_marg'][ip])
+
+    filename_DeltaSigma = 'logpdf.%s.pp2' % name_data
+    tabletools.savePickle(filename_DeltaSigma, { 'grid_centers' : list_grid_centers , 'ids' : list_ids ,  'logprob' : list_logprob } )    
 
 
 
@@ -447,73 +430,88 @@ def test_kde_methods():
 def plot_prob_product():
 
     name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-    filename_DeltaSigma = 'logpdf_DeltaSigma.%s.pp2' % name_data
-    dict_DeltaSigma = tabletools.loadPickle(filename_DeltaSigma)
-    logpdf_DeltaSigma = dict_DeltaSigma['logpdf_DeltaSigma'] 
-    grid_DeltaSigma   = dict_DeltaSigma['grid_DeltaSigma']
+    filename_logpdf = 'logpdf.%s.pp2' % name_data
+    dict_logpdf = tabletools.loadPickle(filename_logpdf)
+    logpdfs = dict_logpdf['logprob'] 
+    grids   = dict_logpdf['grid_centers']
 
     # 'normalising'
     # for il in range(logpdf_DeltaSigma.shape[0]):
     #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
-    n_step = 500
-    n_pairs = logpdf_DeltaSigma.shape[0]
+    n_params = 4
+    n_step = 1000
+    n_pairs = logpdfs[0].shape[0]
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
-    perm=np.random.permutation(len(logpdf_DeltaSigma))
-    logpdf_DeltaSigma = logpdf_DeltaSigma[perm]
-    list_conf = []
+    list_conf = [None]*n_params
 
-    ic=0
     n_use = 0
     n_nan_pairs = 0
-    for ia in range(n_pairs):
+    param_names = {0:'kappa0',1:'radius',2:'h1M200',3:'h1M200'}
 
-        nans=np.nonzero(np.isnan(logpdf_DeltaSigma[ia]))[0]
-        if len(nans)>0:
+    for ip in range(n_params):
+
+        ic=0
+        list_conf[ip] = []
+        logpdf = logpdfs[ip]
+        grid_pdf = grids[ip]
+        perm=np.random.permutation(n_pairs)
+        logpdf = logpdf[perm]
+        param_name = param_names[ip]
+
+        pl.figure()
+
+        for ia in range(n_pairs):
+
+
+            nans=np.nonzero(np.isnan(logpdf[ia]))[0]
+            if len(nans)>0:
+                
+                n_nan_pairs +=1
+                # print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
+                # if np.isnan(logpdf_DeltaSigma[ia,0]):
+                    # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
+                # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
+
+                mask = np.isnan(logpdf[ia,:])
+                logpdf[ia,:] = np.exp(logpdf[ia,:])
+                logpdf[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf[ia,~mask]) / 2.
+                logpdf[ia,:] = np.log(logpdf[ia,:]) 
+
+            if (ia+1) % n_step == 0:
+                print 'passing' , ia+1
+
+                # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)          
+                sum_logpdf = np.sum(logpdf[:ia,:],axis=0)
+                prod_pdf , prod_log_pdf , _ , _ = mathstools.get_normalisation(sum_logpdf)  
+                max_pdf , pdf_err_hi , pdf_err_lo = mathstools.estimate_confidence_interval(grid_pdf , prod_pdf)
+                list_conf[ip].append([ia,max_pdf , pdf_err_hi , pdf_err_lo])
             
-            n_nan_pairs +=1
-            # print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
-            # if np.isnan(logpdf_DeltaSigma[ia,0]):
-                # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
-            # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
-            mask = np.isnan(logpdf_DeltaSigma[ia,:])
-            logpdf_DeltaSigma[ia,:] = np.exp(logpdf_DeltaSigma[ia,:])
-            logpdf_DeltaSigma[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf_DeltaSigma[ia,~mask]) / 2.
-            logpdf_DeltaSigma[ia,:] = np.log(logpdf_DeltaSigma[ia,:]) 
+                pl.plot(grid_pdf , prod_pdf , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
+                ic+=1
 
-        if (ia+1) % n_step == 0:
-            print 'passing' , ia+1
+        true_params=[0.0,0,14,14]
+        pl.legend()
+        pl.axvline( true_params[ip] )
+        pl.xlim( [ config[param_name]['box']['min'] , config[param_name]['box']['max'] ])
+        # pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
+        pl.xlabel(param_name)
+        pl.ylabel('likelihood')
 
-            # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)          
-            sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia,:],axis=0)
-            prod_DeltaSigma , prod_log_DeltaSigma , _ , _ = mathstools.get_normalisation(sum_log_DeltaSigma)  
-            max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo = mathstools.estimate_confidence_interval(grid_DeltaSigma , prod_DeltaSigma)
-            list_conf.append([ia,max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo])
+        list_conf[ip] = np.array(list_conf[ip])
+
+    pl.show()
         
-            pl.figure(1)
-            pl.plot(grid_DeltaSigma , prod_DeltaSigma , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia, max_DeltaSigma , DeltaSigma_err_hi , DeltaSigma_err_lo) , color=colors[ic])
-            ic+=1
+        # pl.figure()
+        # pl.plot(list_conf[ip][:,0],list_conf[ip][:,2])
+        # pl.plot(list_conf[ip][:,0],list_conf[ip][:,3])
+        # print list_conf
 
-    pl.figure(1)
-    pl.legend()
-    pl.xlim([0,0.1])
-    pl.axvline(0,0,1)
-    pl.axvline(0.05,0,1)
-    pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
-    pl.ylabel('likelihood')
-    filename_fig = 'figs/prod_DeltaSigma.%s.png' % name_data
-    pl.savefig(filename_fig)
-    log.info( 'saved %s' , filename_fig )
-
-    list_conf = np.array(list_conf)
-    pl.figure(3)
-    pl.plot(list_conf[:,0],list_conf[:,2])
-    pl.plot(list_conf[:,0],list_conf[:,3])
-    pl.show()
-    print list_conf
-    pl.show()
+    # filename_fig = 'figs/prod_DeltaSigma.%s.png' % name_data
+    # pl.savefig(filename_fig)
+    # log.info( 'saved %s' , filename_fig )
 
   
 

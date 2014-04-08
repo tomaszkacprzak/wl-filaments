@@ -252,7 +252,7 @@ class modelfit():
 
         h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        fg1 , fg2 = self.filam.filament_model_with_pz(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
+        fg1 , fg2 = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
 
         model_g1 = h1g1 + h2g1 + fg1
         model_g2 = h1g2 + h2g2 + fg2
