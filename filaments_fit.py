@@ -41,7 +41,6 @@ N_BURNIN = 1000
 
 def fit_2hf(save_plots=False):
 
-
     filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
     filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
     filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
@@ -86,6 +85,10 @@ def fit_2hf(save_plots=False):
     if os.path.isfile(filename_results_grid):
         os.remove(filename_results_grid)
         log.warning('overwriting file %s ' , filename_results_grid)
+    if os.path.isfile(filename_results_chain):
+        os.remove(filename_results_chain)
+        log.warning('overwriting file %s ' , filename_results_chain)
+
 
     if config['get_confidence_intervals']:
         tabletools.writeHeader(filename_results_pairs,filaments_model_2hf.dtype_stats)
@@ -197,14 +200,18 @@ def fit_2hf(save_plots=False):
 
             for di in config['get_marginals_for_params']:
 
-                list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
+                # list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
                 
                 if N_BURNIN < len(fitobj.sampler.flatchain):
                     chain = fitobj.sampler.flatchain[N_BURNIN:,di]
                 else:
                     chain = fitobj.sampler.flatchain[:,di]
-                kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
-                marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
+                # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
+                kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='reflexion')                          
+                # marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
+                xxs,yys = kde_est.grid(n_grid)
+                list_params_marg.append(xxs)
+                marg_prob = yys
                 log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
                 list_prob_marg.append(marg_prob)
 

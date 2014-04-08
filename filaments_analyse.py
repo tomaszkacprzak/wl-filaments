@@ -305,10 +305,10 @@ def process_results():
     # filename_results_cat = 'results.stats.%s.cat' % name_data
     # stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
 
-    n_per_file = 10
     n_files = args.n_results_files
     log.info('n_files=%d',n_files)
 
+    n_per_file = 20
     n_params = 4
     n_colors = 10
     ic =0 
@@ -338,15 +338,20 @@ def process_results():
             ia+=1
             continue
 
-        for ni in range(n_per_file):
-
+        for ni in range(len(results_pickle)):
             for ip in range(n_params):
                 prob = results_pickle[ni]['list_prob_marg'][ip]
+                grid = results_pickle[ni]['list_params_marg'][ip]
                 nans = np.nonzero(np.isnan(prob))[0]
                 if len(nans) > 0:
                     log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
-                prob /= np.sum(prob)
-                logprob = np.log(prob)
+                prob[prob<1e-20]=1e-20
+                # pl.plot(grid,prob)
+                # pl.plot(grid[prob<0.0],prob[prob<0.0],'ro')
+                # pl.show()
+                # prob /= np.sum(prob)
+                # logprob = np.log(prob)
+                logprob = prob
                 nans = np.nonzero(np.isnan( logprob))[0]
                 infs = np.nonzero(np.isinf( logprob))[0]
                 zeros = np.nonzero( logprob == 0.0)[0]
@@ -440,12 +445,14 @@ def plot_prob_product():
     #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
 
     n_params = 4
-    n_step = 1000
+    n_step = 1
     n_pairs = logpdfs[0].shape[0]
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
     list_conf = [None]*n_params
+
+    log.info('using %d pairs' , n_pairs)
 
     n_use = 0
     n_nan_pairs = 0
@@ -465,31 +472,36 @@ def plot_prob_product():
 
         for ia in range(n_pairs):
 
-
             nans=np.nonzero(np.isnan(logpdf[ia]))[0]
+
             if len(nans)>0:
                 
                 n_nan_pairs +=1
-                # print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
+                print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
                 # if np.isnan(logpdf_DeltaSigma[ia,0]):
                     # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
                 # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
 
-                mask = np.isnan(logpdf[ia,:])
                 logpdf[ia,:] = np.exp(logpdf[ia,:])
+                mask = np.isnan(logpdf[ia,:]) | np.isinf(logpdf[ia,:])
                 logpdf[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf[ia,~mask]) / 2.
+                logpdf[ia,np.isinf(logpdf[ia,:])] = 1e-20
                 logpdf[ia,:] = np.log(logpdf[ia,:]) 
 
-            if (ia+1) % n_step == 0:
-                print 'passing' , ia+1
+                # pl.plot(grid_pdf,np.exp(logpdf[ia,:]))
+                # pl.plot(grid_pdf[mask],np.exp(logpdf[ia,mask]),'ro')
+                # pl.show()
+
+            if  ia % n_step == 0:
+                print 'passing' , ia
 
                 # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)          
-                sum_logpdf = np.sum(logpdf[:ia,:],axis=0)
+                sum_logpdf = np.sum(logpdf[:ia+1,:],axis=0)
                 prod_pdf , prod_log_pdf , _ , _ = mathstools.get_normalisation(sum_logpdf)  
                 max_pdf , pdf_err_hi , pdf_err_lo = mathstools.estimate_confidence_interval(grid_pdf , prod_pdf)
                 list_conf[ip].append([ia,max_pdf , pdf_err_hi , pdf_err_lo])
             
-                pl.plot(grid_pdf , prod_pdf , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
+                pl.plot(grid_pdf , prod_pdf , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
                 ic+=1
 
         true_params=[0.0,0,14,14]
