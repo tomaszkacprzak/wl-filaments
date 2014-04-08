@@ -498,7 +498,7 @@ def plot_prob_product():
 
     pl.figure(1)
     pl.legend()
-    pl.xlim([0,0.1])
+    pl.xlim([-0.1,0.1])
     pl.axvline(0,0,1)
     pl.axvline(0.05,0,1)
     pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')

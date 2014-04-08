@@ -55,12 +55,12 @@ def fit_2hf(save_plots=False):
     id_pair_last = args.first + args.num 
     n_pairs_available = len(pairs_table)
 
-    if id_pair_first > len(pairs_table):
-        raise Exception('id_pair_first=%d greater than number of pairs=%d' % (id_pair_first, len(pairs_table) ))
+    if config['mode']!='selftest':
+        if id_pair_first > len(pairs_table):
+            raise Exception('id_pair_first=%d greater than number of pairs=%d' % (id_pair_first, len(pairs_table) ))
 
     if id_pair_last > (n_pairs_available-1):
         id_pair_last = n_pairs_available
-
 
     if config['mode']=='selftest':
         id_pair_first = args.first
