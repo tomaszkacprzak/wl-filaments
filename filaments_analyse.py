@@ -449,9 +449,11 @@ def plot_prob_product():
 
     n_use = 0
     n_nan_pairs = 0
-    param_names = {0:'kappa0',1:'radius',2:'h1M200',3:'h1M200'}
+    param_names = {0:'kappa0',1:'radius',2:'h1M200',3:'h2M200'}
 
+    pl.figure()
     for ip in range(n_params):
+        pl.subplot(2,2,ip)
 
         ic=0
         list_conf[ip] = []
@@ -461,7 +463,6 @@ def plot_prob_product():
         logpdf = logpdf[perm]
         param_name = param_names[ip]
 
-        pl.figure()
 
         for ia in range(n_pairs):
 
