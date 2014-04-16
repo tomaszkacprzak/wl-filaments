@@ -17,8 +17,8 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
-try
-:    from pyqt_fit import kde
+try:
+    from pyqt_fit import kde
 except: 
     print 'importing pyqt_fit failed'
 
@@ -217,7 +217,7 @@ def fit_2hf(save_plots=False):
                 marg_prob = yys
                 list_params_marg.append(xxs)
                 list_prob_marg.append(yys)
-                log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
+                log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.factor , np.sum(marg_prob))
 
                 # pl.figure()
                 # pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
