@@ -17,8 +17,8 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
-try:
-    from pyqt_fit import kde
+try
+:    from pyqt_fit import kde
 except: 
     print 'importing pyqt_fit failed'
 
@@ -200,20 +200,24 @@ def fit_2hf(save_plots=False):
 
             for di in config['get_marginals_for_params']:
 
-                # list_params_marg.append(np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid))
+                # list_params_marg.append()
                 
                 if N_BURNIN < len(fitobj.sampler.flatchain):
                     chain = fitobj.sampler.flatchain[N_BURNIN:,di]
                 else:
                     chain = fitobj.sampler.flatchain[:,di]
                 # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
-                kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='reflexion')                          
+                # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='reflexion')                          
                 # marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
-                xxs,yys = kde_est.grid(n_grid)
-                list_params_marg.append(xxs)
+                # xxs,yys = kde_est.grid(n_grid)
+                from scipy.stats.kde import gaussian_kde
+                kde_est = gaussian_kde(chain)
+                xxs = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
+                yys = kde_est(xxs)
                 marg_prob = yys
+                list_params_marg.append(xxs)
+                list_prob_marg.append(yys)
                 log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.bandwidth , np.sum(marg_prob))
-                list_prob_marg.append(marg_prob)
 
                 # pl.figure()
                 # pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')

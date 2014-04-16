@@ -182,7 +182,9 @@ class filament:
     def filament_model_with_pz(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z, grid_z_centers , prob_z,  redshift_offset=0.2):
 
 
-        dens = self.proj_mass_density(shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,np.abs(kappa0),radius_mpc)
+        abs_kappa0 = np.abs(kappa0)
+        abs_radius = np.abs(radius_mpc)
+        dens = self.proj_mass_density(shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,abs_kappa0,abs_radius)
         kappa = dens * self.mean_inv_sigma_crit * np.sign(kappa0)
         g1 = -kappa
         g2 = np.zeros_like(kappa)

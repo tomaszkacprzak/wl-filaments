@@ -308,7 +308,7 @@ def process_results():
     n_files = args.n_results_files
     log.info('n_files=%d',n_files)
 
-    n_per_file = 20
+    n_per_file = 10
     n_params = 4
     n_colors = 10
     ic =0 
@@ -359,6 +359,29 @@ def process_results():
                 list_logprob[ip].append(logprob)
                 list_ids.append(ia)
             ia+=1
+
+            n_grid = 200
+            # now add kappa0-radius 2d kernel density
+            grid_kappa0 = np.linspace(-config['kappa0']['box']['max'],config['kappa0']['box']['max'],n_grid)
+            grid_radius = np.linspace(-config['radius']['box']['max'],config['radius']['box']['max'],n_grid)
+
+            from scipy.stats.kde import gaussian_kde
+            N_BURNIN=1000
+            chain=results_pickle[ni]['flatchain'][0][N_BURNIN:,:2]
+            chain_mirror_radius = chain.copy()
+            chain_mirror_radius[:,1] = -chain_mirror_radius[:,1] + config['radius']['box']['min']
+            chain_mirrored = np.vstack([chain,chain_mirror_radius])
+            print chain_mirrored.shape
+            kde_est=gaussian_kde(chain_mirrored.T) 
+            # kde_est=gaussian_kde(chain.T,bw_method='scott') 
+            X,Y=np.meshgrid(grid_kappa0,grid_radius)
+            params = np.vstack([X.flatten() , Y.flatten()])
+            pp = np.reshape(kde_est(params),[n_grid,n_grid])
+
+            pl.pcolormesh(X,Y,pp)
+            pl.show()
+
+
 
     log.info('n_missing=%d' , n_missing)
     for ip in range(n_params):  
@@ -446,7 +469,8 @@ def plot_prob_product():
 
     n_params = 4
     n_step = 1
-    n_pairs = logpdfs[0].shape[0]
+    # n_pairs = logpdfs[0].shape[0]
+    n_pairs = 10
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
@@ -501,7 +525,7 @@ def plot_prob_product():
                 max_pdf , pdf_err_hi , pdf_err_lo = mathstools.estimate_confidence_interval(grid_pdf , prod_pdf)
                 list_conf[ip].append([ia,max_pdf , pdf_err_hi , pdf_err_lo])
             
-                pl.plot(grid_pdf , prod_pdf , '-x', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
+                pl.plot(grid_pdf , prod_pdf , '-', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
                 ic+=1
 
         true_params=[0.0,0,14,14]
