@@ -360,26 +360,26 @@ def process_results():
                 list_ids.append(ia)
             ia+=1
 
-            n_grid = 200
-            # now add kappa0-radius 2d kernel density
-            grid_kappa0 = np.linspace(-config['kappa0']['box']['max'],config['kappa0']['box']['max'],n_grid)
-            grid_radius = np.linspace(-config['radius']['box']['max'],config['radius']['box']['max'],n_grid)
+            # n_grid = 200
+            # # now add kappa0-radius 2d kernel density
+            # grid_kappa0 = np.linspace(-config['kappa0']['box']['max'],config['kappa0']['box']['max'],n_grid)
+            # grid_radius = np.linspace(-config['radius']['box']['max'],config['radius']['box']['max'],n_grid)
 
-            from scipy.stats.kde import gaussian_kde
-            N_BURNIN=1000
-            chain=results_pickle[ni]['flatchain'][0][N_BURNIN:,:2]
-            chain_mirror_radius = chain.copy()
-            chain_mirror_radius[:,1] = -chain_mirror_radius[:,1] + config['radius']['box']['min']
-            chain_mirrored = np.vstack([chain,chain_mirror_radius])
-            print chain_mirrored.shape
-            kde_est=gaussian_kde(chain_mirrored.T) 
-            # kde_est=gaussian_kde(chain.T,bw_method='scott') 
-            X,Y=np.meshgrid(grid_kappa0,grid_radius)
-            params = np.vstack([X.flatten() , Y.flatten()])
-            pp = np.reshape(kde_est(params),[n_grid,n_grid])
+            # from scipy.stats.kde import gaussian_kde
+            # N_BURNIN=1000
+            # chain=results_pickle[ni]['flatchain'][0][N_BURNIN:,:2]
+            # chain_mirror_radius = chain.copy()
+            # chain_mirror_radius[:,1] = -chain_mirror_radius[:,1] + config['radius']['box']['min']
+            # chain_mirrored = np.vstack([chain,chain_mirror_radius])
+            # print chain_mirrored.shape
+            # kde_est=gaussian_kde(chain_mirrored.T) 
+            # # kde_est=gaussian_kde(chain.T,bw_method='scott') 
+            # X,Y=np.meshgrid(grid_kappa0,grid_radius)
+            # params = np.vstack([X.flatten() , Y.flatten()])
+            # pp = np.reshape(kde_est(params),[n_grid,n_grid])
 
-            pl.pcolormesh(X,Y,pp)
-            pl.show()
+            # pl.pcolormesh(X,Y,pp)
+            # pl.show()
 
 
 
@@ -484,7 +484,7 @@ def plot_prob_product():
 
     pl.figure()
     for ip in range(n_params):
-        pl.subplot(2,2,ip)
+        pl.subplot(2,2,ip+1)
 
         ic=0
         list_conf[ip] = []
@@ -530,7 +530,7 @@ def plot_prob_product():
                 ic+=1
 
         true_params=[0.0,0,14,14]
-        pl.legend()
+        # pl.legend()
         pl.axvline( true_params[ip] )
         pl.xlim( [ config[param_name]['box']['min'] , config[param_name]['box']['max'] ])
         # pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
