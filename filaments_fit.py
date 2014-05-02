@@ -224,7 +224,7 @@ def fit_2hf():
                 # pl.xlabel(str(di))
                 # pl.show()
 
-            # get kappa - radius dist
+            # get kappa - radius distribution
             if N_BURNIN < len(fitobj.sampler.flatchain):
                     chain = fitobj.sampler.flatchain[N_BURNIN:,:2]
             else:
@@ -232,8 +232,8 @@ def fit_2hf():
             from scipy.stats.kde import gaussian_kde
             kde_est = gaussian_kde(chain.T)
 
-            grid1 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
-            grid2 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
+            grid1 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],config['n_grid_2D'])
+            grid2 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],config['n_grid_2D'])
             xx,yy=np.meshgrid(grid1,grid2); 
             grid12=np.concatenate([xx.flatten()[:,None],yy.flatten()[:,None]],axis=1)
             marg_prob = kde_est(grid12.T)               
