@@ -278,7 +278,7 @@ class modelfit():
         if log.level == logging.DEBUG:
             n_progress = 10
         elif log.level == logging.INFO:
-            n_progress = 10000
+            n_progress = 1000
         if self.n_model_evals % n_progress == 0:
 
             log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e kappa0=% 6.3f radius=% 6.3f h1M200=% 5.2e h1M200=% 5.2e' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1],10.**theta[2],10.**theta[3]))

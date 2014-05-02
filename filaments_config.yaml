@@ -15,7 +15,6 @@ shear2_col : 's2'
 boundary_mpc : 4
 shear_type : stacked # single, stacked, minimal
 Sigma_crit_unit :  kg/m^2 # kg/m^2 or Msol*h/pc^2
-save_pairs_plots: True
 pixel_size_mpc : 0.25
 
 
@@ -29,7 +28,10 @@ h2M200 : { box: { min : 13    , max : 16 }}
 optimization_mode : mcmc
 sigma_add : 0.001
 sigma_method : orig # add or orig
-save_plots: False
+
+save_dist_plots: True
+save_model_plots: False
+save_pairs_plots: True
 
 get_marginals_for_params: [0,1]
 get_confidence_intervals: False # true or false, true is untested -- requires get_marginals_for_params=[0,1,2,3]

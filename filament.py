@@ -25,7 +25,7 @@ class filament:
         self.mean_inv_sigma_crit = None
         self.scale_dens = 1e14
         self.shear_interp = None
-        self.min_radius = 0.3
+        self.min_radius = 0.
 
     def proj_mass_density(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,truncation=10):
 
@@ -41,11 +41,13 @@ class filament:
         # select = ((shear_u_mpc > (u1_mpc) ) + (shear_u_mpc < (u2_mpc)  ))
         # dens[select] *= 0.
 
-        # amplitude = kappa0 /  (radius_mpc * np.pi) 
+        # amplitude = kappa0 /  (radius_mpc * np.pi)  # use total mass 
+        amplitude = kappa0
+
         truncation_radius = truncation * radius_mpc
         r = np.abs(shear_v_mpc)
         # dens = kappa0 / (1. + (r / radius_mpc)**2 )
-        dens = (kappa0 / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
+        dens = (amplitude / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
         dens[r>truncation_radius]=0.
         dens *=  self.scale_dens
 

@@ -550,7 +550,15 @@ def plot_prob_product():
     # pl.savefig(filename_fig)
     # log.info( 'saved %s' , filename_fig )
 
-  
+
+def test():
+
+    filename_pickle = 'results.chain.0000.0020.shears_selftest_kappa0.05.pp2'
+    res=tabletools.loadPickle(filename_pickle)
+    filename_pickle = 'results.grid.0000.0001.shears_selftest_kappa0.05.pp2'
+    grid=tabletools.loadPickle(filename_pickle)
+    res[-1] = list_params_marg
+    import pdb; pdb.set_trace()
 
 
 
@@ -590,5 +598,6 @@ def main():
     if 'process_results' in args.actions: process_results()
     if 'plot_prob_product' in args.actions: plot_prob_product()
     if 'test_kde_methods' in args.actions: test_kde_methods()
+    if 'test' in args.actions: test()
 
 main()

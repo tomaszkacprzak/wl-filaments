@@ -39,7 +39,7 @@ prob_z = None
 N_BURNIN = 1000
 
 
-def fit_2hf(save_plots=False):
+def fit_2hf():
 
     filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
     filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
@@ -224,6 +224,23 @@ def fit_2hf(save_plots=False):
                 # pl.xlabel(str(di))
                 # pl.show()
 
+            # get kappa - radius dist
+            if N_BURNIN < len(fitobj.sampler.flatchain):
+                    chain = fitobj.sampler.flatchain[N_BURNIN:,:2]
+            else:
+                chain = fitobj.sampler.flatchain[:,:2]
+            from scipy.stats.kde import gaussian_kde
+            kde_est = gaussian_kde(chain.T,bw_method='silverman')
+
+            grid1 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
+            grid2 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
+            xx,yy=np.meshgrid(grid1,grid2); 
+            grid12=np.concatenate([xx.flatten()[:,None],yy.flatten()[:,None]],axis=1)
+            marg_prob = kde_est(grid12.T)               
+            log.info('params kappa0 radius KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(marg_prob))
+
+
+
             grids = list_params_marg
 
             vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_samples_max(log_post,params)
@@ -231,9 +248,12 @@ def fit_2hf(save_plots=False):
             chain_result['flatlnprobability'] = fitobj.sampler.flatlnprobability.astype(np.float32),
             chain_result['flatchain'] = fitobj.sampler.flatchain.astype(np.float32),
             chain_result['list_prob_marg'] = list_prob_marg
-            chain_result['list_params_marg'] = list_params_marg
             chain_result['id'] = id_pair
+            chain_params = {}
+            chain_params['list_params_marg'] = list_params_marg
+            chain_params['kappa0_radius_grid'] = grid12
             tabletools.savePickle(filename_results_chain, chain_result ,append=True)
+            tabletools.savePickle(filename_results_grid, chain_params)
 
 
         elif config['optimization_mode'] == 'gridsearch':
@@ -336,7 +356,7 @@ def fit_2hf(save_plots=False):
             log.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
             log.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
 
-        if save_plots:
+        if config['save_dist_plots']:
             
             pl.rcParams.update({'font.size': 8})
             pl.figure()
@@ -345,7 +365,17 @@ def fit_2hf(save_plots=False):
             # get plot of distributions
             if config['optimization_mode'] == 'mcmc':
 
-                plotstools.plot_dist(fitobj.sampler.flatchain,labels=[r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$' , 'radius Mpc' , r'halo1_M200 $M_{*}$' , 'halo2_M200 $M_{*}$'])
+                if N_BURNIN < len(fitobj.sampler.flatchain):
+                    chain = fitobj.sampler.flatchain[N_BURNIN:,:]
+                else:
+                    chain = fitobj.sampler.flatchain
+
+                bins = [ np.linspace(0.,fitobj.parameters[0]['box']['max'],100) ,
+                         np.linspace(0.,fitobj.parameters[1]['box']['max'],100) ,
+                         np.linspace(fitobj.parameters[2]['box']['min'],fitobj.parameters[2]['box']['max'],100) ,
+                         np.linspace(fitobj.parameters[3]['box']['min'],fitobj.parameters[3]['box']['max'],100) ]
+
+                plotstools.plot_dist(chain,bins=bins,labels=[r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$' , 'radius Mpc' , r'halo1_M200 $M_{*}$' , 'halo2_M200 $M_{*}$'])
 
             elif config['optimization_mode'] == 'gridsearch':
                                   
@@ -370,6 +400,8 @@ def fit_2hf(save_plots=False):
 
             pl.clf()
             pl.close('all')
+
+        if config['save_model_plots']:
 
             pl.figure()
 
@@ -509,7 +541,7 @@ def main():
 
     # fit_single_halo()
     # fit_single_filament(save_plots=args.save_plots)
-    fit_2hf(save_plots=config['save_plots'])
+    fit_2hf()
     # process_results()
     # analyse_results()
     # analyse_stats()
