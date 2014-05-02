@@ -206,10 +206,11 @@ def fit_2hf():
                     chain = fitobj.sampler.flatchain[N_BURNIN:,di]
                 else:
                     chain = fitobj.sampler.flatchain[:,di]
+                
                 # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
                 # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='reflexion')                          
                 # marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
-                # xxs,yys = kde_est.grid(n_grid)
+                               
                 from scipy.stats.kde import gaussian_kde
                 kde_est = gaussian_kde(chain)
                 xxs = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
@@ -219,8 +220,17 @@ def fit_2hf():
                 list_prob_marg.append(yys)
                 log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.factor , np.sum(marg_prob))
 
+                # from sklearn import mixture
+                # gmm=mixture.GMM(n_components=40)
+                # gmm.fit(chain)
+                # xxs = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
+                # yys = np.exp(gmm.score(xxs))
+                # list_params_marg.append(xxs)
+                # list_prob_marg.append(yys)
+
                 # pl.figure()
                 # pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
+                # pl.hist(chain,bins=list_params_marg[di], normed=True)
                 # pl.xlabel(str(di))
                 # pl.show()
 
