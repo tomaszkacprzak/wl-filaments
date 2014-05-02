@@ -73,7 +73,7 @@ def fit_2hf():
     log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
-    filename_results_grid = 'results.grid.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
+    filename_results_grid = 'results.grid.' +   os.path.basename(filename_shears).replace('.fits','.pp2')
     filename_results_chain = 'results.chain.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.pp2')
     filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
@@ -230,7 +230,7 @@ def fit_2hf():
             else:
                 chain = fitobj.sampler.flatchain[:,:2]
             from scipy.stats.kde import gaussian_kde
-            kde_est = gaussian_kde(chain.T,bw_method='silverman')
+            kde_est = gaussian_kde(chain.T)
 
             grid1 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
             grid2 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
