@@ -299,103 +299,6 @@ def analyse_stats_samples():
     pass    
 
 
-def process_results():
-
-    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-    # filename_results_cat = 'results.stats.%s.cat' % name_data
-    # stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
-
-    n_files = args.n_results_files
-    log.info('n_files=%d',n_files)
-
-    n_per_file = 10
-    n_params = 4
-    n_colors = 10
-    ic =0 
-    n_grid = 200
-    list_logprob = [None]*n_params
-    list_grid_centers = [None]*n_params
-    list_ids = []
-
-    n_missing=0
-    ia=0
-
-    for ip in range(n_params):
-        list_logprob[ip] = []
-        list_grid_centers[ip] = []
-
-
-    for nf in range(n_files):
-    # for nf in range(2):
-
-        filename_pickle = 'results/results.chain.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
-        try:
-            results_pickle = tabletools.loadPickle(filename_pickle)
-            log.info('%4d %s' , nf , filename_pickle)
-        except:
-            log.info('missing %s' % filename_pickle)
-            n_missing +=1
-            ia+=1
-            continue
-
-        for ni in range(len(results_pickle)):
-            for ip in range(n_params):
-                prob = results_pickle[ni]['list_prob_marg'][ip]
-                grid = results_pickle[ni]['list_params_marg'][ip]
-                nans = np.nonzero(np.isnan(prob))[0]
-                if len(nans) > 0:
-                    log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
-                prob[prob<1e-20]=1e-20
-                # pl.plot(grid,prob)
-                # pl.plot(grid[prob<0.0],prob[prob<0.0],'ro')
-                # pl.show()
-                # prob /= np.sum(prob)
-                # logprob = np.log(prob)
-                logprob = prob
-                nans = np.nonzero(np.isnan( logprob))[0]
-                infs = np.nonzero(np.isinf( logprob))[0]
-                zeros = np.nonzero( logprob == 0.0)[0]
-                
-                list_logprob[ip].append(logprob)
-                list_ids.append(ia)
-            ia+=1
-
-            # n_grid = 200
-            # # now add kappa0-radius 2d kernel density
-            # grid_kappa0 = np.linspace(-config['kappa0']['box']['max'],config['kappa0']['box']['max'],n_grid)
-            # grid_radius = np.linspace(-config['radius']['box']['max'],config['radius']['box']['max'],n_grid)
-
-            # from scipy.stats.kde import gaussian_kde
-            # N_BURNIN=1000
-            # chain=results_pickle[ni]['flatchain'][0][N_BURNIN:,:2]
-            # chain_mirror_radius = chain.copy()
-            # chain_mirror_radius[:,1] = -chain_mirror_radius[:,1] + config['radius']['box']['min']
-            # chain_mirrored = np.vstack([chain,chain_mirror_radius])
-            # print chain_mirrored.shape
-            # kde_est=gaussian_kde(chain_mirrored.T) 
-            # # kde_est=gaussian_kde(chain.T,bw_method='scott') 
-            # X,Y=np.meshgrid(grid_kappa0,grid_radius)
-            # params = np.vstack([X.flatten() , Y.flatten()])
-            # pp = np.reshape(kde_est(params),[n_grid,n_grid])
-
-            # pl.pcolormesh(X,Y,pp)
-            # pl.show()
-
-
-
-    log.info('n_missing=%d' , n_missing)
-    for ip in range(n_params):  
-        list_logprob[ip] = np.array(list_logprob[ip])
-        list_grid_centers[ip] = np.array(results_pickle[0]['list_params_marg'][ip])
-
-    filename_DeltaSigma = 'logpdf.%s.pp2' % name_data
-    tabletools.savePickle(filename_DeltaSigma, { 'grid_centers' : list_grid_centers , 'ids' : list_ids ,  'logprob' : list_logprob } )    
-
-
-
-    
-
-
     
 def test_kde_methods():
 
@@ -454,6 +357,112 @@ def test_kde_methods():
             pl.show()    
 
 
+def process_results():
+
+    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+    # filename_results_cat = 'results.stats.%s.cat' % name_data
+    # stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
+
+    n_files = args.n_results_files
+    log.info('n_files=%d',n_files)
+
+    n_per_file = 2
+    n_params = 4
+    n_colors = 10
+    ic =0 
+    n_grid = 200
+    list_logprob = [None]*n_params
+    list_grid_centers = [None]*n_params
+    list_ids = []
+
+    n_missing=0
+    ia=0
+
+    for ip in range(n_params):
+        list_logprob[ip] = []
+        list_grid_centers[ip] = []
+    list_prob_kappa0_radius = []
+
+
+    filename_grid = 'results/results.grid.%s.pp2' % name_data
+    grid_pickle = tabletools.loadPickle(filename_grid)
+    grid = grid_pickle['list_params_marg']
+
+    for nf in range(n_files):
+    # for nf in range(2):
+
+        filename_pickle = 'results/results.chain.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
+        try:
+            results_pickle = tabletools.loadPickle(filename_pickle)
+            log.info('%4d %s' , nf , filename_pickle)
+        except:
+            log.info('missing %s' % filename_pickle)
+            n_missing +=1
+            ia+=1
+            continue
+
+        for ni in range(len(results_pickle)):
+            for ip in range(n_params):
+                prob = results_pickle[ni]['list_prob_marg'][ip]
+                nans = np.nonzero(np.isnan(prob))[0]
+                if len(nans) > 0:
+                    log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
+                prob[prob<1e-20]=1e-20
+                # pl.plot(grid,prob)
+                # pl.plot(grid[prob<0.0],prob[prob<0.0],'ro')
+                # pl.show()
+                # prob /= np.sum(prob)
+                # logprob = np.log(prob)
+                logprob = prob
+                nans = np.nonzero(np.isnan( logprob))[0]
+                infs = np.nonzero(np.isinf( logprob))[0]
+                zeros = np.nonzero( logprob == 0.0)[0]
+
+                list_logprob[ip].append(logprob)
+                list_ids.append(ia)
+            prob_kappa0_radius = np.reshape(results_pickle[ni]['prob_kappa0_radius'],[config['n_grid_2D'],config['n_grid_2D']])
+            list_prob_kappa0_radius.append(prob_kappa0_radius)
+            ia+=1
+
+            # n_grid = 200
+            # # now add kappa0-radius 2d kernel density
+            # grid_kappa0 = np.linspace(-config['kappa0']['box']['max'],config['kappa0']['box']['max'],n_grid)
+            # grid_radius = np.linspace(-config['radius']['box']['max'],config['radius']['box']['max'],n_grid)
+
+            # from scipy.stats.kde import gaussian_kde
+            # N_BURNIN=1000
+            # chain=results_pickle[ni]['flatchain'][0][N_BURNIN:,:2]
+            # chain_mirror_radius = chain.copy()
+            # chain_mirror_radius[:,1] = -chain_mirror_radius[:,1] + config['radius']['box']['min']
+            # chain_mirrored = np.vstack([chain,chain_mirror_radius])
+            # print chain_mirrored.shape
+            # kde_est=gaussian_kde(chain_mirrored.T) 
+            # # kde_est=gaussian_kde(chain.T,bw_method='scott') 
+            # X,Y=np.meshgrid(grid_kappa0,grid_radius)
+            # params = np.vstack([X.flatten() , Y.flatten()])
+            # pp = np.reshape(kde_est(params),[n_grid,n_grid])
+
+            # pl.pcolormesh(X,Y,pp)
+            # pl.show()
+
+
+    log.info('n_missing=%d' , n_missing)
+    for ip in range(n_params):  
+        list_logprob[ip] = np.array(list_logprob[ip])
+        list_grid_centers[ip] = np.array(grid[ip])
+    prob_kappa0_radius = np.array(list_prob_kappa0_radius)
+    grid2D_kappa0 = np.reshape(grid_pickle['kappa0_radius_grid'][:,0],[config['n_grid_2D'],config['n_grid_2D']])
+    grid2D_radius = np.reshape(grid_pickle['kappa0_radius_grid'][:,1],[config['n_grid_2D'],config['n_grid_2D']])
+
+    pl.figure()
+    pl.pcolormesh(grid2D_kappa0,grid2D_radius,prob_kappa0_radius[0])
+    pl.colorbar()
+    pl.show()
+
+    filename_DeltaSigma = 'logpdf.%s.pp2' % name_data
+    tabletools.savePickle(filename_DeltaSigma, { 'grid_centers' : list_grid_centers , 'ids' : list_ids ,  'logprob' : list_logprob , 'grid2D_radius' : grid2D_radius , 'grid2D_kappa0' : grid2D_kappa0 ,  'prob_kappa0_radius' : prob_kappa0_radius} )    
+
+
 
 def plot_prob_product():
 
@@ -470,7 +479,7 @@ def plot_prob_product():
     n_params = 4
     n_step = 1
     # n_pairs = logpdfs[0].shape[0]
-    n_pairs = 10
+    n_pairs = 2
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 
@@ -529,6 +538,8 @@ def plot_prob_product():
                 pl.plot(grid_pdf , prod_pdf , '-', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
                 ic+=1
 
+
+
         true_params=[0.0,0,14,14]
         # pl.legend()
         pl.axvline( true_params[ip] )
@@ -539,7 +550,22 @@ def plot_prob_product():
 
         list_conf[ip] = np.array(list_conf[ip])
 
+    prob_kappa0_radius = dict_logpdf['prob_kappa0_radius']
+    grid2D_kappa0 = dict_logpdf['grid2D_kappa0']
+    grid2D_radius = dict_logpdf['grid2D_radius']
+    
+    prob2D = np.log(prob_kappa0_radius)
+    prob2D_prod = np.sum(prob2D,axis=0)
+    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(prob2D_prod)  
+
+    pl.figure()
+    pl.pcolormesh(grid2D_kappa0,grid2D_radius,prod2D_pdf)
+    pl.colorbar()
+
+
     pl.show()
+
+
         
         # pl.figure()
         # pl.plot(list_conf[ip][:,0],list_conf[ip][:,2])
@@ -555,10 +581,10 @@ def test():
 
     filename_pickle = 'results.chain.0000.0020.shears_selftest_kappa0.05.pp2'
     res=tabletools.loadPickle(filename_pickle)
-    filename_pickle = 'results.grid.0000.0001.shears_selftest_kappa0.05.pp2'
+    filename_pickle = 'results.grid.shears_selftest_kappa0.05.pp2'
     grid=tabletools.loadPickle(filename_pickle)
-    res[-1] = list_params_marg
     import pdb; pdb.set_trace()
+    res[-1] = list_params_marg
 
 
 
@@ -599,5 +625,6 @@ def main():
     if 'plot_prob_product' in args.actions: plot_prob_product()
     if 'test_kde_methods' in args.actions: test_kde_methods()
     if 'test' in args.actions: test()
+    
 
 main()

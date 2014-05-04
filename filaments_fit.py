@@ -242,11 +242,11 @@ def fit_2hf():
             from scipy.stats.kde import gaussian_kde
             kde_est = gaussian_kde(chain.T)
 
-            grid1 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],config['n_grid_2D'])
-            grid2 = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],config['n_grid_2D'])
+            grid1 = np.linspace(fitobj.parameters[0]['box']['min'],fitobj.parameters[0]['box']['max'],config['n_grid_2D'])
+            grid2 = np.linspace(fitobj.parameters[1]['box']['min'],fitobj.parameters[1]['box']['max'],config['n_grid_2D'])
             xx,yy=np.meshgrid(grid1,grid2); 
             grid12=np.concatenate([xx.flatten()[:,None],yy.flatten()[:,None]],axis=1)
-            marg_prob = kde_est(grid12.T)               
+            marg_prob = kde_est(grid12.T)   
             log.info('params kappa0 radius KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(marg_prob))
 
 
@@ -258,6 +258,7 @@ def fit_2hf():
             chain_result['flatlnprobability'] = fitobj.sampler.flatlnprobability.astype(np.float32),
             chain_result['flatchain'] = fitobj.sampler.flatchain.astype(np.float32),
             chain_result['list_prob_marg'] = list_prob_marg
+            chain_result['prob_kappa0_radius'] = marg_prob
             chain_result['id'] = id_pair
             chain_params = {}
             chain_params['list_params_marg'] = list_params_marg
