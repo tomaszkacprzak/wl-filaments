@@ -360,6 +360,7 @@ def test_kde_methods():
 def process_results():
 
     name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+
     # filename_results_cat = 'results.stats.%s.cat' % name_data
     # stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
 
@@ -419,7 +420,8 @@ def process_results():
                 zeros = np.nonzero( logprob == 0.0)[0]
 
                 list_logprob[ip].append(logprob)
-                list_ids.append(ia)
+                
+            list_ids.append(results_pickle[ni]['id'])
             prob_kappa0_radius = np.reshape(results_pickle[ni]['prob_kappa0_radius'],[config['n_grid_2D'],config['n_grid_2D']])
             list_prob_kappa0_radius.append(prob_kappa0_radius)
             ia+=1
@@ -445,7 +447,6 @@ def process_results():
             # pl.pcolormesh(X,Y,pp)
             # pl.show()
 
-
     log.info('n_missing=%d' , n_missing)
     for ip in range(n_params):  
         list_logprob[ip] = np.array(list_logprob[ip])
@@ -454,13 +455,134 @@ def process_results():
     grid2D_kappa0 = np.reshape(grid_pickle['kappa0_radius_grid'][:,0],[config['n_grid_2D'],config['n_grid_2D']])
     grid2D_radius = np.reshape(grid_pickle['kappa0_radius_grid'][:,1],[config['n_grid_2D'],config['n_grid_2D']])
 
-    pl.figure()
-    pl.pcolormesh(grid2D_kappa0,grid2D_radius,prob_kappa0_radius[0])
-    pl.colorbar()
-    pl.show()
+    # pl.figure()
+    # pl.pcolormesh(grid2D_kappa0,grid2D_radius,prob_kappa0_radius[0])
+    # pl.colorbar()
+    # pl.show()
 
     filename_DeltaSigma = 'logpdf.%s.pp2' % name_data
     tabletools.savePickle(filename_DeltaSigma, { 'grid_centers' : list_grid_centers , 'ids' : list_ids ,  'logprob' : list_logprob , 'grid2D_radius' : grid2D_radius , 'grid2D_kappa0' : grid2D_kappa0 ,  'prob_kappa0_radius' : prob_kappa0_radius} )    
+
+
+
+def get_prob_product(ids):
+
+    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+    filename_logpdf = 'logpdf.%s.pp2' % name_data
+    dict_logpdf = tabletools.loadPickle(filename_logpdf,remember=True)
+    logpdfs = dict_logpdf['logprob']
+    grids   = dict_logpdf['grid_centers']
+    prob_kappa0_radius = dict_logpdf['prob_kappa0_radius']
+    list_ids = np.array(dict_logpdf['ids'])
+
+    n_params = 4
+    n_step = 1
+    n_pairs = logpdfs[0].shape[0]
+    list_conf = [None]*n_params
+
+    select = [False]*n_pairs
+    for ii in range(n_pairs):
+        if list_ids[ii] in ids:
+            select[ii] = True
+    select = np.array(select)
+
+    for ip in range(n_params):
+        logpdfs[ip]=logpdfs[ip][select,:]
+    prob_kappa0_radius = prob_kappa0_radius[select]
+    n_pairs = logpdfs[0].shape[0]
+    log.info('using %d pairs' , n_pairs )
+    print ids
+
+
+    n_use = 0
+    n_nan_pairs = 0
+    param_names = {0:'kappa0',1:'radius',2:'h1M200',3:'h2M200'}
+
+    list_prod_pdf = []
+    list_grid_pdf = []
+
+    for ip in range(n_params):
+        
+        ic=0
+        list_conf[ip] = []
+        logpdf = logpdfs[ip]
+        grid_pdf = grids[ip]
+        perm=np.random.permutation(n_pairs)
+        logpdf = logpdf[perm]
+        param_name = param_names[ip]
+
+        for ia in range(n_pairs):
+
+            nans=np.nonzero(np.isnan(logpdf[ia]))[0]
+
+            if len(nans)>0:
+                
+                n_nan_pairs +=1
+                print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
+                # if np.isnan(logpdf_DeltaSigma[ia,0]):
+                    # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
+                # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
+
+                logpdf[ia,:] = np.exp(logpdf[ia,:])
+                mask = np.isnan(logpdf[ia,:]) | np.isinf(logpdf[ia,:])
+                logpdf[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf[ia,~mask]) / 2.
+                logpdf[ia,np.isinf(logpdf[ia,:])] = 1e-20
+                logpdf[ia,:] = np.log(logpdf[ia,:]) 
+
+                # pl.plot(grid_pdf,np.exp(logpdf[ia,:]))
+                # pl.plot(grid_pdf[mask],np.exp(logpdf[ia,mask]),'ro')
+                # pl.show()
+
+        sum_logpdf = np.sum(logpdf,axis=0)
+        prod_pdf , prod_log_pdf , _ , _ = mathstools.get_normalisation(sum_logpdf)  
+        list_prod_pdf.append(prod_pdf)
+        list_grid_pdf.append(grid_pdf)
+
+  
+    prob2D = np.log(prob_kappa0_radius)
+    prob2D_prod = np.sum(prob2D,axis=0)
+    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(prob2D_prod)  
+
+    grid2D_kappa0 = dict_logpdf['grid2D_kappa0']
+    grid2D_radius = dict_logpdf['grid2D_radius']
+    return list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius
+
+
+
+def plot_vs_mass():
+
+    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+    filename_logpdf = 'logpdf.%s.pp2' % name_data
+    dict_logpdf = tabletools.loadPickle(filename_logpdf)
+    logpdfs = dict_logpdf['logprob'] 
+    grids   = dict_logpdf['grid_centers']
+    list_ids = dict_logpdf['ids']
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)[list_ids] 
+    halo2 = tabletools.loadTable(filename_halos2)[list_ids]
+    n_pairs = len(halo1)
+
+    bins_snr_centers = [ 3 , 6]
+    bins_snr_edges = plotstools.get_bins_edges(bins_snr_centers)
+
+    for ib in range(1,len(bins_snr_edges)):
+        mass = (halo1['snr']+halo2['snr'])/2.
+        ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
+        print ids
+        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius = get_prob_product(ids)
+
+        pl.figure()
+        pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
+
+    pl.show()
+
+
+
 
 
 
@@ -471,6 +593,15 @@ def plot_prob_product():
     dict_logpdf = tabletools.loadPickle(filename_logpdf)
     logpdfs = dict_logpdf['logprob'] 
     grids   = dict_logpdf['grid_centers']
+    list_ids = dict_logpdf['ids']
+
+    filename_pairs = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)[list_ids] 
+    halo2 = tabletools.loadTable(filename_halos2)[list_ids]
+    n_pairs = len(halo1)
 
     # 'normalising'
     # for il in range(logpdf_DeltaSigma.shape[0]):
@@ -592,6 +723,9 @@ def test():
    
 def main():
 
+
+    valid_actions = ['process_results', 'plot_prob_product', 'test_kde_methods', 'plot_vs_mass', 'test' ]
+
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
@@ -600,7 +734,7 @@ def main():
     parser.add_argument('-n', '--n_results_files',type=int, action='store', help='number of results files to use')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
-    parser.add_argument('-a','--actions', nargs='+', default=['plot_prob_product'] , action='store', help='which actions to run, available: {process_results, plot_prob_product, test_kde_methods} ' )
+    parser.add_argument('-a','--actions', nargs='+', default=['plot_prob_product'] , action='store', help='which actions to run, available: %s' % str(valid_actions) )
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
@@ -619,12 +753,19 @@ def main():
     config = yaml.load(open(args.filename_config))
 
     if args.actions==[]:
-        'choose one or more actions: '
+        'choose one or more actions: %s' % str(valid_actions)
 
     if 'process_results' in args.actions: process_results()
     if 'plot_prob_product' in args.actions: plot_prob_product()
     if 'test_kde_methods' in args.actions: test_kde_methods()
+    if 'plot_vs_mass' in args.actions: plot_vs_mass()
     if 'test' in args.actions: test()
+
+    for ac in args.actions:
+        if ac not in valid_actions:
+            print 'invalid action %s' % ac
+
+
     
 
 main()
