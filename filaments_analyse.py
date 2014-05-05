@@ -462,6 +462,89 @@ def process_results():
     filename_DeltaSigma = 'logpdf.%s.pp2' % name_data
     tabletools.savePickle(filename_DeltaSigma, { 'grid_centers' : list_grid_centers , 'ids' : list_ids ,  'logprob' : list_logprob , 'grid2D_radius' : grid2D_radius , 'grid2D_kappa0' : grid2D_kappa0 ,  'prob_kappa0_radius' : prob_kappa0_radius} )    
 
+def get_prob_prod(ids):
+
+    n_per_file = 10
+    n_files = 300
+    n_params = 4
+    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+
+    prob_prod = []
+    for ip in range(n_params): prob_prod.append(np.zeros(config['n_grid']))
+    prob_kappa0_radius = np.zeros([config['n_grid_2D'],config['n_grid_2D']])
+    
+    n_missing=0
+    n_usable_results=0
+    ia=0
+
+    filename_grid = 'results/results.grid.%s.pp2' % name_data
+    grid_pickle = tabletools.loadPickle(filename_grid)
+    grid = grid_pickle['list_params_marg']
+    grid2D = grid_pickle['kappa0_radius_grid']
+
+    for nf in range(n_files):
+
+        id_start = nf*n_per_file
+        id_end = (nf+1)*n_per_file
+        current_ids = range(id_start,id_end)
+
+        if len(list(set(ids) & set(current_ids))) < 0:
+
+            ia+=n_per_file
+
+        else:
+
+            filename_pickle = 'results/results.chain.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
+            try:
+                results_pickle = tabletools.loadPickle(filename_pickle,log=1)
+            except:
+                log.info('missing %s' % filename_pickle)
+                n_missing +=1
+                ia+=n_per_file
+                continue
+
+            for ni in range(n_per_file):
+
+                if ia in ids:
+
+                    # marginals in each parameter
+                    for ip in range(n_params):
+                        prob = results_pickle[ni]['list_prob_marg'][ip]
+                        nans = np.nonzero(np.isnan(prob))[0]
+                        if len(nans) > 0:
+                            log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
+                        prob[prob<1e-20]=1e-20
+                        logprob = prob
+                        nans = np.nonzero(np.isnan( logprob))[0]
+                        infs = np.nonzero(np.isinf( logprob))[0]
+                        zeros = np.nonzero( logprob == 0.0)[0]
+
+                        prod1D_pdf , prod1D_log_pdf , _ , _ = mathstools.get_normalisation(logprob)
+                        prob_prod[ip] += prod1D_log_pdf
+
+                    # marginal kappa-radius
+                    logprob2D = np.log(results_pickle[ni]['prob_kappa0_radius'])
+                    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob2D)  
+                    prod2D_log_pdf = np.reshape(prod2D_log_pdf,[config['n_grid_2D'],config['n_grid_2D']])
+                    prob_kappa0_radius += prod2D_log_pdf
+                n_usable_results+=1
+                ia+=1
+                
+            log.info('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+
+    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(prob_kappa0_radius)  
+    grid2D_kappa0 = np.reshape(grid_pickle['kappa0_radius_grid'][:,0],[config['n_grid_2D'],config['n_grid_2D']])
+    grid2D_radius = np.reshape(grid_pickle['kappa0_radius_grid'][:,1],[config['n_grid_2D'],config['n_grid_2D']])
+        
+    return prob_prod, grid, prod2D_pdf, grid2D_kappa0, grid2D_radius
+
+
+
+
+
+
+
+
 
 
 def get_prob_product(ids):
@@ -550,30 +633,33 @@ def get_prob_product(ids):
 
 def plot_vs_mass():
 
-    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-    filename_logpdf = 'logpdf.%s.pp2' % name_data
-    dict_logpdf = tabletools.loadPickle(filename_logpdf)
-    logpdfs = dict_logpdf['logprob'] 
-    grids   = dict_logpdf['grid_centers']
-    list_ids = dict_logpdf['ids']
+    # name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+    # filename_logpdf = 'logpdf.%s.pp2' % name_data
+    # dict_logpdf = tabletools.loadPickle(filename_logpdf)
+    # import pdb; pdb.set_trace()
+    # logpdfs = dict_logpdf['logprob'] 
+    # grids   = dict_logpdf['grid_centers']
+    # list_ids = dict_logpdf['ids']
 
     filename_pairs = config['filename_pairs']
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
 
-    halo1 = tabletools.loadTable(filename_halos1)[list_ids] 
-    halo2 = tabletools.loadTable(filename_halos2)[list_ids]
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
     n_pairs = len(halo1)
 
-    bins_snr_centers = [ 3 , 6]
+    bins_snr_centers = [ 1e14 , 2e14]
+    # bins_snr_centers = [ 3 , 6]
     bins_snr_edges = plotstools.get_bins_edges(bins_snr_centers)
 
     for ib in range(1,len(bins_snr_edges)):
-        mass = (halo1['snr']+halo2['snr'])/2.
+        mass = (halo1['m200']+halo2['m200'])/2.
+        # mass = (halo1['snr']+halo2['snr'])/2.
         ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
-        print ids
-        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius = get_prob_product(ids)
+        log.info('bin %d found n=%d ids' % (ib,len(ids)))
+        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius = get_prob_prod(ids)
 
         pl.figure()
         pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
@@ -733,7 +819,7 @@ def main():
     parser.add_argument('-n', '--n_results_files',type=int, action='store', help='number of results files to use')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
-    parser.add_argument('-a','--actions', nargs='+', default=['plot_prob_product'] , action='store', help='which actions to run, available: %s' % str(valid_actions) )
+    parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
@@ -751,8 +837,10 @@ def main():
     global config 
     config = yaml.load(open(args.filename_config))
 
-    if args.actions==[]:
-        'choose one or more actions: %s' % str(valid_actions)
+    try:
+        args.actions[0]
+    except:
+        raise Exception('choose one or more actions: %s' % str(valid_actions))
 
     if 'process_results' in args.actions: process_results()
     if 'plot_prob_product' in args.actions: plot_prob_product()

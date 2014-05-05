@@ -466,7 +466,7 @@ class modelfit():
         self.inv_sq_sigma_g[select] = 0
         self.shear_g1[select] = 0
         self.shear_g2[select] = 0
-        n_nans = len(np.nonzero(np.isnan(self.shear_g1))[0])
+        n_nans = sum(np.isnan(self.shear_g1))
         log.info('found %d nan pixels' % n_nans)
 
 
