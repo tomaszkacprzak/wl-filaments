@@ -464,6 +464,8 @@ class modelfit():
         # remove nans -- we shouldn't have nans in the data, but we appear to have
         select = np.isnan(self.shear_g1) | np.isnan(self.shear_g2)
         self.inv_sq_sigma_g[select] = 0
+        self.shear_g1[select] = 0
+        self.shear_g2[select] = 0
         n_nans = len(np.nonzero(np.isnan(self.shear_g1))[0])
         log.info('found %d nan pixels' % n_nans)
 
