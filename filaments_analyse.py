@@ -367,9 +367,8 @@ def process_results():
     n_files = args.n_results_files
     log.info('n_files=%d',n_files)
 
-    n_per_file = 2
+    n_per_file = 10
     n_params = 4
-    n_colors = 10
     ic =0 
     n_grid = 200
     list_logprob = [None]*n_params
@@ -476,7 +475,7 @@ def get_prob_product(ids):
     list_ids = np.array(dict_logpdf['ids'])
 
     n_params = 4
-    n_step = 1
+    n_step = 10
     n_pairs = logpdfs[0].shape[0]
     list_conf = [None]*n_params
 
@@ -609,8 +608,8 @@ def plot_prob_product():
 
     n_params = 4
     n_step = 1
-    # n_pairs = logpdfs[0].shape[0]
-    n_pairs = 2
+    n_pairs = logpdfs[0].shape[0]
+    # n_pairs = 2
     n_colors = n_pairs/n_step+1
     colors = plotstools.get_colorscale(n_colors)
 

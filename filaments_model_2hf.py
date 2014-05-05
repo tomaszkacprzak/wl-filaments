@@ -461,6 +461,12 @@ class modelfit():
 
         self.inv_sq_sigma_g = ( np.sqrt(self.shear_n_gals) / self.sigma_ell )**2
 
+        # remove nans -- we shouldn't have nans in the data, but we appear to have
+        select = np.isnan(self.shear_g1) | np.isnan(self.shear_g2)
+        self.inv_sq_sigma_g[select] = 0
+        n_nans = len(np.nonzero(np.isnan(self.shear_g1))[0])
+        log.info('found %d nan pixels' % n_nans)
+
 
     def get_grid_max(self,log_post,params):
 
