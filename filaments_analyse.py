@@ -162,7 +162,6 @@ def get_prob_prod_gridsearch(ids):
     n_params = 4
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
 
-    logprob_kappa0_radius = np.zeros([config['kappa0']['n_grid'],config['radius']['n_grid']])
     
     n_missing=0
     n_usable_results=0
@@ -172,6 +171,19 @@ def get_prob_prod_gridsearch(ids):
     grid_pickle = tabletools.loadPickle(filename_grid)
     grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
     grid_radius = grid_pickle['grid_radius'][:,:,0,0]
+    vec_kappa0 = grid_kappa0[:,0]
+    vec_radius = grid_kappa0[0,:]
+
+    n_upsample = 10
+
+    # import pdb; pdb.set_trace()
+    vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
+    vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
+
+    grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
+    
+    logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])
+    logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])
 
     for nf in range(id_file_first,id_file_last):
 
@@ -206,18 +218,29 @@ def get_prob_prod_gridsearch(ids):
                     pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                     log_prob_2D = np.log(pdf_prob_2D)
                     logprob_kappa0_radius += log_prob_2D
+                    plot_prob_all, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius)  
+                    plot_prob_this, _, _,_ = mathstools.get_normalisation(log_prob_2D)   
 
-                    # plot_prob_all, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius)  
-                    # plot_prob_this, _, _,_ = mathstools.get_normalisation(log_prob_2D)   
-                    # pl.figure(figsize=(10,5))
-                    # pl.subplot(1,2,1)
-                    # pl.pcolormesh(grid_kappa0, grid_radius , plot_prob_all); pl.colorbar()
-                    # # pl.xlim([-0.2,0.2])
-                    # # pl.ylim([-10,10])
-                    # pl.subplot(1,2,2)
-                    # pl.pcolormesh(grid_kappa0 , grid_radius , plot_prob_this); pl.colorbar()
-                    # # pl.xlim([-0.2,0.2])
-                    # # pl.ylim([-10,10])
+                    from scipy import interpolate
+                    # spline = interpolate.bisplrep(grid_kappa0,grid_radius,log_prob_2D,s=0)
+                    # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
+                    func_interp = interpolate.interp2d(grid_kappa0.T,grid_radius.T,log_prob_2D, kind='linear')
+                    log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+
+                    logprob_kappa0_radius_hires += log_prob_2D_hires
+                    plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
+                    plot_prob_this_hires, _, _,_ = mathstools.get_normalisation(log_prob_2D_hires)   
+
+
+                    # pl.figure(figsize=(10,10))
+                    # pl.subplot(2,2,1)
+                    # pl.pcolormesh(grid_kappa0, grid_radius , logprob_kappa0_radius); pl.colorbar()
+                    # pl.subplot(2,2,2)
+                    # pl.pcolormesh(grid_kappa0 , grid_radius , log_prob_2D); pl.colorbar()
+                    # pl.subplot(2,2,3)
+                    # pl.pcolormesh(grid_kappa0_hires, grid_radius_hires , logprob_kappa0_radius_hires); pl.colorbar()
+                    # pl.subplot(2,2,4)
+                    # pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , log_prob_2D_hires); pl.colorbar()
                     # pl.show()
 
                     n_usable_results+=1
@@ -226,10 +249,11 @@ def get_prob_prod_gridsearch(ids):
             log.info('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
 
 
-    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)  
+    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
 
         
-    return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
+    return None, None, prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
+    # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
 
 def plot_vs_length():
@@ -492,10 +516,10 @@ def plotdata_all():
     n_pairs = len(halo1)
 
     if 'cfhtlens' in filename_pairs:
-        bins_snr_edges = [0,4,20]
+        bins_snr_edges = [0,20]
         mass_param_name = 'snr'
     else:
-        bins_snr_edges = [1e14,2e14,1e15]
+        bins_snr_edges = [1e14,1e15]
         mass_param_name = 'm200'
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
