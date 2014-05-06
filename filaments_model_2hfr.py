@@ -237,7 +237,7 @@ class modelfit():
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
         filament_kappa0 = params[0]
-        filament_radius = params[1]
+        filament_rs     = params[1]
         halo2_M200 = 10.**params[3]
         halo1_M200 = 10.**params[2]
 
@@ -246,18 +246,18 @@ class modelfit():
         self.nh1.concentr = self.get_concentr(halo1_M200,self.halo1_z)
         self.nh1.R_200 = self.nh1.r_s*self.nh1.concentr
 
-
         self.nh2.M_200= halo2_M200
         self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
         self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr
 
-        filament_u1_mpc = self.halo1_u_mpc - self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + self.nh2.R_200
+        filament_radius = (self.nh1.R_200+self.nh2.R_200)/2.*filament_rs
+
+        filament_u1_mpc = self.halo1_u_mpc + self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc - self.nh2.R_200
 
         h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         fg1 , fg2 = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
-
 
         model_g1 = h1g1 + h2g1 + fg1
         model_g2 = h1g2 + h2g2 + fg2
