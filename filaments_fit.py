@@ -173,13 +173,20 @@ def fit_2hf():
 
         fitobj.parameters[0]['box']['min'] = config['kappa0']['box']['min']
         fitobj.parameters[0]['box']['max'] = config['kappa0']['box']['max']
+        fitobj.parameters[0]['n_grid'] = config['kappa0']['n_grid']
+
         fitobj.parameters[1]['box']['min'] = config['radius']['box']['min']
         fitobj.parameters[1]['box']['max'] = config['radius']['box']['max']
+        fitobj.parameters[1]['n_grid'] = config['radius']['n_grid']
+        
         fitobj.parameters[2]['box']['min'] = config['h1M200']['box']['min']
         fitobj.parameters[2]['box']['max'] = config['h1M200']['box']['max']
+        fitobj.parameters[2]['n_grid'] = config['h1M200']['n_grid']
+        
         fitobj.parameters[3]['box']['min'] = config['h2M200']['box']['min']
         fitobj.parameters[3]['box']['max'] = config['h2M200']['box']['max']
-        
+        fitobj.parameters[3]['n_grid'] = config['h2M200']['n_grid']
+
         # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # pl.show()
         # fitobj.save_all_models=False
@@ -269,29 +276,28 @@ def fit_2hf():
 
         elif config['optimization_mode'] == 'gridsearch':
             log.info('running grid search')
-            fitobj.n_grid = config['n_grid']
+
             log_post , params, grids = fitobj.run_gridsearch()
+            tabletools.savePickle(filename_results_prob,log_post.astype(np.float32),append=True)
 
             # get the normalised PDF and use the same normalisation on the log
             prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)
-            # get the maximum likelihood solution
-            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post,params)
-            # get the marginals
-            list_prob_marg, list_params_marg = mathstools.get_marginals(params,prob_post)
+            # # get the maximum likelihood solution
+            # vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post,params)
+            # # get the marginals
+            # list_prob_marg, list_params_marg = mathstools.get_marginals(params,prob_post)
 
-            tabletools.savePickle(filename_results_prob,log_post,append=True)
-
-            grid_info = {}
-            grid_info['grid_kappa0'] = grids[0]
-            grid_info['grid_radius'] = grids[1]
-            grid_info['grid_h1M200'] = grids[2]
-            grid_info['grid_h2M200'] = grids[3]
-            grid_info['post_kappa0'] = params[:,0]
-            grid_info['post_radius'] = params[:,1]
-            grid_info['post_h1M200'] = params[:,2]
-            grid_info['post_h2M200'] = params[:,3]
             
             if id_pair == id_pair_first:
+                grid_info = {}
+                grid_info['grid_kappa0'] = grids[0]
+                grid_info['grid_radius'] = grids[1]
+                grid_info['grid_h1M200'] = grids[2]
+                grid_info['grid_h2M200'] = grids[3]
+                grid_info['post_kappa0'] = params[0]
+                grid_info['post_radius'] = params[1]
+                grid_info['post_h1M200'] = params[2]
+                grid_info['post_h2M200'] = params[3]
                 tabletools.savePickle(filename_results_grid,grid_info)
 
             # pl.subplot(2,2,1)

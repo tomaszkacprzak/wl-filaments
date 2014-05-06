@@ -411,32 +411,38 @@ class modelfit():
         self.nh2.theta_cy = self.halo2_v_arcmin 
         self.nh2.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.pair_z)
 
-        n_grid = self.n_grid
-        n_total = n_grid**self.n_dim
-
         self.n_model_evals = 0
 
-        grid_kappa0 = np.linspace(self.parameters[0]['box']['min'],self.parameters[0]['box']['max'],n_grid)
-        grid_radius = np.linspace(self.parameters[1]['box']['min'],self.parameters[1]['box']['max'],n_grid)
-        grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'],n_grid)
-        grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'],n_grid)
-        log_post = np.zeros(n_total)
-        params = np.zeros([n_total,self.n_dim])
+        grid_kappa0 = np.linspace(self.parameters[0]['box']['min'],self.parameters[0]['box']['max'], self.parameters[0]['n_grid'])
+        grid_radius = np.linspace(self.parameters[1]['box']['min'],self.parameters[1]['box']['max'], self.parameters[1]['n_grid'])
+        grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'], self.parameters[2]['n_grid'])
+        grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'], self.parameters[3]['n_grid'])
+        n_total = len(grid_kappa0)* len(grid_radius)* len(grid_h1M200)* len(grid_h2M200)
+        log_post = np.zeros([len(grid_kappa0), len(grid_radius) , len(grid_h1M200) , len(grid_h2M200)] )
+        X1,X2,X3,X4 = np.meshgrid(grid_kappa0,grid_radius,grid_h1M200,grid_h2M200,indexing='ij')
+
+        log.info('running gridsearch total %d grid points' % n_total)
 
         ia = 0
-        n_models = len(grid_kappa0) * len(grid_radius)
         for ik,vk in enumerate(grid_kappa0):
             for ir,vr in enumerate(grid_radius):
                 for im1,vm1 in enumerate(grid_h1M200):
                     for im2,vm2 in enumerate(grid_h2M200):
-    
-                            log_post[ia] = self.log_posterior([vk,vr,vm1,vm2])
-                            params[ia,:] = vk , vr , vm1 , vm2
+                            
+                            x1 = X1[ik,ir,im1,im2]    
+                            x2 = X2[ik,ir,im1,im2]    
+                            x3 = X3[ik,ir,im1,im2]    
+                            x4 = X4[ik,ir,im1,im2]    
+
+                            # log_post[ik,ir,im1,im2] = self.log_posterior([vk,vr,vm1,vm2])
+                            # params[ia,:] = vk , vr , vm1 , vm2
+
+                            log_post[ik,ir,im1,im2] = self.log_posterior([x1,x2,x3,x4])
                             ia+=1
-                            # if ia % 1000 == 0 : log.info('gridsearch progress %d/%d models' , ia, n_models)
+                            if ia % 1000 == 0 : log.info('gridsearch progress %d/%d models' , ia, n_total)
 
-
-        grids =  [grid_kappa0, grid_radius , grid_h1M200 , grid_h2M200]
+        grids = [X1,X2,X3,X4]
+        params =  [grid_kappa0, grid_radius , grid_h1M200 , grid_h2M200]
         return log_post , params , grids 
 
 
@@ -645,10 +651,13 @@ def self_fit():
 
     fitobj.parameters[0]['box']['min'] = 0
     fitobj.parameters[0]['box']['max'] = 1
+
     fitobj.parameters[1]['box']['min'] = 1
     fitobj.parameters[1]['box']['max'] = 10
+
     fitobj.parameters[2]['box']['min'] = 14
     fitobj.parameters[2]['box']['max'] = 15
+
     fitobj.parameters[3]['box']['min'] = 14
     fitobj.parameters[3]['box']['max'] = 15
 
@@ -656,18 +665,23 @@ def self_fit():
     print 'halo2 m200' , halo2_table['m200'][id_pair]
 
     # import pdb; pdb.set_trace()
-
     # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
     # pl.show()
-    fitobj.save_all_models=False
-    log.info('running mcmc search')
-    fitobj.n_walkers=10
-    fitobj.n_samples=2000
-    fitobj.run_mcmc()
-    params = fitobj.sampler.flatchain
 
-    plotstools.plot_dist(params)
-    pl.show()
+    fitobj.save_all_models=False
+    log.info('running grid search')
+    fitobj.run_gridsearch()
+       
+
+    # fitobj.save_all_models=False
+    # log.info('running mcmc search')
+    # fitobj.n_walkers=10
+    # fitobj.n_samples=2000
+    # fitobj.run_mcmc()
+    # params = fitobj.sampler.flatchain
+
+    # plotstools.plot_dist(params)
+    # pl.show()
 
     # vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post , params)
 
