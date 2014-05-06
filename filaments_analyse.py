@@ -356,118 +356,13 @@ def test_kde_methods():
             pl.legend()
             pl.show()    
 
-
-def process_results():
-
-    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-
-    # filename_results_cat = 'results.stats.%s.cat' % name_data
-    # stats = tabletools.loadTable(filename_results_cat,dtype=filaments_model_2hf.dtype_stats)
-
-    n_files = args.n_results_files
-    log.info('n_files=%d',n_files)
-
-    n_per_file = 10
-    n_params = 4
-    ic =0 
-    n_grid = 200
-    list_logprob = [None]*n_params
-    list_grid_centers = [None]*n_params
-    list_ids = []
-
-    n_missing=0
-    ia=0
-
-    for ip in range(n_params):
-        list_logprob[ip] = []
-        list_grid_centers[ip] = []
-    list_prob_kappa0_radius = []
-
-
-    filename_grid = 'results/results.grid.%s.pp2' % name_data
-    grid_pickle = tabletools.loadPickle(filename_grid)
-    grid = grid_pickle['list_params_marg']
-
-    for nf in range(n_files):
-    # for nf in range(2):
-
-        filename_pickle = 'results/results.chain.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
-        try:
-            results_pickle = tabletools.loadPickle(filename_pickle)
-            log.info('%4d %s' , nf , filename_pickle)
-        except:
-            log.info('missing %s' % filename_pickle)
-            n_missing +=1
-            ia+=1
-            continue
-
-        for ni in range(len(results_pickle)):
-            for ip in range(n_params):
-                prob = results_pickle[ni]['list_prob_marg'][ip]
-                nans = np.nonzero(np.isnan(prob))[0]
-                if len(nans) > 0:
-                    log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
-                prob[prob<1e-20]=1e-20
-                # pl.plot(grid,prob)
-                # pl.plot(grid[prob<0.0],prob[prob<0.0],'ro')
-                # pl.show()
-                # prob /= np.sum(prob)
-                # logprob = np.log(prob)
-                logprob = prob
-                nans = np.nonzero(np.isnan( logprob))[0]
-                infs = np.nonzero(np.isinf( logprob))[0]
-                zeros = np.nonzero( logprob == 0.0)[0]
-
-                list_logprob[ip].append(logprob)
-                
-            list_ids.append(results_pickle[ni]['id'])
-            prob_kappa0_radius = np.reshape(results_pickle[ni]['prob_kappa0_radius'],[config['n_grid_2D'],config['n_grid_2D']])
-            list_prob_kappa0_radius.append(prob_kappa0_radius)
-            ia+=1
-
-            # n_grid = 200
-            # # now add kappa0-radius 2d kernel density
-            # grid_kappa0 = np.linspace(-config['kappa0']['box']['max'],config['kappa0']['box']['max'],n_grid)
-            # grid_radius = np.linspace(-config['radius']['box']['max'],config['radius']['box']['max'],n_grid)
-
-            # from scipy.stats.kde import gaussian_kde
-            # N_BURNIN=1000
-            # chain=results_pickle[ni]['flatchain'][0][N_BURNIN:,:2]
-            # chain_mirror_radius = chain.copy()
-            # chain_mirror_radius[:,1] = -chain_mirror_radius[:,1] + config['radius']['box']['min']
-            # chain_mirrored = np.vstack([chain,chain_mirror_radius])
-            # print chain_mirrored.shape
-            # kde_est=gaussian_kde(chain_mirrored.T) 
-            # # kde_est=gaussian_kde(chain.T,bw_method='scott') 
-            # X,Y=np.meshgrid(grid_kappa0,grid_radius)
-            # params = np.vstack([X.flatten() , Y.flatten()])
-            # pp = np.reshape(kde_est(params),[n_grid,n_grid])
-
-            # pl.pcolormesh(X,Y,pp)
-            # pl.show()
-
-    log.info('n_missing=%d' , n_missing)
-    for ip in range(n_params):  
-        list_logprob[ip] = np.array(list_logprob[ip])
-        list_grid_centers[ip] = np.array(grid[ip])
-    prob_kappa0_radius = np.array(list_prob_kappa0_radius)
-    grid2D_kappa0 = np.reshape(grid_pickle['kappa0_radius_grid'][:,0],[config['n_grid_2D'],config['n_grid_2D']])
-    grid2D_radius = np.reshape(grid_pickle['kappa0_radius_grid'][:,1],[config['n_grid_2D'],config['n_grid_2D']])
-
-    # pl.figure()
-    # pl.pcolormesh(grid2D_kappa0,grid2D_radius,prob_kappa0_radius[0])
-    # pl.colorbar()
-    # pl.show()
-
-    filename_DeltaSigma = 'logpdf.%s.pp2' % name_data
-    tabletools.savePickle(filename_DeltaSigma, { 'grid_centers' : list_grid_centers , 'ids' : list_ids ,  'logprob' : list_logprob , 'grid2D_radius' : grid2D_radius , 'grid2D_kappa0' : grid2D_kappa0 ,  'prob_kappa0_radius' : prob_kappa0_radius} )    
-
 def get_prob_prod(ids):
 
     n_per_file = 10
-    n_files = 300
+    id_file_first = args.first_result_file
+    id_file_last = id_file_first + args.n_results_files
     n_params = 4
-    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','')
 
     prob_prod = []
     for ip in range(n_params): prob_prod.append(np.zeros(config['n_grid']))
@@ -482,15 +377,20 @@ def get_prob_prod(ids):
     grid = grid_pickle['list_params_marg']
     grid2D = grid_pickle['kappa0_radius_grid']
 
-    for nf in range(n_files):
+    grid2D_kappa0 = np.reshape(grid_pickle['kappa0_radius_grid'][:,0],[config['n_grid_2D'],config['n_grid_2D']])
+    grid2D_radius = np.reshape(grid_pickle['kappa0_radius_grid'][:,1],[config['n_grid_2D'],config['n_grid_2D']])
+
+    for nf in range(id_file_first,id_file_last):
 
         id_start = nf*n_per_file
         id_end = (nf+1)*n_per_file
         current_ids = range(id_start,id_end)
 
-        if len(list(set(ids) & set(current_ids))) < 0:
+        if len(list(set(ids) & set(current_ids))) < 1:
 
             ia+=n_per_file
+            log.debug('no requested results between %d and %d' , id_start, id_end)
+            continue
 
         else:
 
@@ -509,129 +409,194 @@ def get_prob_prod(ids):
 
                     # marginals in each parameter
                     for ip in range(n_params):
+
+                        # turn this off
+                        if ia>0: break
+
                         prob = results_pickle[ni]['list_prob_marg'][ip]
                         nans = np.nonzero(np.isnan(prob))[0]
                         if len(nans) > 0:
                             log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
                         prob[prob<1e-20]=1e-20
                         logprob = prob
-                        nans = np.nonzero(np.isnan( logprob))[0]
-                        infs = np.nonzero(np.isinf( logprob))[0]
-                        zeros = np.nonzero( logprob == 0.0)[0]
+                        # nans = np.nonzero(np.isnan( logprob))[0]
+                        # infs = np.nonzero(np.isinf( logprob))[0]
+                        # zeros = np.nonzero( logprob == 0.0)[0]
 
                         prod1D_pdf , prod1D_log_pdf , _ , _ = mathstools.get_normalisation(logprob)
-                        prob_prod[ip] += prod1D_log_pdf
+                        try:
+                            prob_prod[ip] += prod1D_log_pdf
+                        except Exception,errmsg:
+                            print errmsg
+                            import pdb; pdb.set_trace()
 
                     # marginal kappa-radius
                     logprob2D = np.log(results_pickle[ni]['prob_kappa0_radius'])
-                    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob2D)  
-                    prod2D_log_pdf = np.reshape(prod2D_log_pdf,[config['n_grid_2D'],config['n_grid_2D']])
+                    # logprob2D[logprob2D<1e-20]=1e-20
+
+                    # prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob2D)  
+                    # nans = np.nonzero(np.isnan(prod2D_pdf))[0]
+                    # n_nans=len(nans)
+                    # if n_nans > 0: log.info('n_nans=%d',n_nans)
+                    # prod2D_log_pdf = np.reshape(prod2D_log_pdf,[config['n_grid_2D'],config['n_grid_2D']])
+                    
+                    prod2D_log_pdf = np.reshape(logprob2D,[config['n_grid_2D'],config['n_grid_2D']])
                     prob_kappa0_radius += prod2D_log_pdf
-                n_usable_results+=1
+
+                    # plot_prob_all, _, _,_ = mathstools.get_normalisation(prob_kappa0_radius)  
+                    # plot_prob_this, _, _,_ = mathstools.get_normalisation(prod2D_log_pdf)                    
+                    # pl.figure(figsize=(10,5))
+                    # pl.subplot(1,2,1)
+                    # pl.pcolormesh(grid2D_kappa0 , grid2D_radius , plot_prob_all); pl.colorbar()
+                    # pl.xlim([-0.2,0.2])
+                    # pl.ylim([-10,10])
+                    # pl.subplot(1,2,2)
+                    # pl.pcolormesh(grid2D_kappa0 , grid2D_radius , plot_prob_this); pl.colorbar()
+                    # pl.xlim([-0.2,0.2])
+                    # pl.ylim([-10,10])
+                    # pl.show()
+
+                    n_usable_results+=1
                 ia+=1
                 
             log.info('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
 
+    for ip in range(n_params):
+        prob1D_pdf , prod1D_log_pdf , _ , _ = mathstools.get_normalisation(prob_prod[ip])  
+        prob_prod[ip] = prob1D_pdf
+    prob1D_pdf = prob_prod
+
     prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(prob_kappa0_radius)  
-    grid2D_kappa0 = np.reshape(grid_pickle['kappa0_radius_grid'][:,0],[config['n_grid_2D'],config['n_grid_2D']])
-    grid2D_radius = np.reshape(grid_pickle['kappa0_radius_grid'][:,1],[config['n_grid_2D'],config['n_grid_2D']])
+
         
-    return prob_prod, grid, prod2D_pdf, grid2D_kappa0, grid2D_radius
+    return prob1D_pdf, grid, prod2D_pdf, grid2D_kappa0, grid2D_radius, n_usable_results
 
 
 
+def plot_vs_length():
 
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
 
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
 
-
-
-
-
-def get_prob_product(ids):
-
-    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-    filename_logpdf = 'logpdf.%s.pp2' % name_data
-    dict_logpdf = tabletools.loadPickle(filename_logpdf,remember=True)
-    logpdfs = dict_logpdf['logprob']
-    grids   = dict_logpdf['grid_centers']
-    prob_kappa0_radius = dict_logpdf['prob_kappa0_radius']
-    list_ids = np.array(dict_logpdf['ids'])
-
-    n_params = 4
-    n_step = 10
-    n_pairs = logpdfs[0].shape[0]
-    list_conf = [None]*n_params
-
-    select = [False]*n_pairs
-    for ii in range(n_pairs):
-        if list_ids[ii] in ids:
-            select[ii] = True
-    select = np.array(select)
-
-    for ip in range(n_params):
-        logpdfs[ip]=logpdfs[ip][select,:]
-    prob_kappa0_radius = prob_kappa0_radius[select]
-    n_pairs = logpdfs[0].shape[0]
-    log.info('using %d pairs' , n_pairs )
-    print ids
-
-
-    n_use = 0
-    n_nan_pairs = 0
-    param_names = {0:'kappa0',1:'radius',2:'h1M200',3:'h2M200'}
-
-    list_prod_pdf = []
-    list_grid_pdf = []
-
-    for ip in range(n_params):
-        
-        ic=0
-        list_conf[ip] = []
-        logpdf = logpdfs[ip]
-        grid_pdf = grids[ip]
-        perm=np.random.permutation(n_pairs)
-        logpdf = logpdf[perm]
-        param_name = param_names[ip]
-
-        for ia in range(n_pairs):
-
-            nans=np.nonzero(np.isnan(logpdf[ia]))[0]
-
-            if len(nans)>0:
-                
-                n_nan_pairs +=1
-                print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
-                # if np.isnan(logpdf_DeltaSigma[ia,0]):
-                    # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
-                # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
-
-                logpdf[ia,:] = np.exp(logpdf[ia,:])
-                mask = np.isnan(logpdf[ia,:]) | np.isinf(logpdf[ia,:])
-                logpdf[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf[ia,~mask]) / 2.
-                logpdf[ia,np.isinf(logpdf[ia,:])] = 1e-20
-                logpdf[ia,:] = np.log(logpdf[ia,:]) 
-
-                # pl.plot(grid_pdf,np.exp(logpdf[ia,:]))
-                # pl.plot(grid_pdf[mask],np.exp(logpdf[ia,mask]),'ro')
-                # pl.show()
-
-        sum_logpdf = np.sum(logpdf,axis=0)
-        prod_pdf , prod_log_pdf , _ , _ = mathstools.get_normalisation(sum_logpdf)  
-        list_prod_pdf.append(prod_pdf)
-        list_grid_pdf.append(grid_pdf)
-
+    filename_pickle = 'plotdata.length.pp2'
+    list_res_dict = tabletools.loadPickle(filename_pickle)
+    nx=int(config['n_grid_2D']/2)
+    # nx=0
   
-    prob2D = np.log(prob_kappa0_radius)
-    prob2D_prod = np.sum(prob2D,axis=0)
-    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(prob2D_prod)  
+    length = pairs['R_pair'] 
 
-    grid2D_kappa0 = dict_logpdf['grid2D_kappa0']
-    grid2D_radius = dict_logpdf['grid2D_radius']
-    return list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius
+    pl.figure()
+    pl.hist(length)
+
+    for bin in list_res_dict:
+
+        grid2D_kappa0 = bin['grid2D_kappa0'][nx:,nx:]
+        grid2D_radius = bin['grid2D_radius'][nx:,nx:]       
+        prod2D_pdf = bin['prod2D_pdf'][nx:,nx:]
+
+        # grid2D_kappa0 = bin['grid2D_kappa0'][:(nx+1),nx:]
+        # grid2D_radius = bin['grid2D_radius'][:(nx+1),nx:]       
+        # prod2D_pdf = bin['prod2D_pdf'][:(nx+1),nx:]
+
+        # grid2D_kappa0 = bin['grid2D_kappa0']
+        # grid2D_radius = bin['grid2D_radius']
+        # prod2D_pdf = bin['prod2D_pdf']
+
+        import pdb; pdb.set_trace()
+
+        prod2D_pdf,_,_,_ = mathstools.get_normalisation(np.log(prod2D_pdf))
+
+        pl.figure()
+        pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
+        pl.colorbar()
+        # pl.xlim([0,0.3])
+        # pl.ylim([0,2])
+        pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
+        pl.ylabel('half-mass radius [Mpc]')
+        pl.title('bin length=%2.2f n_pairs=%d' % ( bin['center'] , bin['n_pairs_used']) )
+
+        pl.figure()
+        X = [grid2D_kappa0, grid2D_radius]
+        y = prod2D_pdf
+        plotstools.plot_dist_meshgrid(X,prod2D_pdf,contour=True,colormesh=True)
+        # pl.subplot(2,2,1)
+        # # pl.xlim([0,0.3])
+        # pl.subplot(2,2,3)
+        # # pl.xlim([0,0.3])
+        # # pl.ylim([0,2])
+        # pl.subplot(2,2,4)
+        # pl.xlim([0,2])
+
+        # grid2D_mass = grid2D_kappa0 /  (grid2D_radius * np.pi)
+        # pl.figure()
+        # pl.scatter(grid2D_mass.flatten(),grid2D_radius.flatten(),40,prod2D_pdf)
+        # pl.xlim([0,0.1])
+        # pl.ylim([0,2])
+        # pl.xlabel("mass")
+        # pl.ylabel('half-mass radius [Mpc]')
+        # pl.title(str(bin['n_pairs_used']))
+
+
+    pl.show()    
+
+
+def plotdata_vs_length():
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+
+    bins_edges = [6,18]
+    bins_centers = plotstools.get_bins_centers(bins_edges)
+
+    list_res_dict = []
+
+    for ib in range(1,len(bins_edges)):
+        length = pairs['R_pair']
+        # mass = (halo1['snr']+halo2['snr'])/2.
+        ids = np.nonzero((length > bins_edges[ib-1]) * (length < bins_edges[ib]))[0]
+        log.info('bin %d found n=%d ids' % (ib,len(ids)))
+        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod(ids)
+
+        res_dict = {}
+        res_dict['ib'] = ib
+        res_dict['center'] = bins_centers[ib-1]
+        res_dict['n_pairs_used'] = n_pairs_used
+        res_dict['list_prod_pdf'] = list_prod_pdf
+        res_dict['list_grid_pdf'] = list_grid_pdf
+        res_dict['prod2D_pdf'] = prod2D_pdf
+        res_dict['grid2D_kappa0'] = grid2D_kappa0
+        res_dict['grid2D_radius'] = grid2D_radius
+
+        list_res_dict.append(res_dict)
+
+        pl.figure()
+        pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
+
+    filename_pickle = 'plotdata.length.pp2'
+    tabletools.savePickle(filename_pickle,list_res_dict)
+
+    pl.show()
 
 
 
-def plot_vs_mass():
+
+
+
+def plotdata_vs_mass():
 
     # name_data = os.path.basename(config['filename_shears']).replace('.fits','')
     # filename_logpdf = 'logpdf.%s.pp2' % name_data
@@ -650,158 +615,111 @@ def plot_vs_mass():
     halo2 = tabletools.loadTable(filename_halos2)
     n_pairs = len(halo1)
 
-    bins_snr_centers = [ 1e14 , 2e14]
+    if 'cfhtlens' in filename_pairs:
+        bins_snr_edges = [0,4,20]
+        mass_param_name = 'snr'
+    else:
+        bins_snr_edges = [1e14,2e14,1e15]
+        mass_param_name = 'm200'
     # bins_snr_centers = [ 3 , 6]
-    bins_snr_edges = plotstools.get_bins_edges(bins_snr_centers)
+    bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
+
+    list_res_dict = []
 
     for ib in range(1,len(bins_snr_edges)):
-        mass = (halo1['m200']+halo2['m200'])/2.
+        mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
         # mass = (halo1['snr']+halo2['snr'])/2.
         ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
-        log.info('bin %d found n=%d ids' % (ib,len(ids)))
-        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius = get_prob_prod(ids)
+        log.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
+        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod(ids)
+
+        res_dict = {}
+        res_dict['mass_param_name'] = mass_param_name
+        res_dict['ib'] = ib
+        res_dict['n_pairs_used'] = n_pairs_used
+        res_dict['list_prod_pdf'] = list_prod_pdf
+        res_dict['list_grid_pdf'] = list_grid_pdf
+        res_dict['prod2D_pdf'] = prod2D_pdf
+        res_dict['grid2D_kappa0'] = grid2D_kappa0
+        res_dict['grid2D_radius'] = grid2D_radius
+        res_dict['bin_min'] = bins_snr_edges[ib-1]
+        res_dict['bin_max'] = bins_snr_edges[ib]
+
+        list_res_dict.append(res_dict)
+
+
 
         pl.figure()
         pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
 
+
+    filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
+    tabletools.savePickle(filename_pickle,list_res_dict)
+
     pl.show()
 
 
 
-
-
-
-def plot_prob_product():
-
-    name_data = os.path.basename(config['filename_shears']).replace('.fits','')
-    filename_logpdf = 'logpdf.%s.pp2' % name_data
-    dict_logpdf = tabletools.loadPickle(filename_logpdf)
-    logpdfs = dict_logpdf['logprob'] 
-    grids   = dict_logpdf['grid_centers']
-    list_ids = dict_logpdf['ids']
+def plot_vs_mass():
 
     filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
 
-    halo1 = tabletools.loadTable(filename_halos1)[list_ids] 
-    halo2 = tabletools.loadTable(filename_halos2)[list_ids]
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
     n_pairs = len(halo1)
 
-    # 'normalising'
-    # for il in range(logpdf_DeltaSigma.shape[0]):
-    #     logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
+    filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
+    list_res_dict = tabletools.loadPickle(filename_pickle)
+    nx=int(config['n_grid_2D']/2)
 
-    n_params = 4
-    n_step = 1
-    n_pairs = logpdfs[0].shape[0]
-    # n_pairs = 2
-    n_colors = n_pairs/n_step+1
-    colors = plotstools.get_colorscale(n_colors)
-
-    list_conf = [None]*n_params
-
-    log.info('using %d pairs' , n_pairs)
-
-    n_use = 0
-    n_nan_pairs = 0
-    param_names = {0:'kappa0',1:'radius',2:'h1M200',3:'h2M200'}
+    mass_param_name = list_res_dict[0]['mass_param_name']
+    mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
 
     pl.figure()
-    for ip in range(n_params):
-        pl.subplot(2,2,ip+1)
+    pl.hist(mass)
 
-        ic=0
-        list_conf[ip] = []
-        logpdf = logpdfs[ip]
-        grid_pdf = grids[ip]
-        perm=np.random.permutation(n_pairs)
-        logpdf = logpdf[perm]
-        param_name = param_names[ip]
+    for ib,snr_bin in enumerate(list_res_dict):
+        grid2D_kappa0 = snr_bin['grid2D_kappa0'][nx:,nx:]
+        grid2D_radius = snr_bin['grid2D_radius'][nx:,nx:]       
+        prod2D_pdf = snr_bin['prod2D_pdf'][nx:,nx:]
+        prod2D_pdf,_,_,_ = mathstools.get_normalisation(np.log(prod2D_pdf))
 
-
-        for ia in range(n_pairs):
-
-            nans=np.nonzero(np.isnan(logpdf[ia]))[0]
-
-            if len(nans)>0:
-                
-                n_nan_pairs +=1
-                print 'min(nans) , max(nans) , len(nans) , n_nan_pairs/ia' , min(nans) , max(nans) , len(nans) , n_nan_pairs , ia, n_nan_pairs/float(ia)
-                # if np.isnan(logpdf_DeltaSigma[ia,0]):
-                    # logpdf_DeltaSigma[il,:] -= np.log(np.sum(np.exp(logpdf_DeltaSigma[il,:])))
-                # logpdf_DeltaSigma[ia,min(nans):]=logpdf_DeltaSigma[ia,min(nans)-1]
-
-                logpdf[ia,:] = np.exp(logpdf[ia,:])
-                mask = np.isnan(logpdf[ia,:]) | np.isinf(logpdf[ia,:])
-                logpdf[ia,mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), logpdf[ia,~mask]) / 2.
-                logpdf[ia,np.isinf(logpdf[ia,:])] = 1e-20
-                logpdf[ia,:] = np.log(logpdf[ia,:]) 
-
-                # pl.plot(grid_pdf,np.exp(logpdf[ia,:]))
-                # pl.plot(grid_pdf[mask],np.exp(logpdf[ia,mask]),'ro')
-                # pl.show()
-
-            if  ia % n_step == 0:
-                print 'passing' , ia
-
-                # sum_log_DeltaSigma = np.sum(logpdf_DeltaSigma[:ia],axis=0)          
-                sum_logpdf = np.sum(logpdf[:ia+1,:],axis=0)
-                prod_pdf , prod_log_pdf , _ , _ = mathstools.get_normalisation(sum_logpdf)  
-                max_pdf , pdf_err_hi , pdf_err_lo = mathstools.estimate_confidence_interval(grid_pdf , prod_pdf)
-                list_conf[ip].append([ia,max_pdf , pdf_err_hi , pdf_err_lo])
-            
-                pl.plot(grid_pdf , prod_pdf , '-', label='n_pairs=%d max=%5.4f +/- %5.4f/%5.4f' % (ia+1, max_pdf , pdf_err_hi , pdf_err_lo) , color=colors[ic])
-                ic+=1
+        log.info('[%2.2e<mass<%2.2e]' % (snr_bin['bin_min'] , snr_bin['bin_max'] ))
 
 
+        pl.figure()
+        pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
 
-        true_params=[0.0,0,14,14]
-        # pl.legend()
-        pl.axvline( true_params[ip] )
-        pl.xlim( [ config[param_name]['box']['min'] , config[param_name]['box']['max'] ])
-        # pl.xlabel(r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$')
-        pl.xlabel(param_name)
-        pl.ylabel('likelihood')
+        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
+        # pl.colorbar()
+        cp = pl.contour(grid2D_kappa0 , grid2D_radius, prod2D_pdf,levels=contour_levels,colors='m')
+        # pl.clabel(cp, inline=1, fontsize=10
 
-        list_conf[ip] = np.array(list_conf[ip])
+        pl.xlim([0,0.3])
+        pl.ylim([0,2])
+        # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
+        pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
+        pl.ylabel('half-mass radius [Mpc]')
+        title_str= "mean halo %s \in [%2.2e , %2.2e] , n_pairs=%d'" % (mass_param_name , snr_bin['bin_min'] , snr_bin['bin_max'] , snr_bin['n_pairs_used'] )
+        pl.title(title_str)
+        filename_fig = 'figs/fig.mass.%02d.%s.png' % (ib,args.filename_config.replace('.yaml',''))
+        pl.savefig(filename_fig)
+        log.info('saved %s' % filename_fig)
 
-    prob_kappa0_radius = dict_logpdf['prob_kappa0_radius']
-    grid2D_kappa0 = dict_logpdf['grid2D_kappa0']
-    grid2D_radius = dict_logpdf['grid2D_radius']
-    
-    prob2D = np.log(prob_kappa0_radius)
-    prob2D_prod = np.sum(prob2D,axis=0)
-    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(prob2D_prod)  
-
-    pl.figure()
-    pl.pcolormesh(grid2D_kappa0,grid2D_radius,prod2D_pdf)
-    pl.colorbar()
+        # grid2D_mass = grid2D_kappa0 /  (grid2D_radius * np.pi)
+        # pl.figure()
+        # pl.scatter(grid2D_mass.flatten(),grid2D_radius.flatten(),40,prod2D_pdf)
+        # pl.xlim([0,0.1])
+        # pl.ylim([0,2])
+        # pl.xlabel("mass")
+        # pl.ylabel('half-mass radius [Mpc]')
+        # pl.title(str(snr_bin['n_pairs_used']))
 
 
     pl.show()
-
-
-        
-        # pl.figure()
-        # pl.plot(list_conf[ip][:,0],list_conf[ip][:,2])
-        # pl.plot(list_conf[ip][:,0],list_conf[ip][:,3])
-        # print list_conf
-
-    # filename_fig = 'figs/prod_DeltaSigma.%s.png' % name_data
-    # pl.savefig(filename_fig)
-    # log.info( 'saved %s' , filename_fig )
-
-
-def test():
-
-    filename_pickle = 'results.chain.0000.0020.shears_selftest_kappa0.05.pp2'
-    res=tabletools.loadPickle(filename_pickle)
-    filename_pickle = 'results.grid.shears_selftest_kappa0.05.pp2'
-    grid=tabletools.loadPickle(filename_pickle)
-    import pdb; pdb.set_trace()
-    res[-1] = list_params_marg
-
 
 
 
@@ -809,16 +727,16 @@ def test():
 def main():
 
 
-    valid_actions = ['process_results', 'plot_prob_product', 'test_kde_methods', 'plot_vs_mass', 'test' ]
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
-    parser.add_argument('-n', '--n_results_files',type=int, action='store', help='number of results files to use')
+    parser.add_argument('-n', '--n_results_files',type=int,  default=1, action='store', help='number of results files to use')
+    parser.add_argument('-f', '--first_result_file',type=int, default=0, action='store', help='number of first result file to open')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
-    parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
@@ -842,10 +760,11 @@ def main():
     except:
         raise Exception('choose one or more actions: %s' % str(valid_actions))
 
-    if 'process_results' in args.actions: process_results()
-    if 'plot_prob_product' in args.actions: plot_prob_product()
     if 'test_kde_methods' in args.actions: test_kde_methods()
     if 'plot_vs_mass' in args.actions: plot_vs_mass()
+    if 'plotdata_vs_mass' in args.actions: plotdata_vs_mass()
+    if 'plot_vs_length' in args.actions: plot_vs_length()
+    if 'plotdata_vs_length' in args.actions: plotdata_vs_length()
     if 'test' in args.actions: test()
 
     for ac in args.actions:
