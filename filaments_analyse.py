@@ -10,10 +10,6 @@ print 'using matplotlib backend' , pl.get_backend()
 # from matplotlib import figure;
 pl.rcParams['image.interpolation'] = 'nearest' ; 
 import scipy.interpolate as interp
-try:
-    from pyqt_fit import kde
-except:
-    print 'loading pyqt_fit failed'
 from sklearn.neighbors import BallTree as BallTree
 import cPickle as pickle
 import filaments_model_1h
@@ -152,11 +148,35 @@ def get_prob_prod_mcmc(ids):
         
     return prob1D_pdf, grid, prod2D_pdf, grid2D_kappa0, grid2D_radius, n_usable_results
 
+def bilinear_interpolate(im, x, y):
+    x = np.asarray(x)
+    y = np.asarray(y)
 
+    x0 = np.floor(x).astype(int)
+    x1 = x0 + 1
+    y0 = np.floor(y).astype(int)
+    y1 = y0 + 1
 
-def get_prob_prod_gridsearch(ids):
+    x0 = np.clip(x0, 0, im.shape[1]-1);
+    x1 = np.clip(x1, 0, im.shape[1]-1);
+    y0 = np.clip(y0, 0, im.shape[0]-1);
+    y1 = np.clip(y1, 0, im.shape[0]-1);
 
-    n_per_file = 10
+    Ia = im[ y0, x0 ]
+    Ib = im[ y1, x0 ]
+    Ic = im[ y0, x1 ]
+    Id = im[ y1, x1 ]
+
+    wa = (x1-x) * (y1-y)
+    wb = (x1-x) * (y-y0)
+    wc = (x-x0) * (y1-y)
+    wd = (x-x0) * (y-y0)
+
+    return wa*Ia + wb*Ib + wc*Ic + wd*Id
+
+def get_prob_prod_gridsearch(ids,plots=False):
+
+    n_per_file = 1
     id_file_first = args.first_result_file
     id_file_last = id_file_first + args.n_results_files
     n_params = 4
@@ -167,12 +187,13 @@ def get_prob_prod_gridsearch(ids):
     n_usable_results=0
     ia=0
 
-    filename_grid = 'results/results.grid.%s.pp2' % name_data
+    filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
+    # filename_grid = 'results_local2scratch/results.grid.%s.pp2' % name_data
     grid_pickle = tabletools.loadPickle(filename_grid)
     grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
     grid_radius = grid_pickle['grid_radius'][:,:,0,0]
     vec_kappa0 = grid_kappa0[:,0]
-    vec_radius = grid_kappa0[0,:]
+    vec_radius = grid_radius[0,:]
 
     n_upsample = 10
 
@@ -182,8 +203,8 @@ def get_prob_prod_gridsearch(ids):
 
     grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
     
-    logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])
-    logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])
+    logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])+66
+    logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])+66
 
     for nf in range(id_file_first,id_file_last):
 
@@ -199,11 +220,17 @@ def get_prob_prod_gridsearch(ids):
 
         else:
 
-            filename_pickle = 'results/results.prob.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
+            # filename_pickle = 'results_local2scratch/results.prob.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
+            filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf*n_per_file, (nf+1)*n_per_file , name_data)
             try:
                 results_pickle = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.info('missing %s' % filename_pickle)
+                log.debug('missing %s' % filename_pickle)
+                n_missing +=1
+                ia+=n_per_file
+                continue
+            if len(results_pickle) == 0:
+                log.debug('empty %s' % filename_pickle)
                 n_missing +=1
                 ia+=n_per_file
                 continue
@@ -213,7 +240,8 @@ def get_prob_prod_gridsearch(ids):
                 if ia in ids:
 
                     # marginal kappa-radius
-                    log_prob = results_pickle[ni]
+                    log_prob = results_pickle
+                                       
                     pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
                     pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                     log_prob_2D = np.log(pdf_prob_2D)
@@ -221,38 +249,48 @@ def get_prob_prod_gridsearch(ids):
                     plot_prob_all, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius)  
                     plot_prob_this, _, _,_ = mathstools.get_normalisation(log_prob_2D)   
 
-                    from scipy import interpolate
+                    # from scipy import interpolate
                     # spline = interpolate.bisplrep(grid_kappa0,grid_radius,log_prob_2D,s=0)
                     # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
-                    func_interp = interpolate.interp2d(grid_kappa0.T,grid_radius.T,log_prob_2D, kind='linear')
-                    log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
-
+                    # func_interp = interpolate.interp2d(grid_kappa0.T,grid_radius.T,log_prob_2D, kind='linear')
+                    # log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                    d1 =vec_kappa0[1]-vec_kappa0[0]
+                    d2 =vec_radius[1]-vec_radius[0]
+                    x=grid_kappa0_hires.flatten()/d1
+                    y=(grid_radius_hires.flatten() - min(grid_radius.flatten()))/d2
+                    log_prob_2D_hires = np.reshape(bilinear_interpolate(log_prob_2D,x,y),[len(vec_radius_hires),len(vec_radius_hires)]).T
+                    log_prob_2D_hires[-1,:] = 2*log_prob_2D_hires[-2,:] - log_prob_2D_hires[-3,:]
+                    log_prob_2D_hires[:,-1] = 2*log_prob_2D_hires[:,-2] - log_prob_2D_hires[:,-3]
                     logprob_kappa0_radius_hires += log_prob_2D_hires
-                    plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
-                    plot_prob_this_hires, _, _,_ = mathstools.get_normalisation(log_prob_2D_hires)   
-
-
-                    # pl.figure(figsize=(10,10))
-                    # pl.subplot(2,2,1)
-                    # pl.pcolormesh(grid_kappa0, grid_radius , logprob_kappa0_radius); pl.colorbar()
-                    # pl.subplot(2,2,2)
-                    # pl.pcolormesh(grid_kappa0 , grid_radius , log_prob_2D); pl.colorbar()
-                    # pl.subplot(2,2,3)
-                    # pl.pcolormesh(grid_kappa0_hires, grid_radius_hires , logprob_kappa0_radius_hires); pl.colorbar()
-                    # pl.subplot(2,2,4)
-                    # pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , log_prob_2D_hires); pl.colorbar()
-                    # pl.show()
 
                     n_usable_results+=1
+                    if plots:
+                        if nf % 100 == 0:
+                            plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
+                            plot_prob_this_hires, _, _,_ = mathstools.get_normalisation(log_prob_2D_hires)   
+                            pl.figure(figsize=(10,10))
+                            pl.subplot(2,2,1)
+                            pl.pcolormesh(grid_kappa0, grid_radius , plot_prob_all); pl.colorbar()
+                            pl.subplot(2,2,2)
+                            pl.pcolormesh(grid_kappa0 , grid_radius , plot_prob_this); pl.colorbar()
+                            pl.subplot(2,2,3)
+                            pl.pcolormesh(grid_kappa0_hires, grid_radius_hires , plot_prob_all_hires); pl.colorbar()
+                            pl.subplot(2,2,4)
+                            pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , plot_prob_this_hires); pl.colorbar()
+                            pl.show()
+
                 ia+=1
                 
-            log.info('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+        log.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+        if nf % 100 == 0 : log.info('%4d %4d n_usable_results=%d' , ia , nf , n_usable_results)
 
 
-    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
-
-        
-    return None, None, prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
+    # prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
+    # return None, None, prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
+    
+    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
+    return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
+    
     # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
 
@@ -402,7 +440,7 @@ def plotdata_vs_mass():
         bins_snr_edges = [0,4,20]
         mass_param_name = 'snr'
     else:
-        bins_snr_edges = [1e14,2e14,1e15]
+        bins_snr_edges = [1e14,1e15]
         mass_param_name = 'm200'
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
@@ -414,7 +452,11 @@ def plotdata_vs_mass():
         # mass = (halo1['snr']+halo2['snr'])/2.
         ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
         log.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
-        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_mcmc(ids)
+        if ib==1:
+            list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
+        if ib==2:
+            list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids,plots=True)
+        log.info('using %d pairs' , n_pairs_used)
 
         res_dict = {}
         res_dict['mass_param_name'] = mass_param_name
@@ -516,7 +558,7 @@ def plotdata_all():
     n_pairs = len(halo1)
 
     if 'cfhtlens' in filename_pairs:
-        bins_snr_edges = [0,20]
+        bins_snr_edges = [5,20]
         mass_param_name = 'snr'
     else:
         bins_snr_edges = [1e14,1e15]
@@ -531,6 +573,7 @@ def plotdata_all():
         # mass = (halo1['snr']+halo2['snr'])/2.
         ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
         log.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
+        # list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids,plots=True)
         list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
 
         res_dict = {}
@@ -547,11 +590,24 @@ def plotdata_all():
 
         list_res_dict.append(res_dict)
 
-
-
         pl.figure()
         pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
 
+        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
+        # pl.colorbar()
+        cp = pl.contour(grid2D_kappa0 , grid2D_radius, prod2D_pdf,levels=contour_levels,colors='m')
+        # pl.clabel(cp, inline=1, fontsize=10
+
+        pl.xlim([0,0.3])
+        pl.ylim([0,2])
+        # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
+        pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
+        pl.ylabel('half-mass radius [Mpc]')
+        title_str= "mean halo %s \in [%2.2e , %2.2e] , n_pairs=%d'" % (mass_param_name , snr_bin['bin_min'] , snr_bin['bin_max'] , snr_bin['n_pairs_used'] )
+        pl.title(title_str)
+        filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
+        pl.savefig(filename_fig)
+        log.info('saved %s' % filename_fig)
 
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
     tabletools.savePickle(filename_pickle,list_res_dict)
@@ -574,6 +630,7 @@ def main():
     parser.add_argument('-f', '--first_result_file',type=int, default=0, action='store', help='number of first result file to open')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
+    parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
