@@ -176,6 +176,88 @@ def select_halos(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
 
+def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits'):
+
+    logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
+
+    # filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLS_wide_clusters_Durret2011/wide.fits'
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    halocat = pyfits.getdata(filename_halos_cfhtlens)
+
+    # filename_halos_bcc = 'halos_bcc.fits'
+    # halos_bcc = pyfits.getdata(filename_halos_bcc)
+
+    # bins_snr = np.array([0,1,2,3,4,5,6,7])+0.5
+    # pl.hist(halos_cfhtlens['snr'],histtype='step',bins=bins_snr)
+    # pl.hist(np.log10(halos_bcc['m200']),histtype='step')
+    # pl.show()
+
+
+    # # select on Z
+    select = (halocat['z'] > range_z[0]) * (halocat['z'] < range_z[1])
+    halocat=halocat[select]
+    logger.info('selected on Z number of halos: %d' % len(halocat))
+
+    # select on M
+    # select = (halocat['snr'] > range_M[0]) * (halocat['snr'] < range_M[1])
+    # halocat=halocat[select]
+    # logger.info('selected on SNR number of halos: %d' % len(halocat))
+
+    # select on proximity to CFHTLens
+    logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
+    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+    shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
+    cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
+    logger.info('getting BT')
+    BT = BallTree(cfhtlens_coords, leaf_size=5)
+    theta_add = 0.25
+    boss_coords1 = np.concatenate([ halocat['ra'][:,None]           , halocat['dec'][:,None]           ] , axis=1)
+    boss_coords2 = np.concatenate([ halocat['ra'][:,None]-theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
+    boss_coords3 = np.concatenate([ halocat['ra'][:,None]+theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
+    boss_coords4 = np.concatenate([ halocat['ra'][:,None]-theta_add , halocat['dec'][:,None]+theta_add ] , axis=1)
+    boss_coords5 = np.concatenate([ halocat['ra'][:,None]+theta_add , halocat['dec'][:,None]+theta_add ] , axis=1)
+    n_connections=1
+    logger.info('getting neighbours')
+    bt1_dx,bt_id = BT.query(boss_coords1,k=n_connections)
+    bt2_dx,bt_id = BT.query(boss_coords2,k=n_connections)
+    bt3_dx,bt_id = BT.query(boss_coords3,k=n_connections)
+    bt4_dx,bt_id = BT.query(boss_coords4,k=n_connections)
+    bt5_dx,bt_id = BT.query(boss_coords5,k=n_connections)
+    limit_dx = 0.1  
+    select = (bt1_dx < limit_dx)*(bt2_dx < limit_dx)*(bt3_dx < limit_dx)*(bt4_dx < limit_dx)*(bt5_dx < limit_dx)
+    select = select.flatten()
+    halocat=halocat[select]
+
+    perm3 = np.random.permutation(len(shearcat))[:20000]
+    pl.figure(figsize=(50,30))
+    pl.scatter(halocat['ra']        , halocat['dec']        , 70 , marker='s', c='g' )
+    pl.scatter(shearcat['ra'][perm3],shearcat['dec'][perm3] , 0.1  , marker='o', c='b')
+    filename_fig = 'figs/lrgs_in_cfhtlens.%s.png'  % args.filename_config.replace('.yaml','')
+    pl.savefig(filename_fig)
+    logger.info('saved %s' % filename_fig)
+    pl.close()
+
+    logger.info('selected on proximity to CFHTLens, remaining number of halos: %d' % len(halocat))
+
+    index=range(0,len(halocat))
+    halocat = tabletools.appendColumn(halocat,'id',index,dtype='i8')
+    halocat = tabletools.appendColumn(halocat,'m200',index,dtype='i8')
+    halocat = tabletools.appendColumn(halocat,'snr',index,dtype='i8')
+    fix_case( halocat )
+    # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
+
+    logger.info('number of halos %d', len(halocat))
+    tabletools.saveTable(filename_halos,halocat)
+    logger.info('wrote %s' % filename_halos)
+
+    pl.figure()
+    pl.hist(halocat['z'],histtype='step',bins=200)
+  
+    filename_fig = 'figs/cfhtlens.lrgs_redshifts.png'
+    pl.savefig(filename_fig)
+    logger.info('saved %s' , filename_fig)
+
+
 
 def estimate_snr():
 
@@ -207,6 +289,8 @@ def estimate_snr():
 
 
 def main():
+    
+    global config , args
 
     description = 'filaments_cfhtlens'
     parser = argparse.ArgumentParser(description=description, add_help=True)
@@ -228,7 +312,6 @@ def main():
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 
-    global config 
     config = yaml.load(open(args.filename_config))
     filaments_tools.config = config
 
@@ -241,7 +324,8 @@ def main():
 
     if config['mode'] == 'pairs':
 
-        select_halos(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        # select_halos(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        select_halos_LRG(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         filaments_tools.add_phys_dist(filename_halos=filename_halos)
         n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 
