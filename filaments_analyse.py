@@ -306,7 +306,7 @@ def plot_vs_length():
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
-    filename_pickle = 'plotdata.length.pp2'
+    filename_pickle = args.filename_config.replace('.yaml','.plotdata.length.pp2')
     list_res_dict = tabletools.loadPickle(filename_pickle)
     nx=int(config['n_grid_2D']/2)
     # nx=0
@@ -316,22 +316,16 @@ def plot_vs_length():
     pl.figure()
     pl.hist(length)
 
-    for bin in list_res_dict:
+    for ib,bin in enumerate(list_res_dict):
 
-        grid2D_kappa0 = bin['grid2D_kappa0'][nx:,nx:]
-        grid2D_radius = bin['grid2D_radius'][nx:,nx:]       
-        prod2D_pdf = bin['prod2D_pdf'][nx:,nx:]
 
-        # grid2D_kappa0 = bin['grid2D_kappa0'][:(nx+1),nx:]
-        # grid2D_radius = bin['grid2D_radius'][:(nx+1),nx:]       
-        # prod2D_pdf = bin['prod2D_pdf'][:(nx+1),nx:]
+        prod2D_pdf = list_res_dict[ib]['prod2D_pdf']
+        grid2D_kappa0 = list_res_dict[ib]['grid2D_kappa0']
+        grid2D_radius = list_res_dict[ib]['grid2D_radius']
 
-        # grid2D_kappa0 = bin['grid2D_kappa0']
-        # grid2D_radius = bin['grid2D_radius']
-        # prod2D_pdf = bin['prod2D_pdf']
+        log.info('[%2.2e<mass<%2.2e]' % (bin['bin_min'] , bin['bin_max'] ))
 
-        import pdb; pdb.set_trace()
-
+        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
         prod2D_pdf,_,_,_ = mathstools.get_normalisation(np.log(prod2D_pdf))
 
         pl.figure()
@@ -339,14 +333,21 @@ def plot_vs_length():
         pl.colorbar()
         # pl.xlim([0,0.3])
         # pl.ylim([0,2])
-        pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
-        pl.ylabel('half-mass radius [Mpc]')
-        pl.title('bin length=%2.2f n_pairs=%d' % ( bin['center'] , bin['n_pairs_used']) )
+        pl.xlabel(r'$\Delta \Sigma 10^{14} M_{*} h \mathrm{Mpc}^{-2}$')
+        pl.ylabel('half-mass radius [Mpc/h]')
+        title_str= r'%s: filament length $\in [%2.1f , %2.1f]$ Mpc/h , n_pairs=%d' % (args.filename_config.replace('.yaml',''), bin['bin_min'] , bin['bin_max'] , bin['n_pairs_used'] )
+        pl.title(title_str)
+        pl.xlim([0,0.2])
+        pl.ylim([0.25,4])
+        filename_fig = 'figs/fig.length.%02d.%s.%d.png' % (ib,args.filename_config.replace('.yaml',''),bin['n_pairs_used'])
+        pl.savefig(filename_fig)
+        log.info('saved %s' % filename_fig)
 
-        pl.figure()
-        X = [grid2D_kappa0, grid2D_radius]
-        y = prod2D_pdf
-        plotstools.plot_dist_meshgrid(X,prod2D_pdf,contour=True,colormesh=True)
+
+        # pl.figure()
+        # X = [grid2D_kappa0, grid2D_radius]
+        # y = prod2D_pdf
+        # plotstools.plot_dist_meshgrid(X,prod2D_pdf,contour=True,colormesh=True)
         # pl.subplot(2,2,1)
         # # pl.xlim([0,0.3])
         # pl.subplot(2,2,3)
@@ -407,7 +408,7 @@ def plotdata_vs_length():
         pl.figure()
         pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
 
-    filename_pickle = 'plotdata.length.pp2'
+    filename_pickle = args.filename_config.replace('.yaml','.plotdata.length.pp2')
     tabletools.savePickle(filename_pickle,list_res_dict)
 
     pl.show()
@@ -437,11 +438,13 @@ def plotdata_vs_mass():
     n_pairs = len(halo1)
 
     if 'cfhtlens' in filename_pairs:
-        bins_snr_edges = [0,4,20]
+        bins_snr_edges = [0,6,20]
         mass_param_name = 'snr'
     else:
-        bins_snr_edges = [1e14,1e15]
+        bins_snr_edges = [1e14,2e14,3e14,4e14,5e14]
         mass_param_name = 'm200'
+
+
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
@@ -492,27 +495,25 @@ def plot_vs_mass():
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
 
-    halo1 = tabletools.loadTable(filename_halos1)
-    halo2 = tabletools.loadTable(filename_halos2)
-    n_pairs = len(halo1)
-
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
     list_res_dict = tabletools.loadPickle(filename_pickle)
     nx=int(config['n_grid_2D']/2)
 
-    mass_param_name = list_res_dict[0]['mass_param_name']
-    mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
+    if 'cfhtlens' in args.filename_config:
+        mass_param_name = 'snr'
+    if 'bcc' in args.filename_config:
+        mass_param_name = 'm200'
 
-    pl.figure()
-    pl.hist(mass)
-
+       
     for ib,snr_bin in enumerate(list_res_dict):
-        grid2D_kappa0 = snr_bin['grid2D_kappa0'][nx:,nx:]
-        grid2D_radius = snr_bin['grid2D_radius'][nx:,nx:]       
-        prod2D_pdf = snr_bin['prod2D_pdf'][nx:,nx:]
-        prod2D_pdf,_,_,_ = mathstools.get_normalisation(np.log(prod2D_pdf))
+        
+        prod2D_pdf = list_res_dict[ib]['prod2D_pdf']
+        grid2D_kappa0 = list_res_dict[ib]['grid2D_kappa0']
+        grid2D_radius = list_res_dict[ib]['grid2D_radius']
 
         log.info('[%2.2e<mass<%2.2e]' % (snr_bin['bin_min'] , snr_bin['bin_max'] ))
+
+
 
 
         pl.figure()
@@ -523,14 +524,14 @@ def plot_vs_mass():
         cp = pl.contour(grid2D_kappa0 , grid2D_radius, prod2D_pdf,levels=contour_levels,colors='m')
         # pl.clabel(cp, inline=1, fontsize=10
 
-        pl.xlim([0,0.3])
-        pl.ylim([0,2])
         # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
-        pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
-        pl.ylabel('half-mass radius [Mpc]')
-        title_str= "mean halo %s \in [%2.2e , %2.2e] , n_pairs=%d'" % (mass_param_name , snr_bin['bin_min'] , snr_bin['bin_max'] , snr_bin['n_pairs_used'] )
+        pl.xlabel(r'$\Delta \Sigma 10^{14} M_{*} h \mathrm{Mpc}^{-2}$')
+        pl.ylabel('half-mass radius [Mpc/h]')
+        title_str= r'%s: mean halo %s $\in [%2.1e , %2.1e]$ , n_pairs=%d' % (args.filename_config.replace('.yaml',''),mass_param_name , snr_bin['bin_min'] , snr_bin['bin_max'] , snr_bin['n_pairs_used'] )
         pl.title(title_str)
-        filename_fig = 'figs/fig.mass.%02d.%s.png' % (ib,args.filename_config.replace('.yaml',''))
+        pl.xlim([0,0.2])
+        pl.ylim([0.25,4])
+        filename_fig = 'figs/fig.mass.%02d.%s.%d.png' % (ib,args.filename_config.replace('.yaml',''),snr_bin['n_pairs_used'])
         pl.savefig(filename_fig)
         log.info('saved %s' % filename_fig)
 
