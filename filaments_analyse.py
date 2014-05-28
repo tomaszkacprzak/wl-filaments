@@ -425,19 +425,24 @@ def plotdata_vs_mass():
     halo2 = tabletools.loadTable(filename_halos2)
     n_pairs = len(halo1)
 
-    if 'cfhtlens' in filename_pairs:
+    if 'lrgclass' in filename_pairs:
+        bins_snr_edges = [1e13,2.5e13,5e13,7.5e13,1e14,2e14,3e14]
+        mass_param_name = 'm200'
+        mass = (10**halo1[mass_param_name]+10**halo2[mass_param_name])/2.
+    elif 'cfhtlens' in filename_pairs:
         bins_snr_edges = [0,6,20]
         mass_param_name = 'snr'
-    else:
+        mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
+    if 'bcc' in filename_pairs: 
         bins_snr_edges = [1e14,2e14,3e14,4e14,5e14]
         mass_param_name = 'm200'
+        mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
 
 
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
     # mass = np.max(np.concatenate([halo1[mass_param_name][:,None],halo2[mass_param_name][:,None]],axis=1),axis=1)
-    mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
     # pl.hist(mass,bins=np.arange(10)-0.5); pl.show()
     
 
@@ -473,6 +478,7 @@ def plotdata_vs_mass():
 
         pl.figure()
         pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
+        pl.title('bin %d: [%2.2e<mass<%2.2e], n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
 
 
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
@@ -496,6 +502,8 @@ def plot_vs_mass():
     if 'cfhtlens' in args.filename_config:
         mass_param_name = 'snr'
     if 'bcc' in args.filename_config:
+        mass_param_name = 'm200'
+    if 'lrgclass' in args.filename_config:
         mass_param_name = 'm200'
 
        
@@ -560,58 +568,74 @@ def plotdata_all():
 
     list_res_dict = []
 
-    for ib in range(1,len(bins_snr_edges)):
-        mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
-        # mass = (halo1['snr']+halo2['snr'])/2.
-        ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
-        log.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
-        # list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids,plots=True)
-        list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
+    ids=range(n_pairs)
+    list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
 
-        res_dict = {}
-        res_dict['mass_param_name'] = mass_param_name
-        res_dict['ib'] = ib
-        res_dict['n_pairs_used'] = n_pairs_used
-        res_dict['list_prod_pdf'] = list_prod_pdf
-        res_dict['list_grid_pdf'] = list_grid_pdf
-        res_dict['prod2D_pdf'] = prod2D_pdf
-        res_dict['grid2D_kappa0'] = grid2D_kappa0
-        res_dict['grid2D_radius'] = grid2D_radius
-        res_dict['bin_min'] = bins_snr_edges[ib-1]
-        res_dict['bin_max'] = bins_snr_edges[ib]
+    pl.figure()
+    pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
 
-        list_res_dict.append(res_dict)
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
+    # pl.colorbar()
+    cp = pl.contour(grid2D_kappa0 , grid2D_radius, prod2D_pdf,levels=contour_levels,colors='m')
+    # pl.clabel(cp, inline=1, fontsize=10
 
-        pl.figure()
-        pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
-
-        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
-        # pl.colorbar()
-        cp = pl.contour(grid2D_kappa0 , grid2D_radius, prod2D_pdf,levels=contour_levels,colors='m')
-        # pl.clabel(cp, inline=1, fontsize=10
-
-        pl.xlim([0,0.3])
-        pl.ylim([0,2])
-        # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
-        pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
-        pl.ylabel('half-mass radius [Mpc]')
-        title_str= "mean halo %s \in [%2.2e , %2.2e] , n_pairs=%d'" % (mass_param_name , snr_bin['bin_min'] , snr_bin['bin_max'] , snr_bin['n_pairs_used'] )
-        pl.title(title_str)
-        filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
-        pl.savefig(filename_fig)
-        log.info('saved %s' % filename_fig)
+    pl.xlim([0,0.3])
+    pl.ylim([0,2])
+    # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
+    pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
+    pl.ylabel('half-mass radius [Mpc]')
+    title_str= "n_pairs=%d'" % (n_pairs_used)
+    pl.title(title_str)
+    filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
+    pl.savefig(filename_fig)
+    log.info('saved %s' % filename_fig)
 
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
     tabletools.savePickle(filename_pickle,list_res_dict)
 
     pl.show()
 
+def triangle_plots():
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+
+    id_file_first = args.first_result_file
+    id_file_last = id_file_first + args.n_results_files
+
+    filename_grid='results/results.grid.%s.pp2'%config['filename_shears'].replace('.pp2','')
+    grid=tabletools.loadPickle(filename_grid)
+    X=[grid['grid_kappa0'],grid['grid_radius'],grid['grid_h1M200'],grid['grid_h2M200']]
+
+    for ida in range(id_file_first,id_file_last):
+
+        filename_result = 'results/results.prob.%04d.%04d.%s.pp2' % (ida,ida+1,config['filename_shears'].replace('.pp2',''))
+        res=tabletools.loadPickle(filename_result,log=0)
+
+        if halo1[ida]['m200']>14 and halo2[ida]['m200']>14:
+            print ida
+            print halo1[ida]['m200'],halo2[ida]['m200']
+            import plotstools, mathstools
+            prob=mathstools.normalise(res)
+            plotstools.plot_dist_meshgrid(X,prob)
+            pl.show()
+
+
+
+
 
    
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
@@ -645,14 +669,9 @@ def main():
     except:
         raise Exception('choose one or more actions: %s' % str(valid_actions))
 
-    if 'test_kde_methods' in args.actions: test_kde_methods()
-    if 'plot_vs_mass' in args.actions: plot_vs_mass()
-    if 'plotdata_vs_mass' in args.actions: plotdata_vs_mass()
-    if 'plot_vs_length' in args.actions: plot_vs_length()
-    if 'plotdata_vs_length' in args.actions: plotdata_vs_length()
-    if 'plotdata_all' in args.actions: plotdata_all()
-    if 'test' in args.actions: test()
-
+    for action in valid_actions:
+        if action in args.actions:
+            exec action+'()'
     for ac in args.actions:
         if ac not in valid_actions:
             print 'invalid action %s' % ac

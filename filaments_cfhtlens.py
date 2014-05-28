@@ -257,6 +257,84 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
 
+def select_halos_LRGCLASS(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRGCLASS_cfhtlens.fits'):
+
+    import os
+    import numpy as np
+    import pylab as pl
+    import tabletools
+    import pyfits
+    import plotstools
+
+    dtype= { 'names' : ['x1','x2','RA' ,'DEC','z','sig','n200','r200','m200'] , 'formats' : ['f8']*9 }
+
+    filename_catalog_clusters1 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W1.cat'
+    filename_catalog_clusters2 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W2.cat'
+    filename_catalog_clusters3 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W3.cat'
+    filename_catalog_clusters4 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W4.cat'
+    clusters1 =np.loadtxt(filename_catalog_clusters1,dtype=dtype)
+    clusters2 =np.loadtxt(filename_catalog_clusters2,dtype=dtype)
+    clusters3 =np.loadtxt(filename_catalog_clusters3,dtype=dtype)
+    clusters4 =np.loadtxt(filename_catalog_clusters4,dtype=dtype)
+    clusters=np.concatenate([clusters1,clusters2,clusters3,clusters4])
+
+    ids=range(len(clusters))
+    clusters=tabletools.appendColumn(rec=clusters,arr=ids,name='id',dtype='i4')
+    filaneme_clusters = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
+    tabletools.saveTable(filaneme_clusters,clusters)
+
+
+
+    filename_catalog_lrgs = 'lrgs_cfhtlens_lrg.fits'
+    filename_catalog_clusters = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
+
+    cat_clusters=tabletools.loadTable(filename_catalog_clusters)
+    cat_lrgs=pyfits.getdata(filename_catalog_lrgs)
+
+
+    select= (cat_clusters['sig']>range_M[0]) * (cat_clusters['sig']<range_M[1])
+    cat_clusters=cat_clusters[select]
+
+    coords_lrgs = np.concatenate([cat_lrgs['ra'][:,None],cat_lrgs['dec'][:,None]],axis=1)
+    coords_clusters = np.concatenate([cat_clusters['RA'][:,None],cat_clusters['DEC'][:,None]],axis=1)
+    from sklearn.neighbors import BallTree as BallTree
+    BT = BallTree(coords_lrgs, leaf_size=5)
+    n_connections=1
+    bt_dx,bt_id = BT.query(coords_clusters,k=n_connections)
+    print len(bt_id)
+    print len(cat_lrgs)
+    print len(cat_clusters)
+    print len(np.unique(bt_id))
+
+    dx = 0.01
+    select=bt_dx<dx
+    ids_selected = bt_id[select]
+
+    # pl.figure()
+    # plotstools.plot_radec(cat_lrgs['ra'],cat_lrgs['dec'],marker='x',c='r',s=40)
+    # plotstools.plot_radec(cat_clusters['RA'],cat_clusters['DEC'],s=40,marker='d',c=cat_clusters['sig'])
+    # plotstools.plot_radec(cat_lrgs['ra'][ids_selected],cat_lrgs['dec'][ids_selected],s=100,marker='o',c='g',facecolor='none')
+    # # pl.colorbar()
+    # pl.show()
+
+    import tabletools
+    cat_join = cat_clusters[select.flatten()]
+    cat_join['z'] = cat_lrgs[ids_selected]['z']
+
+    select= (cat_join['z'] > range_z[0]) * (cat_join['z'] < range_z[1])
+    cat_join = cat_join[select]
+    fix_case(cat_join)
+    print 'selected on redshift range, n_clusters=%d' % len(cat_join)
+
+    filename_fig = 'm200_distribution.png'
+    pl.figure()
+    pl.hist(cat_join['m200'])
+    pl.savefig(filename_fig)
+    pl.close()
+    print 'saved' , filename_fig
+
+    tabletools.saveTable(filename_halos,cat_join)
+
 
 
 def estimate_snr():
@@ -325,7 +403,8 @@ def main():
     if config['mode'] == 'pairs':
 
         # select_halos(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
-        select_halos_LRG(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        # select_halos_LRG(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        select_halos_LRGCLASS(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         filaments_tools.add_phys_dist(filename_halos=filename_halos)
         n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 
