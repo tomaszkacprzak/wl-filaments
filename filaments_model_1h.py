@@ -215,13 +215,15 @@ class modelfit():
        
     def log_likelihood(self,model_g1,model_g2,limit_mask):
 
-        res1 = (model_g1 - self.shear_g1) * limit_mask
-        res2 = (model_g2 - self.shear_g2) * limit_mask
-        n_points = len(np.nonzero(limit_mask))
+        res1_sq = ((model_g1 - self.shear_g1)**2) * self.inv_sq_sigma_g #* limit_mask
+        res2_sq = ((model_g2 - self.shear_g2)**2) * self.inv_sq_sigma_g #* limit_mask
+        # n_points = len(np.nonzero(limit_mask))
 
-        chi2 = -0.5 * ( np.sum( ((res1)/self.sigma_g) **2) + np.sum( ((res2)/self.sigma_g) **2) ) / n_points
+        # chi2 = -0.5 * ( np.sum( ((res1)/self.sigma_g) **2) + np.sum( ((res2)/self.sigma_g) **2) ) / n_points
+        chi2 = -0.5 * ( np.sum( res1_sq )  + np.sum( res2_sq  ) )
 
         return chi2
+
 
     def run_mcmc(self):
 
@@ -282,6 +284,28 @@ class modelfit():
         lenscat = tabletools.loadTable(filename_lenscat)
 
         self.prob_z , _ , _ = pl.hist(lenscat['z'],bins=self.grid_z_edges,normed=True)
+
+        if 'e1' in lenscat.dtype.names:
+            select = lenscat['star_flag'] == 0
+            lenscat = lenscat[select]
+            select = lenscat['fitclass'] == 0
+            lenscat = lenscat[select]
+            select = (lenscat['e1'] != 0.0) * (lenscat['e2'] != 0.0)
+            lenscat = lenscat[select]
+            self.sigma_ell = np.std(lenscat['e1']*lenscat['weight'],ddof=1)
+
+
+    def set_shear_sigma(self):
+
+        self.inv_sq_sigma_g = ( np.sqrt(self.shear_w) / self.sigma_ell )**2
+
+        # remove nans -- we shouldn't have nans in the data, but we appear to have
+        select = np.isnan(self.shear_g1) | np.isnan(self.shear_g2)
+        self.inv_sq_sigma_g[select] = 0
+        self.shear_g1[select] = 0
+        self.shear_g2[select] = 0
+        n_nans = sum(np.isnan(self.shear_g1))
+        log.info('found %d nan pixels' % n_nans)
 
 
 def get_post_from_log(log_post):

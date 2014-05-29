@@ -124,7 +124,7 @@ def fit_2hf():
 
         log.info('using %d shears' , len(shears_info) )
 
-        if len(shears_info) > 50000:
+        if len(shears_info) > 500000:
             log.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
             result_dict = {'id' : id_pair}
             tabletools.savePickle(filename_results_prob,prob_result,append=True)

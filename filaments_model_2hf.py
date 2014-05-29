@@ -466,7 +466,15 @@ class modelfit():
                 self.prob_z , _  = pl.histogram(lenscat['z-phot'],bins=self.grid_z_edges,normed=True)
 
             if 'e1' in lenscat.dtype.names:
-                self.sigma_ell = np.std(lenscat['e1'],ddof=1)
+
+                select = lenscat['star_flag'] == 0
+                lenscat = lenscat[select]
+                select = lenscat['fitclass'] == 0
+                lenscat = lenscat[select]
+                select = (lenscat['e1'] != 0.0) * (lenscat['e2'] != 0.0)
+                lenscat = lenscat[select]
+
+                self.sigma_ell = np.std(lenscat['e1']*lenscat['weight'],ddof=1)
 
     def set_shear_sigma(self):
 
