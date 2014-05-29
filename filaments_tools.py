@@ -153,7 +153,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         pairs_u_rad, pairs_v_rad = cosmology.get_gnomonic_projection(pairs_ra_rad , pairs_de_rad , pairs_ra_rad , pairs_de_rad)
         halo1_u_rad, halo1_v_rad = cosmology.get_gnomonic_projection(halo1_ra_rad , halo1_de_rad , pairs_ra_rad , pairs_de_rad)
         halo2_u_rad, halo2_v_rad = cosmology.get_gnomonic_projection(halo2_ra_rad , halo2_de_rad , pairs_ra_rad , pairs_de_rad)
-        shear_g1_proj , shear_g2_proj = cosmology.get_gnomonic_projection_shear(halo2_ra_rad , halo2_de_rad , pairs_ra_rad , pairs_de_rad, shear_g1,shear_g2)
+        shear_g1_proj , shear_g2_proj = cosmology.get_gnomonic_projection_shear(shear_ra_rad , shear_de_rad , pairs_ra_rad , pairs_de_rad, shear_g1,shear_g2)
 
         rotation_angle = np.angle(halo1_u_rad + 1j*halo1_v_rad)
 
@@ -280,7 +280,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
 
             mean_g1 = hist_g1  / hist_m
             mean_g2 = hist_g2  / hist_m
-            
+
             mean_scinv = hist_scinv / hist_m
             mean_g1sc = hist_g1sc / hist_m
             mean_g2sc = hist_g2sc / hist_m
@@ -293,6 +293,18 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             hist_w[hist_n == 0] = 0
             hist_m[hist_n == 0] = 0
 
+            select = np.isclose(hist_m,0)
+            mean_g1[select] = 0
+            mean_g2[select] = 0
+            mean_g1sc[select] = 0
+            mean_g2sc[select] = 0
+            hist_w[select] = 0
+            hist_m[select] = 0
+
+
+
+            # if np.any(np.isnan(mean_g1)) | np.any(np.isnan(mean_g2)):
+            #     import pdb; pdb.set_trace()            
 
             # import pdb; pdb.set_trace()
             # pl.hist(mean_g1.flatten(),bins=50,histtype='step'); pl.hist(hist_g1.flatten()/sum(shear_weight_stamp.flatten()),bins=50,histtype='step'); pl.show()
@@ -435,7 +447,11 @@ def rotate_shear(rotation_angle,shear_ra,shear_de,shear_g1,shear_g2):
 
     return shear_g1_rot, shear_g2_rot
 
-def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10000,filename_fig=None,show=False,close=True,halo1=None,halo2=None,pair_info=None,quiver_scale=2):
+def plot_pair_quick(pair,shear,idp=0,nuse=10000,filename_fig=None,show=False,close=False,halo1=None,halo2=None,pair_info=None,quiver_scale=2,plot_type='quiver'):
+
+    plot_pair(pair['u1_mpc'],pair['v1_mpc'],pair['u2_mpc'],pair['v2_mpc'],shear['u_mpc'],shear['v_mpc'],shear['g1'],shear['g2'],idp=0,nuse=10000,filename_fig=None,show=False,close=False,halo1=None,halo2=None,pair_info=None,quiver_scale=2,plot_type='quiver')
+
+def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,idp=0,nuse=10000,filename_fig=None,show=False,close=False,halo1=None,halo2=None,pair_info=None,quiver_scale=2,plot_type='quiver'):
     """
     In Mpc
     """
@@ -456,25 +472,30 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
     else:
         # select all
         select = shear_x < 1e100 
-    pl.quiver(shear_x[select],shear_y[select],emag[select]*np.cos(ephi)[select],emag[select]*np.sin(ephi)[select],linewidths=0.005,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
+    if plot_type=='quiver':
+        pl.quiver(shear_x[select],shear_y[select],emag[select]*np.cos(ephi)[select],emag[select]*np.sin(ephi)[select],linewidths=0.005,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
+    elif plot_type=='g1':
+        pl.scatter(shear_x[select],shear_y[select],50,shear_g1[select],marker='s',edgecolor=None)
+    elif plot_type=='g2':
+        pl.scatter(shear_x[select],shear_y[select],50,shear_g2[select],marker='s',edgecolor=None)
+    elif plot_type=='g':
+        pl.scatter(shear_x[select],shear_y[select],50,np.abs(shear_g2[select]+1j*shear_g2[select]),marker=50,edgecolor=None)
+
     pl.scatter(halo1_x,halo1_y,100,c='b') 
     pl.scatter(halo2_x,halo2_y,100,c='c') 
 
-    mass1 , mass2 = 0 , 0
-    if 'm200' in halo1.dtype.names: mass1=halo1['m200']
-    if 'm200' in halo1.dtype.names: mass2=halo2['m200']
-    if 'snr' in halo1.dtype.names: mass1=halo1['snr']
-    if 'snr' in halo1.dtype.names: mass2=halo2['snr']
-
-
     if (halo1 != None) and (halo2 != None):
+        if 'm200' in halo1.dtype.names: mass1=halo1['m200']
+        if 'm200' in halo1.dtype.names: mass2=halo2['m200']
+        if 'snr' in halo1.dtype.names: mass1=halo1['snr']
+        if 'snr' in halo1.dtype.names: mass2=halo2['snr']
         pl.title('%s r_pair=%2.2fMpc n_gals=%d M1=%2.2e M2=%2.2e' % (idp,r_pair,len(shear_g1),mass1,mass2))
     else:
         pl.title('%s r_pair=%2.2fMpc n_gals=%d' % (idp,r_pair,len(shear_g1)))
     
-    pl.xlim([min(shear_x),max(shear_x)])
-    pl.ylim([min(shear_y),max(shear_y)])
-    pl.axis('equal')
+    pl.axis('image') 
+    # pl.xlim([min(shear_x),max(shear_x)])
+    # pl.ylim([min(shear_y),max(shear_y)])
 
     if filename_fig != None:
         pl.savefig(filename_fig)
@@ -500,7 +521,7 @@ def stats_pairs(filename_pairs):
     pl.hist(pairs_table['Dlos'],bins=range(2,20))
     pl.title('distribution of los distance between halos Mpc')
     pl.xlabel('Rlos')
-    filename_fig = 'los_pairs.png'
+    filename_fig = 'figs/hist.los_pairs.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' % filename_fig)
     pl.close()
@@ -512,7 +533,7 @@ def stats_pairs(filename_pairs):
     pl.hist(pairs_table['R_pair'],bins=range(2,20))
     pl.title('distribution of length of connections Mpc')
     pl.xlabel('Rpair')
-    filename_fig = 'r_pairs.png'
+    filename_fig = 'figs/hist.r_pairs.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' % filename_fig)
     pl.close()
@@ -523,7 +544,7 @@ def stats_pairs(filename_pairs):
         pl.hist(counts,bins=range(0,8))
         pl.title('distribution of number of connections per cluster')
         pl.xlabel('n connections')
-        filename_fig = 'n_connections_per_halo.png'
+        filename_fig = 'figs/hist.n_connections_per_halo.png'
         pl.savefig(filename_fig)
         pl.close()
         logger.info('saved %s' % filename_fig)

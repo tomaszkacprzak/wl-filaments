@@ -130,7 +130,6 @@ def fit_2hf():
             tabletools.savePickle(filename_results_prob,prob_result,append=True)
             continue
        
-        sigma_g_add =  config['sigma_add']
 
         fitobj = filaments_model_2hf.modelfit()
         fitobj.prob_z = prob_z
@@ -139,10 +138,12 @@ def fit_2hf():
         fitobj.shear_v_arcmin =  shears_info['v_arcmin']
         fitobj.shear_u_mpc =  shears_info['u_mpc']
         fitobj.shear_v_mpc =  shears_info['v_mpc']
-
         fitobj.shear_g1 =  shears_info['g1']
         fitobj.shear_g2 =  shears_info['g2']
+
+        # choose a method to add and account for noise
         if config['sigma_method'] == 'add':
+            sigma_g_add =  config['sigma_add']
             fitobj.shear_g1 =  shears_info['g1'] + np.random.randn(len(shears_info['g1']))*sigma_g_add
             fitobj.shear_g2 =  shears_info['g2'] + np.random.randn(len(shears_info['g2']))*sigma_g_add
             fitobj.sigma_g =  np.std(fitobj.shear_g2,ddof=1)
@@ -526,8 +527,8 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     # parser.add_argument('-c', '--filename_config', default='test2.yaml',type=str, action='store', help='name of the yaml config file')
-    parser.add_argument('-f', '--first', default=-1,type=int, action='store', help='first pair to process')
-    parser.add_argument('-n', '--num', default=-1,type=int, action='store', help='number of pairs to process')
+    parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pair to process')
+    parser.add_argument('-n', '--num', default=1,type=int, action='store', help='number of pairs to process')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     # parser.add_argument('-fg', '--filename_shears', type=str, default='shears_bcc_g.fits' , action='store', help='filename of file containing shears in binned format')
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')

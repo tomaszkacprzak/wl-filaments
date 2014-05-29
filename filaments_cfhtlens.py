@@ -46,6 +46,8 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
         if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
             select = cfhtlens_shear_catalog['star_flag'] == 0
             cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
+            select = cfhtlens_shear_catalog['fitclass'] == 0
+            cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
             logger.info('removed stars, remaining %d' , len(cfhtlens_shear_catalog))
 
             select = (cfhtlens_shear_catalog['e1'] != 0.0) * (cfhtlens_shear_catalog['e2'] != 0.0)
@@ -53,7 +55,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
             logger.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
 
     # correcting additive systematics
-    shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2']
+    shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , -(cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2'])
     shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ra'] , cfhtlens_shear_catalog['dec'] ,  cfhtlens_shear_catalog['z']
 
     halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
@@ -172,7 +174,7 @@ def select_halos(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens
     pl.subplot(1,3,3)
     pl.scatter(halocat['z'],halocat['snr'])
 
-    filename_fig = 'figs/cfhtlens.hists.png'
+    filename_fig = 'figs/hist.cfhtlens.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
 
@@ -232,7 +234,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     pl.figure(figsize=(50,30))
     pl.scatter(halocat['ra']        , halocat['dec']        , 70 , marker='s', c='g' )
     pl.scatter(shearcat['ra'][perm3],shearcat['dec'][perm3] , 0.1  , marker='o', c='b')
-    filename_fig = 'figs/lrgs_in_cfhtlens.%s.png'  % args.filename_config.replace('.yaml','')
+    filename_fig = 'figs/scatter.lrgs_in_cfhtlens.%s.png'  % args.filename_config.replace('.yaml','')
     pl.savefig(filename_fig)
     logger.info('saved %s' % filename_fig)
     pl.close()
@@ -253,11 +255,11 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     pl.figure()
     pl.hist(halocat['z'],histtype='step',bins=200)
   
-    filename_fig = 'figs/cfhtlens.lrgs_redshifts.png'
+    filename_fig = 'figs/hist.cfhtlens.lrgs_redshifts.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
 
-def select_halos_LRGCLASS(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRGCLASS_cfhtlens.fits'):
+def select_halos_LRGSCLUS(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRGCLASS_cfhtlens.fits'):
 
     import os
     import numpy as np
@@ -266,49 +268,32 @@ def select_halos_LRGCLASS(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRGCL
     import pyfits
     import plotstools
 
-    dtype= { 'names' : ['x1','x2','RA' ,'DEC','z','sig','n200','r200','m200'] , 'formats' : ['f8']*9 }
-
-    filename_catalog_clusters1 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W1.cat'
-    filename_catalog_clusters2 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W2.cat'
-    filename_catalog_clusters3 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W3.cat'
-    filename_catalog_clusters4 = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters_W4.cat'
-    clusters1 =np.loadtxt(filename_catalog_clusters1,dtype=dtype)
-    clusters2 =np.loadtxt(filename_catalog_clusters2,dtype=dtype)
-    clusters3 =np.loadtxt(filename_catalog_clusters3,dtype=dtype)
-    clusters4 =np.loadtxt(filename_catalog_clusters4,dtype=dtype)
-    clusters=np.concatenate([clusters1,clusters2,clusters3,clusters4])
-
-    ids=range(len(clusters))
-    clusters=tabletools.appendColumn(rec=clusters,arr=ids,name='id',dtype='i4')
-    filaneme_clusters = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
-    tabletools.saveTable(filaneme_clusters,clusters)
-
-
-
     filename_catalog_lrgs = 'lrgs_cfhtlens_lrg.fits'
-    filename_catalog_clusters = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
+    filename_catalog_clusters = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
 
     cat_clusters=tabletools.loadTable(filename_catalog_clusters)
-    cat_lrgs=pyfits.getdata(filename_catalog_lrgs)
+    cat_lrgs=np.array(pyfits.getdata(filename_catalog_lrgs))
 
-
-    select= (cat_clusters['sig']>range_M[0]) * (cat_clusters['sig']<range_M[1])
+    select= (cat_clusters['m200']>range_M[0]) * (cat_clusters['m200']<range_M[1])
     cat_clusters=cat_clusters[select]
 
     coords_lrgs = np.concatenate([cat_lrgs['ra'][:,None],cat_lrgs['dec'][:,None]],axis=1)
-    coords_clusters = np.concatenate([cat_clusters['RA'][:,None],cat_clusters['DEC'][:,None]],axis=1)
+    coords_clusters = np.concatenate([cat_clusters['ra'][:,None],cat_clusters['dec'][:,None]],axis=1)
     from sklearn.neighbors import BallTree as BallTree
     BT = BallTree(coords_lrgs, leaf_size=5)
     n_connections=1
     bt_dx,bt_id = BT.query(coords_clusters,k=n_connections)
-    print len(bt_id)
-    print len(cat_lrgs)
-    print len(cat_clusters)
-    print len(np.unique(bt_id))
-
-    dx = 0.01
+    
+    dx = 0.02
     select=bt_dx<dx
     ids_selected = bt_id[select]
+
+    cat_lrgs_lrgsclus = cat_lrgs[ids_selected]
+    cat_clus_lrgsclus = cat_clusters[select.flatten()]
+
+    select = np.abs(cat_lrgs_lrgsclus['z'] - cat_clus_lrgsclus['z'])<0.1
+    cat_lrgs_lrgsclus = cat_lrgs_lrgsclus[select]
+    cat_clus_lrgsclus = cat_clus_lrgsclus[select]
 
     # pl.figure()
     # plotstools.plot_radec(cat_lrgs['ra'],cat_lrgs['dec'],marker='x',c='r',s=40)
@@ -317,25 +302,69 @@ def select_halos_LRGCLASS(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRGCL
     # # pl.colorbar()
     # pl.show()
 
-    import tabletools
-    cat_join = cat_clusters[select.flatten()]
-    cat_join['z'] = cat_lrgs[ids_selected]['z']
+    cat_join=cat_clus_lrgsclus.copy()
+    cat_join['z'] = cat_lrgs_lrgsclus['z']
+    print 'found %d lrg-clus matches' % len(cat_join)
 
     select= (cat_join['z'] > range_z[0]) * (cat_join['z'] < range_z[1])
     cat_join = cat_join[select]
     fix_case(cat_join)
     print 'selected on redshift range, n_clusters=%d' % len(cat_join)
 
-    filename_fig = 'm200_distribution.png'
     pl.figure()
     pl.hist(cat_join['m200'])
+    filename_fig = 'figs/hist.m200.png'
     pl.savefig(filename_fig)
     pl.close()
     print 'saved' , filename_fig
 
     tabletools.saveTable(filename_halos,cat_join)
 
+def select_halos_CLUSTERZ(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens.fits'):
 
+    logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%.2f,%.2f)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
+
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
+    halocat = tabletools.loadTable(filename_halos_cfhtlens)
+
+    # filename_halos_bcc = 'halos_bcc.fits'
+    # halos_bcc = pyfits.getdata(filename_halos_bcc)
+
+    # bins_snr = np.array([0,1,2,3,4,5,6,7])+0.5
+    # pl.hist(halos_cfhtlens['snr'],histtype='step',bins=bins_snr)
+    # pl.hist(np.log10(halos_bcc['m200']),histtype='step')
+    # pl.show()
+
+
+    # # select on Z
+    select = (halocat['z'] > range_z[0]) * (halocat['z'] < range_z[1])
+    halocat=halocat[select]
+    logger.info('selected on Z number of halos: %d' % len(halocat))
+
+    # # select on M
+    select = (halocat['m200'] > range_M[0]) * (halocat['m200'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on m200 number of halos: %d' % len(halocat))
+
+    fix_case( halocat )
+    
+    logger.info('number of halos %d', len(halocat))
+    tabletools.saveTable(filename_halos,halocat)
+    logger.info('wrote %s' % filename_halos)
+
+    pl.subplot(1,3,1)
+    bins_snr = np.linspace(13,16,20)
+    pl.hist(halocat['m200'],histtype='step',bins=bins_snr)
+
+    pl.subplot(1,3,2)
+    pl.hist(halocat['z'],histtype='step',bins=200)
+
+    pl.subplot(1,3,3)
+    pl.scatter(halocat['z'],halocat['m200'])
+
+    filename_fig = 'figs/hist.cfhtlens.png'
+    pl.savefig(filename_fig)
+    logger.info('saved %s' , filename_fig)
 
 def estimate_snr():
 
@@ -402,9 +431,13 @@ def main():
 
     if config['mode'] == 'pairs':
 
+        logger.info('selecting halos using %s' % config['cfhtlens_select_fun'])
+        exec('select_fun = %s' % config['cfhtlens_select_fun'])
         # select_halos(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         # select_halos_LRG(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
-        select_halos_LRGCLASS(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        # select_halos_LRGCLASS(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        # select_halos_CLUSTERZ(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         filaments_tools.add_phys_dist(filename_halos=filename_halos)
         n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 

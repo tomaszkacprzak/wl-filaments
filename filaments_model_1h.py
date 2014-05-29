@@ -1,4 +1,4 @@
-import yaml, argparse, sys, logging , pyfits, emcee, tabletools, cosmology, filaments_tools, nfw, plotstools
+import yaml, argparse, sys, logging , pyfits, emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, warnings
 import numpy as np
 import pylab as pl
 
@@ -63,24 +63,34 @@ class modelfit():
 
 
         nuse=1
-        quiver_scale=3
-
+        quiver_scale=1
         pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale)
         
         pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
         pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
-        pl.axis('equal')
+        pl.axis('image')
 
-    def plot_shears_mag(self,g1,g2):
+    def plot_shears_g(self,g):
 
-        emag=np.sqrt(g1**2+g2**2)
+        # emag=np.sqrt(g1**2+g2**2)
 
         
-        pl.scatter(self.shear_u_arcmin,self.shear_v_arcmin,50,c=emag)
-        pl.colorbar()
+        pl.scatter(self.shear_u_arcmin,self.shear_v_arcmin,30,c=g,marker='s',edgecolor=None, lw = 0)
         pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
         pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
-        pl.axis('equal')
+        pl.axis('image')
+        pl.colorbar()
+
+    def plot_shears_all(self,model_g1,model_g2,limit_mask=None):
+
+        pl.figure(figsize=(30,10))
+        pl.subplot(1,3,1)
+        self.plot_shears(model_g1 , model_g2, limit_mask)
+        pl.subplot(1,3,2)
+        self.plot_shears_g(model_g1)
+        pl.subplot(1,3,3)
+        self.plot_shears_g(model_g2)
+
 
     def plot_residual(self,model_g1,model_g2,limit_mask=None):
 
@@ -145,26 +155,7 @@ class modelfit():
         list_h1g2 = []
         list_weight = []
 
-        # for ib, vb in enumerate(self.grid_z_centers):
-        #     if vb < (self.halo_z+redshift_offset): continue
-        #     [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(self.shear_u_arcmin , self.shear_v_arcmin , vb)
-        #     weight = self.prob_z[ib]
-        #     list_h1g1.append(h1g1*weight) 
-        #     list_h1g2.append(h1g2*weight) 
-        #     list_weight.append(weight)          
-
-        # h1g1 = np.sum(np.array(list_h1g1),axis=0) / np.sum(list_weight)
-        # h1g2 = np.sum(np.array(list_h1g2),axis=0) / np.sum(list_weight)
-
-        # h1g1 , h1g2  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        h1g1 , h1g2  = self.nh.get_shears_with_pz(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-
-        # median_redshift = 0.8
-        # [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(self.shear_u_arcmin , self.shear_v_arcmin , median_redshift )
-
-        # print Sigma_crit
-        # model_g1 = h1g1 * Sigma_crit
-        # model_g2 = h1g2 * Sigma_crit
+        h1g1 , h1g2  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
 
         model_g1 = h1g1
         model_g2 = h1g2
@@ -174,17 +165,14 @@ class modelfit():
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
         n_outside_weak_limit=len(limit_mask)-sum(limit_mask)
 
-        log.debug('draw_model: max=%2.2f n_outside_weak_limit %d' % (model_g1.max(),n_outside_weak_limit))  
+        # log.debug('draw_model: max=%2.2f n_outside_weak_limit %d' % (model_g1.max(),n_outside_weak_limit))  
 
 
         # self.plot_residual(model_g1,model_g2)
 
         if self.save_all_models:
-            pl.figure()
-            pl.subplot(2,1,1)
-            self.plot_shears(model_g1 , model_g2, limit_mask)
-            pl.subplot(2,1,2)
-            self.plot_shears_mag(model_g1 , model_g2)
+            self.plot_shears_all(model_g1,model_g2,limit_mask)
+
             pl.suptitle('model M200=%5.2e conc=%2.4f' % (M200,conc) )
             filename_fig = 'model.%04d.png' % self.n_model_evals
             pl.savefig(filename_fig)
@@ -205,7 +193,7 @@ class modelfit():
         else:
             posterior = likelihood 
 
-        if self.n_model_evals % 100 == 1:
+        if self.n_model_evals % 10 == 0:
             log.info('%7d prob=[% 2.4e % 2.4e % 2.4e] % 2.10e' % (self.n_model_evals,posterior,likelihood,prior,theta[0]))
 
         if np.isnan(posterior):
@@ -255,8 +243,6 @@ class modelfit():
         log_post = np.zeros(grid_M200_n)
         grid_M200 = np.linspace(grid_M200_min,grid_M200_max,grid_M200_n)
 
-        self.get_bcc_pz()
-
         self.nh = nfw.NfwHalo()
         self.nh.z_cluster= self.halo_z
         self.nh.theta_cx = self.halo_u_arcmin
@@ -282,16 +268,17 @@ class modelfit():
     def get_concentr(self,M,z):
 
         # Duffy et al 2008 from King and Mead 2011
-        # concentr = 5.72/(1.+z)**0.71 * (M / 1e14 )**(-0.081)
+        concentr = 5.72/(1.+z)**0.71 * (M / 1e14 )**(-0.081)
 
-        warnings.warn('using pre-set concentration')
-        concentr = self.conc        
+        # warnings.warn('using pre-set concentration')
+        # concentr = self.conc        
 
         return concentr
 
-    def get_bcc_pz(self):
+    def get_bcc_pz(self,filename_lenscat=None):
 
-        filename_lenscat = '/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+        if filename_lenscat==None:
+            filename_lenscat = '/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
         lenscat = tabletools.loadTable(filename_lenscat)
 
         self.prob_z , _ , _ = pl.hist(lenscat['z'],bins=self.grid_z_edges,normed=True)

@@ -321,12 +321,20 @@ def rad_to_arcsec(ra_rad,de_rad):
 
     return ra_arcsec , de_arcsec
 
+def arcmin_to_rad(ra_arcmin,de_arcmin):
+
+    ra_rad = ra_arcmin*np.pi/180/60. 
+    de_rad = de_arcmin*np.pi/180/60. 
+
+    return ra_rad , de_rad
+
 def rad_to_arcmin(ra_rad,de_rad):
 
     ra_arcmin = ra_rad/np.pi*180*60. 
     de_arcmin = de_rad/np.pi*180*60.
 
     return ra_arcmin , de_arcmin
+
 
 def rad_to_mpc(ra_rad,de_rad,z):
 

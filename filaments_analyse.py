@@ -610,24 +610,59 @@ def triangle_plots():
     id_file_first = args.first_result_file
     id_file_last = id_file_first + args.n_results_files
 
-    filename_grid='results/results.grid.%s.pp2'%config['filename_shears'].replace('.pp2','')
+    filename_grid='%s/results.grid.%s.pp2' % (args.results_dir,os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits',''))
     grid=tabletools.loadPickle(filename_grid)
     X=[grid['grid_kappa0'],grid['grid_radius'],grid['grid_h1M200'],grid['grid_h2M200']]
 
     for ida in range(id_file_first,id_file_last):
 
-        filename_result = 'results/results.prob.%04d.%04d.%s.pp2' % (ida,ida+1,config['filename_shears'].replace('.pp2',''))
-        res=tabletools.loadPickle(filename_result,log=0)
+        filename_result = '%s/results.prob.%04d.%04d.%s.pp2' % (args.results_dir,ida,ida+1,os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits',''))
+        res=tabletools.loadPickle(filename_result,log=3)
 
-        if halo1[ida]['m200']>14 and halo2[ida]['m200']>14:
-            print ida
-            print halo1[ida]['m200'],halo2[ida]['m200']
-            import plotstools, mathstools
-            prob=mathstools.normalise(res)
-            plotstools.plot_dist_meshgrid(X,prob)
-            pl.show()
+        print ida
+        # print halo1[ida]['m200'],halo2[ida]['m200']
+        import plotstools, mathstools
+        prob=mathstools.normalise(res)
+        plotstools.plot_dist_meshgrid(X,prob)
+        pl.show()
 
 
+def plot_data_stamp():
+
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+
+    id_pair_first = args.first_result_file
+    id_pair_last = args.first_result_file + args.n_results_files 
+
+    for id_pair in range(id_pair_first,id_pair_last):
+        
+
+        if '.fits' in config['filename_shears']:
+            shears_info = tabletools.loadTable(config['filename_shears'],hdu=id_pair+1)
+        elif '.pp2' in config['filename_shears']:
+            shears_info = tabletools.loadPickle(config['filename_shears'],pos=id_pair)
+
+        filename_fig = 'figs/fig.stamp.%s.%05d.png' % (os.path.basename(config['filename_shears']).replace('.fits','').replace('.pp2',''),id_pair)
+        
+        pl.figure(figsize=(10,10))
+        pl.subplot(3,1,1)
+        filaments_tools.plot_pair(pairs['u1_mpc'][id_pair], pairs['v1_mpc'][id_pair], pairs['u2_mpc'][id_pair], pairs['v2_mpc'][id_pair], shears_info['u_mpc'], shears_info['v_mpc'], shears_info['g1'], shears_info['g2'],idp=id_pair,halo1=halo1[id_pair],halo2=halo2[id_pair],pair_info=pairs[id_pair],plot_type='quiver')
+        pl.subplot(3,1,2)
+        filaments_tools.plot_pair(pairs['u1_mpc'][id_pair], pairs['v1_mpc'][id_pair], pairs['u2_mpc'][id_pair], pairs['v2_mpc'][id_pair], shears_info['u_mpc'], shears_info['v_mpc'], shears_info['g1'], shears_info['g2'],idp=id_pair,halo1=halo1[id_pair],halo2=halo2[id_pair],pair_info=pairs[id_pair],plot_type='g1')
+        pl.subplot(3,1,3)
+        filaments_tools.plot_pair(pairs['u1_mpc'][id_pair], pairs['v1_mpc'][id_pair], pairs['u2_mpc'][id_pair], pairs['v2_mpc'][id_pair], shears_info['u_mpc'], shears_info['v_mpc'], shears_info['g1'], shears_info['g2'],idp=id_pair,halo1=halo1[id_pair],halo2=halo2[id_pair],pair_info=pairs[id_pair],plot_type='g2')
+        pl.savefig(filename_fig)
+        log.info('saved %s', filename_fig)
+        pl.close()
 
 
 
@@ -635,7 +670,7 @@ def triangle_plots():
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
