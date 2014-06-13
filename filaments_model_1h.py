@@ -283,6 +283,7 @@ class modelfit():
             filename_lenscat = '/home/tomek/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
         lenscat = tabletools.loadTable(filename_lenscat)
 
+        pl.figure()
         self.prob_z , _ , _ = pl.hist(lenscat['z'],bins=self.grid_z_edges,normed=True)
 
         if 'e1' in lenscat.dtype.names:

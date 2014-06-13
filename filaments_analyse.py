@@ -425,8 +425,8 @@ def plotdata_vs_mass():
     halo2 = tabletools.loadTable(filename_halos2)
     n_pairs = len(halo1)
 
-    if 'lrgclass' in filename_pairs:
-        bins_snr_edges = [1e13,2.5e13,5e13,7.5e13,1e14,2e14,3e14]
+    if ('lrgclass' in filename_pairs) or ('clusterz' in filename_pairs):
+        bins_snr_edges = [5e13,7.5e13,1e14,2e14,3e14]
         mass_param_name = 'm200'
         mass = (10**halo1[mass_param_name]+10**halo2[mass_param_name])/2.
     elif 'cfhtlens' in filename_pairs:
@@ -438,19 +438,18 @@ def plotdata_vs_mass():
         mass_param_name = 'm200'
         mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
 
-
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
     # mass = np.max(np.concatenate([halo1[mass_param_name][:,None],halo2[mass_param_name][:,None]],axis=1),axis=1)
     # pl.hist(mass,bins=np.arange(10)-0.5); pl.show()
-    
 
     list_res_dict = []
 
     for ib in range(1,len(bins_snr_edges)):
         # mass = (halo1[mass_param_name]+halo2[mass_param_name])/2.
         # mass = (halo1['snr']+halo2['snr'])/2.
+
         ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
 
         log.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
@@ -614,17 +613,22 @@ def triangle_plots():
     grid=tabletools.loadPickle(filename_grid)
     X=[grid['grid_kappa0'],grid['grid_radius'],grid['grid_h1M200'],grid['grid_h2M200']]
 
+    res_all=None
+
     for ida in range(id_file_first,id_file_last):
 
+        print ida,halo1['m200'][ida], halo2['m200'][ida]
         filename_result = '%s/results.prob.%04d.%04d.%s.pp2' % (args.results_dir,ida,ida+1,os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits',''))
         res=tabletools.loadPickle(filename_result,log=3)
+        
+        res_all = res if res_all == None else res_all+res
 
-        print ida
         # print halo1[ida]['m200'],halo2[ida]['m200']
-        import plotstools, mathstools
-        prob=mathstools.normalise(res)
-        plotstools.plot_dist_meshgrid(X,prob)
-        pl.show()
+
+    import plotstools, mathstools
+    prob=mathstools.normalise(res_all)
+    plotstools.plot_dist_meshgrid(X,prob)
+    pl.show()
 
 
 def plot_data_stamp():
