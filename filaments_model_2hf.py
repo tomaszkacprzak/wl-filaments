@@ -455,26 +455,34 @@ class modelfit():
 
         if self.prob_z == None:
 
-
             # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
             # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
-            lenscat = tabletools.loadTable(filename_lenscat)
 
-            if 'z' in lenscat.dtype.names:
-                self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
-            elif 'z-phot' in lenscat.dtype.names:
-                self.prob_z , _  = pl.histogram(lenscat['z-phot'],bins=self.grid_z_edges,normed=True)
+            if 'fits' in filename_lenscat:
+                lenscat = tabletools.loadTable(filename_lenscat)
+                if 'z' in lenscat.dtype.names:
+                    self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
+                elif 'z-phot' in lenscat.dtype.names:
+                    self.prob_z , _  = pl.histogram(lenscat['z-phot'],bins=self.grid_z_edges,normed=True)
 
-            if 'e1' in lenscat.dtype.names:
+                if 'e1' in lenscat.dtype.names:
 
-                select = lenscat['star_flag'] == 0
-                lenscat = lenscat[select]
-                select = lenscat['fitclass'] == 0
-                lenscat = lenscat[select]
-                select = (lenscat['e1'] != 0.0) * (lenscat['e2'] != 0.0)
-                lenscat = lenscat[select]
+                    select = lenscat['star_flag'] == 0
+                    lenscat = lenscat[select]
+                    select = lenscat['fitclass'] == 0
+                    lenscat = lenscat[select]
+                    select = (lenscat['e1'] != 0.0) * (lenscat['e2'] != 0.0)
+                    lenscat = lenscat[select]
+                    self.sigma_ell = np.std(lenscat['e1']*lenscat['weight'],ddof=1)
 
-                self.sigma_ell = np.std(lenscat['e1']*lenscat['weight'],ddof=1)
+            elif 'pp2' in filename_lenscat:
+
+                pickle = tabletools.loadPickle('filename_lenscat')
+                self.prob_z =  pickle['prob_z']
+                self.grid_z_centers = pickle['bins_z']
+                self.grid_z_edges = plotstools.get_bins_edges(self.grid_z_centers)
+                self.sigma_ell = pickle['sigma_ell']
+                
 
     def set_shear_sigma(self):
 

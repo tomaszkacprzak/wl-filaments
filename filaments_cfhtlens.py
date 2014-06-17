@@ -207,9 +207,9 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
-    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
     shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
-    cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
+    cfhtlens_coords = np.concatenate([shearcat['ALPHA_J2000'][:,None],shearcat['DELTA_J2000'][:,None]],axis=1)
     logger.info('getting BT')
     BT = BallTree(cfhtlens_coords, leaf_size=5)
     theta_add = 0.25
@@ -233,7 +233,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     perm3 = np.random.permutation(len(shearcat))[:20000]
     pl.figure(figsize=(50,30))
     pl.scatter(halocat['ra']        , halocat['dec']        , 70 , marker='s', c='g' )
-    pl.scatter(shearcat['ra'][perm3],shearcat['dec'][perm3] , 0.1  , marker='o', c='b')
+    pl.scatter(shearcat['ALPHA_J2000'][perm3],shearcat['DELTA_J2000'][perm3] , 0.1  , marker='o', c='b')
     filename_fig = 'figs/scatter.lrgs_in_cfhtlens.%s.png'  % args.filename_config.replace('.yaml','')
     pl.savefig(filename_fig)
     logger.info('saved %s' % filename_fig)

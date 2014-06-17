@@ -8,8 +8,8 @@ import warnings; warnings.simplefilter('once')
 cospars = cosmology.cosmoparams()
 
 # Dxy = R_pair and drloss = Dlos
-dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz'] ,
-                'formats' : ['i8']*4 + ['f8']*21 }
+dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff'] ,
+                'formats' : ['i8']*4 + ['f8']*23 }
 
 dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight','n_gals'] , 'formats' : ['f8']*10 + ['i8']*1 }
 dtype_shears_single = { 'names' : ['ra_deg','dec_deg','u_mpc','v_mpc','g1','g2', 'g1_orig','g2_orig','scinv','z'] , 'formats' : ['f4']*10 }
@@ -603,6 +603,7 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pair
     dz=  np.abs(vh1['z'] - vh2['z'])
     n_gal = dz*0 
 
+    # 
 
     row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
             DA[:,None],d_los[:,None],d_xy[:,None],
@@ -700,13 +701,13 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     n_gal = dz*0 
 
     ipair = np.ones(len(ih1),dtype=np.int8)
-    # 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz'] 
+    # dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff'] ,
     row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
             DA[:,None],d_los[:,None],d_xy[:,None],
             ra_mid[:,None],dec_mid[:,None],z[:,None],
             vh1['ra'][:,None],vh1['dec'][:,None],vh2['ra'][:,None],vh2['dec'][:,None],
             ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0, # these fields will be filled in later
-            R_pair[:,None],drloss[:,None],dz[:,None]]
+            R_pair[:,None],drloss[:,None],dz[:,None],ipair[:,None]*0,ipair[:,None]*0]
     pairs_table = np.concatenate(row,axis=1)
     pairs_table = tabletools.array2recarray(pairs_table,dtype_pairs)
     
@@ -781,7 +782,6 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
             log.error('pair_shears == None , something is wrong')
             continue
 
-        halo_pairs['n_gal'][ipair] = len(pair_shears)
         halo_pairs['u1_mpc'][ipair] = halos_coords['halo1_u_rot_mpc']
         halo_pairs['v1_mpc'][ipair] = halos_coords['halo1_v_rot_mpc']
         halo_pairs['u2_mpc'][ipair] = halos_coords['halo2_u_rot_mpc']
@@ -793,6 +793,13 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
       
         if config['shear_type'] == 'stacked':
+
+            halo_pairs['n_gal'][ipair] = np.sum(pair_shears['n_gals'])
+            n_gals_total=np.sum(pair_shears['n_gals'])
+            area=(pair_shears['v_arcmin'].max() - pair_shears['v_arcmin'].min())*(pair_shears['u_arcmin'].max() - pair_shears['u_arcmin'].min())
+            halo_pairs['n_gal'][ipair] = n_gals_total
+            halo_pairs['area_arcmin2'][ipair] = area
+            halo_pairs['n_eff'][ipair] = float(n_gals_total)/area
 
             if '.fits' in filename_shears:
                 tabletools.saveTable(filename_shears,pair_shears,append=True)          
@@ -807,6 +814,8 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
 
         elif config['shear_type'] == 'single':
 
+            halo_pairs['n_gal'][ipair] = len(pair_shears)
+
             tabletools.saveTable(filename_current_pair,pair_shears)
     
             if config['save_pairs_plots']:
@@ -816,6 +825,8 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
                 pl.close()
 
         elif config['shear_type'] == 'minimal':
+
+            halo_pairs['n_gal'][ipair] = np.sum(pair_shears['n_gals'])
 
             tabletools.saveTable(filename_current_pair,pair_shears)
 
@@ -831,5 +842,4 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
             ipair,vpair['ra_mid'],halo1['ra'],halo2['ra'],vpair['dec_mid'],halo1['dec'],halo2['dec'],vpair['z'],halo1['z'],halo2['z'], vpair['R_pair'], len(pair_shears)))     
 
         tabletools.saveTable(filename_pairs,halo_pairs)
-        logger.info( 'wrote %s' % filename_pairs )    
 

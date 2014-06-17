@@ -613,21 +613,51 @@ def triangle_plots():
     grid=tabletools.loadPickle(filename_grid)
     X=[grid['grid_kappa0'],grid['grid_radius'],grid['grid_h1M200'],grid['grid_h2M200']]
 
+    if halo2['m200'][0] > 100:
+        halo1['m200'] = np.log10(halo1['m200'])
+        halo2['m200'] = np.log10(halo2['m200'])
+
     res_all=None
+    n_used=0
+
+    mass= (halo1['m200']+halo2['m200'])/2.
+    select = mass > 13
 
     for ida in range(id_file_first,id_file_last):
 
-        print ida,halo1['m200'][ida], halo2['m200'][ida]
+        if ~select[ida]:
+            continue
+
+        n_used+=1
+
+        print "%d mean_mass=%2.2f halo1_mass=%2.2f halo2_mass=%2.2f z=%2.2f" % (ida,mass[ida],halo1['m200'][ida], halo2['m200'][ida] , halo2[ida]['z'])
         filename_result = '%s/results.prob.%04d.%04d.%s.pp2' % (args.results_dir,ida,ida+1,os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits',''))
-        res=tabletools.loadPickle(filename_result,log=3)
+        if os.path.isfile(filename_result):
+            res=tabletools.loadPickle(filename_result,log=0)
+        else:
+            print 'missing' , filename_result
+            continue
+
+        if (res_all !=None):
+            if (type(res)!=type(res_all)):
+                print 'something wrong with the array', res
+                continue
+            if (res.shape != res_all.shape):
+                print 'something wrong with the shape', res
+                continue
         
         res_all = res if res_all == None else res_all+res
 
         # print halo1[ida]['m200'],halo2[ida]['m200']
 
+
+    print 'median redshift z=%2.2f' % np.median(halo1['z'][select])
+    print 'median mass m=%2.2f' % np.median(mass[select])
+    print 'n_used', n_used
+
     import plotstools, mathstools
     prob=mathstools.normalise(res_all)
-    plotstools.plot_dist_meshgrid(X,prob)
+    plotstools.plot_dist_meshgrid(X,prob,labels=['kappa0','radius','m200_halo1','m200_halo2'])
     pl.show()
 
 
