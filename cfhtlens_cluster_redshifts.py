@@ -68,7 +68,7 @@ def run_all():
         # print 'selected %d with good mags' % len(np.nonzero(select)[0])
         if len(np.nonzero(select)[0]) == 0:
             print '%d not enough gals' , ic
-            import pdb; pdb.set_trace()
+            new_z[ic] = cat_clusters['z'][ic]
             continue
         cylinder_gals = cylinder_gals[select]
         gals_u_mpc = gals_u_mpc[select]

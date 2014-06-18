@@ -33,6 +33,76 @@ prob_z = None
 dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ,'sigma_g' ] , 
         'formats' : ['i8'] + ['f8']*16 }
 
+def add_stats():
+
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+    pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h1_fit',dtype='f4')
+    pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h2_fit',dtype='f4')
+
+    filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
+    grid_dict = tabletools.loadPickle(filename_grid)
+
+    id_file_first = args.first_result_file
+    id_file_last = id_file_first + args.n_results_files
+    
+    n_missing=0
+    for nf in range(id_file_first,id_file_last):
+
+            filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf, nf+1 , name_data)
+            try:
+                res = tabletools.loadPickle(filename_pickle,log=1)
+            except:
+                log.debug('missing %s' % filename_pickle)
+                n_missing +=1
+                continue
+            if len(res) == 0:
+                log.debug('empty %s' % filename_pickle)
+                n_missing +=1
+                continue
+
+            prod_pdf = mathstools.normalise(res)
+            grid_h1M200 = grid_dict['grid_h1M200'][0,0,:,0]
+            grid_h2M200 = grid_dict['grid_h2M200'][0,0,0,:]
+
+            prod_pdf_h1M200 = np.sum(prod_pdf,axis=(0,1,3))
+            prod_pdf_h2M200 = np.sum(prod_pdf,axis=(0,1,2))
+
+            # ml_mass_h1 = grid_h1M200[np.argmax(prod_pdf_h1M200)]
+            # ml_mass_h2 = grid_h2M200[np.argmax(prod_pdf_h2M200)]
+            ml_mass_h1 = grid_dict['grid_h1M200'].flatten()[np.argmax(prod_pdf)]
+            ml_mass_h2 = grid_dict['grid_h2M200'].flatten()[np.argmax(prod_pdf)]
+
+            pairs['m200_h1_fit'][nf] = ml_mass_h1
+            pairs['m200_h2_fit'][nf] = ml_mass_h2
+
+            log.info('%4d m200_h1_fit=%2.4f m200_h1_fit=%2.4f' % (nf,ml_mass_h1,ml_mass_h2) )
+
+            # pl.plot(grid_h1M200,prod_pdf_h1M200,'r')
+            # pl.plot(grid_h2M200,prod_pdf_h2M200,'g')
+            # pl.axvline(ml_mass_h1,c='r')
+            # pl.axvline(ml_mass_h2,c='g')
+            # pl.axvline(halo1['m200'][nf],c='r',marker='o')
+            # pl.axvline(halo2['m200'][nf],c='g',marker='o')          
+            # pl.show()
+
+    filename_pairs_new = filename_pairs.replace('.fits','.addstats.fits')
+    tabletools.saveTable(filename_pairs_new,pairs)
+
+
+
+
+
+
 def get_prob_prod_mcmc(ids):
 
     n_per_file = 10
@@ -174,7 +244,59 @@ def bilinear_interpolate(im, x, y):
 
     return wa*Ia + wb*Ib + wc*Ic + wd*Id
 
-def get_prob_prod_gridsearch(ids,plots=False):
+def get_prob_prod_gridsearch(ids):
+
+    id_file_first = args.first_result_file
+    id_file_last = id_file_first + args.n_results_files
+    n_params = 4
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+  
+    n_missing=0
+    n_usable_results=0
+
+    filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
+    grid_pickle = tabletools.loadPickle(filename_grid)
+
+    res_all = None
+
+    for nf in range(id_file_first,id_file_last):
+
+        if nf in ids:
+
+            filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf, nf+1 , name_data)
+            try:
+                res = tabletools.loadPickle(filename_pickle,log=1)
+            except:
+                log.debug('missing %s' % filename_pickle)
+                n_missing +=1
+                continue
+            if len(res) == 0:
+                log.debug('empty %s' % filename_pickle)
+                n_missing +=1
+                continue
+
+            if (res_all !=None):
+                if (type(res)!=type(res_all)):
+                    print 'something wrong with the array', res
+                    continue
+                if (res.shape != res_all.shape):
+                    print 'something wrong with the shape', res
+                    continue
+
+            res_all = res if res_all == None else res_all+res
+
+            n_usable_results+=1
+            log.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+            if nf % 100 == 0 : log.info('%4d n_usable_results=%d' , nf , n_usable_results)
+
+
+    prod_pdf = mathstools.normalise(res_all)   
+
+    return prod_pdf, grid_pickle, n_usable_results
+    
+
+
+def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
 
     n_per_file = 1
     id_file_first = args.first_result_file
@@ -185,8 +307,7 @@ def get_prob_prod_gridsearch(ids,plots=False):
     # initialise lists for 1D marginals
     list_pdf_prod_1D = []
     list_pdf_grid_1D = []
-
-    
+   
     n_missing=0
     n_usable_results=0
 
@@ -197,17 +318,14 @@ def get_prob_prod_gridsearch(ids,plots=False):
     grid_radius = grid_pickle['grid_radius'][:,:,0,0]
     vec_kappa0 = grid_kappa0[:,0]
     vec_radius = grid_radius[0,:]
-
-    n_upsample = 10
-
-    # import pdb; pdb.set_trace()
-    vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
-    vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
-
-    grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
-    
-    logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])+66
     logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])+66
+
+    if hires:    
+        n_upsample = 10
+        vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
+        vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
+        grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
+        logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])+66
 
     for nf in range(id_file_first,id_file_last):
 
@@ -236,21 +354,21 @@ def get_prob_prod_gridsearch(ids,plots=False):
             plot_prob_all, _, _, _ = mathstools.get_normalisation(logprob_kappa0_radius)  
             plot_prob_this, _, _, _ = mathstools.get_normalisation(log_prob_2D)   
 
-            # from scipy import interpolate
-            # spline = interpolate.bisplrep(grid_kappa0,grid_radius,log_prob_2D,s=0)
-            # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
-            # func_interp = interpolate.interp2d(grid_kappa0.T,grid_radius.T,log_prob_2D, kind='linear')
-            # log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
-            d1 =vec_kappa0[1]-vec_kappa0[0]
-            d2 =vec_radius[1]-vec_radius[0]
-            x=grid_kappa0_hires.flatten()/d1
-            y=(grid_radius_hires.flatten() - min(grid_radius.flatten()))/d2
-            log_prob_2D_hires = np.reshape(bilinear_interpolate(log_prob_2D,x,y),[len(vec_radius_hires),len(vec_radius_hires)]).T
-            log_prob_2D_hires[-1,:] = 2*log_prob_2D_hires[-2,:] - log_prob_2D_hires[-3,:]
-            log_prob_2D_hires[:,-1] = 2*log_prob_2D_hires[:,-2] - log_prob_2D_hires[:,-3]
-            logprob_kappa0_radius_hires += log_prob_2D_hires
+            if hires:
+                # from scipy import interpolate
+                # spline = interpolate.bisplrep(grid_kappa0,grid_radius,log_prob_2D,s=0)
+                # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
+                # func_interp = interpolate.interp2d(grid_kappa0.T,grid_radius.T,log_prob_2D, kind='linear')
+                # log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                d1 =vec_kappa0[1]-vec_kappa0[0]
+                d2 =vec_radius[1]-vec_radius[0]
+                x=grid_kappa0_hires.flatten()/d1
+                y=(grid_radius_hires.flatten() - min(grid_radius.flatten()))/d2
+                log_prob_2D_hires = np.reshape(bilinear_interpolate(log_prob_2D,x,y),[len(vec_radius_hires),len(vec_radius_hires)]).T
+                log_prob_2D_hires[-1,:] = 2*log_prob_2D_hires[-2,:] - log_prob_2D_hires[-3,:]
+                log_prob_2D_hires[:,-1] = 2*log_prob_2D_hires[:,-2] - log_prob_2D_hires[:,-3]
+                logprob_kappa0_radius_hires += log_prob_2D_hires
 
-            n_usable_results+=1
             if plots:
                 if nf % 100 == 0:
                     plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
@@ -266,24 +384,21 @@ def get_prob_prod_gridsearch(ids,plots=False):
                     pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , plot_prob_this_hires); pl.colorbar()
                     pl.show()
 
-            # now 1D
-            # for ip in range(n_params):
-            #     pdf_prod_1D
-            #     list_pdf_prod_1D
-
-
-
-
-            
+          
+            n_usable_results+=1
             log.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
             if nf % 100 == 0 : log.info('%4d n_usable_results=%d' , nf , n_usable_results)
 
 
-    # prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
-    # return None, None, prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
-    
-    prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
-    return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
+    log.warning('untested code!')
+    if hires:
+        grid_pickle['grid_kappa0'] = grid_kappa0_hires
+        grid_pickle['grid_radius'] = grid_radius_hires
+        prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
+        return prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
+    else:
+        prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
+        return prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
     
     # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
@@ -568,14 +683,17 @@ def plotdata_all():
     list_res_dict = []
 
     ids=range(n_pairs)
-    list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
+    prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
+    grid_kappa0 = grid_dict['grid_kappa0'][:,:,0,0]
+    grid_radius = grid_dict['grid_radius'][:,:,0,0]
+    prod_pdf_kappa0_radius = np.sum(prod_pdf,axis=(2,3))
 
     pl.figure()
-    pl.pcolormesh( grid2D_kappa0 , grid2D_radius, prod2D_pdf)
+    pl.pcolormesh( grid_kappa0 , grid_radius, prod_pdf_kappa0_radius)
 
-    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf_kappa0_radius)
     # pl.colorbar()
-    cp = pl.contour(grid2D_kappa0 , grid2D_radius, prod2D_pdf,levels=contour_levels,colors='m')
+    cp = pl.contour(grid_kappa0 , grid_radius, prod_pdf_kappa0_radius,levels=contour_levels,colors='m')
     # pl.clabel(cp, inline=1, fontsize=10
 
     pl.xlim([0,0.3])
@@ -583,7 +701,8 @@ def plotdata_all():
     # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
     pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
     pl.ylabel('half-mass radius [Mpc]')
-    title_str= "n_pairs=%d'" % (n_pairs_used)
+    pl.axis('tight')
+    title_str= "n_pairs=%d" % (n_pairs_used)
     pl.title(title_str)
     filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
     pl.savefig(filename_fig)
@@ -600,6 +719,7 @@ def triangle_plots():
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
@@ -620,7 +740,7 @@ def triangle_plots():
     res_all=None
     n_used=0
 
-    mass= (halo1['m200']+halo2['m200'])/2.
+    mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     select = mass > 13
 
     for ida in range(id_file_first,id_file_last):
@@ -657,7 +777,7 @@ def triangle_plots():
 
     import plotstools, mathstools
     prob=mathstools.normalise(res_all)
-    plotstools.plot_dist_meshgrid(X,prob,labels=['kappa0','radius','m200_halo1','m200_halo2'])
+    plotstools.plot_dist_meshgrid(X,prob,labels=[r"$\Delta \Sigma 10^{14} * M_{\odot} \mathrm{Mpc}^{-2} h$",'radius Mpc/h',r"$M200_halo1 M_{\odot}/h$",r"$M200_halo2 M_{\odot}/h$"],contour=True)
     pl.show()
 
 
@@ -704,7 +824,7 @@ def plot_data_stamp():
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
