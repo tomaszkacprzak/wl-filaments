@@ -346,6 +346,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
                 continue
 
             # marginal kappa-radius
+            # log_prob = results_pickle*214.524/2.577
             log_prob = results_pickle
                                
             pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
@@ -601,6 +602,23 @@ def plotdata_vs_mass():
 
     pl.show()
 
+def plot_pickle(filename_pickle):
+
+    # filename_pickle = 'cfhtlens-lrgs.plotdata.mass.pp2'
+    # filename_pickle = 'bcc-e.plotdata.mass.pp2'
+    pickle=tabletools.loadPickle(filename_pickle)
+    prob = pickle[0]['prob']
+    grid = pickle[0]['params']
+    # X=[grid['grid_kappa0'],grid['grid_radius'],grid['grid_h1M200'],grid['grid_h2M200']]
+    X=[grid['grid_kappa0'],grid['grid_radius']]
+
+
+    plotstools.plot_dist_meshgrid(X,prob,labels=[r"$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$",r'radius $\mathrm{Mpc}/h$',r"M200_halo1 $\mathrm{M}_{\odot}/h$",r"M200_halo2 $\mathrm{M}_{\odot}/h$"],contour=True)
+    # pl.suptitle('CFHTLens + BOSS-DR10 LRGs, using %d halo pairs' % pickle[0]['n_obj'])
+    pl.suptitle('BCC-e, using %d halo pairs' % pickle[0]['n_obj'])
+    pl.show()
+
+
 
 
 def plot_vs_mass():
@@ -686,7 +704,7 @@ def plotdata_all():
     list_res_dict = []
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = mass > 13.5
+    select = mass > 13.8
 
     ids=np.arange(n_pairs)[select]
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
@@ -698,6 +716,8 @@ def plotdata_all():
     list_res_dict.append(res_dict)
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
     tabletools.savePickle(filename_pickle,list_res_dict)
+
+    plot_pickle(filename_pickle)
 
     # grid_kappa0 = grid_dict['grid_kappa0'][:,:,0,0]
     # grid_radius = grid_dict['grid_radius'][:,:,0,0]
@@ -776,6 +796,8 @@ def triangle_plots():
             if (res.shape != res_all.shape):
                 print 'something wrong with the shape', res
                 continue
+        # res = res*214.524/2.577
+        res = res
         
         res_all = res if res_all == None else res_all+res
 
