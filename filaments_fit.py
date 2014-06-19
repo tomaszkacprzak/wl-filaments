@@ -156,10 +156,9 @@ def fit_2hf():
             log.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
         elif config['sigma_method'] == 'orig':
             fitobj.shear_n_gals = shears_info['n_gals']
-            fitobj.inv_sq_sigma_g = self.shear_w
+            fitobj.inv_sq_sigma_g = fitobj.shear_w
             log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
-
-        
+                    
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair_in_catalog]
