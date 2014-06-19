@@ -98,9 +98,7 @@ def fit_2hf():
     fitobj = filaments_model_2hf.modelfit()
     fitobj.get_bcc_pz(config['filename_pz'])
     prob_z = fitobj.prob_z
-    sigma_ell = fitobj.sigma_ell
-
-
+    
     # empty container list for probability measurements
     # table_stats = np.zeros(len(range(id_pair_first,id_pair_last)) , dtype=dtype_stats)
 
@@ -140,6 +138,7 @@ def fit_2hf():
         fitobj.shear_v_mpc =  shears_info['v_mpc']
         fitobj.shear_g1 =  shears_info['g1']
         fitobj.shear_g2 =  shears_info['g2']
+        fitobj.shear_w =  shears_info['weight']
 
         # choose a method to add and account for noise
         if config['sigma_method'] == 'add':
@@ -152,7 +151,7 @@ def fit_2hf():
             log.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
         elif config['sigma_method'] == 'orig':
             fitobj.shear_n_gals = shears_info['n_gals']
-            fitobj.set_shear_sigma()
+            fitobj.inv_sq_sigma_g = self.shear_w
             log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
 
         

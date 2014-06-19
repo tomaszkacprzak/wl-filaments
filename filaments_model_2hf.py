@@ -482,11 +482,13 @@ class modelfit():
                 self.grid_z_centers = pickle['bins_z']
                 self.grid_z_edges = plotstools.get_bins_edges(self.grid_z_centers)
                 self.sigma_ell = pickle['sigma_ell']
+                log.info('loaded sigma_ell=%2.2f', self.sigma_ell)
                 
 
     def set_shear_sigma(self):
 
-        self.inv_sq_sigma_g = ( np.sqrt(self.shear_n_gals) / self.sigma_ell )**2
+        # self.inv_sq_sigma_g = ( np.sqrt(self.shear_n_gals) / self.sigma_ell )**2
+        self.inv_sq_sigma_g = self.shear_w
 
         # remove nans -- we shouldn't have nans in the data, but we appear to have
         select = np.isnan(self.shear_g1) | np.isnan(self.shear_g2)
@@ -706,8 +708,111 @@ def self_fit():
 
     # vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post , params)
 
+def get_mock_data():
+
+    filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
+    filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
+    filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
+    sigma_g_add =  0.
+
+    id_pair = 48
+    shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+
+    fitobj = modelfit()
+    fitobj.get_bcc_pz('aardvarkv1.0_des_lenscat_s2n10.351.fit')
+
+    fitobj.halo1_z = 0.2
+    fitobj.halo2_z = 0.2
+    fitobj.halo1_u_arcmin = 20
+    fitobj.halo1_v_arcmin = 0
+    fitobj.halo2_u_arcmin = -20
+    fitobj.halo2_v_arcmin = 0
+    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.shear_u_mpc =  shears_info['u_mpc']
+    fitobj.shear_v_mpc =  shears_info['v_mpc']
+
+    fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
+    fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
+    fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair]
+    fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair]
+    fitobj.halo1_z =  pairs_table['z'][id_pair]
+
+    fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
+    fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
+    fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
+    fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
+    fitobj.halo2_z =  pairs_table['z'][id_pair]
+
+    fitobj.pair_z  = (fitobj.halo1_z + fitobj.halo2_z) / 2.
+
+    fitobj.filam = filament.filament()
+    fitobj.filam.pair_z =fitobj.pair_z
+    fitobj.filam.grid_z_centers = fitobj.grid_z_centers
+    fitobj.filam.prob_z = fitobj.prob_z
+    fitobj.filam.set_mean_inv_sigma_crit(fitobj.filam.grid_z_centers,fitobj.filam.prob_z,fitobj.filam.pair_z)
+
+    fitobj.nh1 = nfw.NfwHalo()
+    fitobj.nh1.z_cluster= fitobj.halo1_z
+    fitobj.nh1.theta_cx = fitobj.halo1_u_arcmin
+    fitobj.nh1.theta_cy = fitobj.halo1_v_arcmin 
+    fitobj.nh1.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+
+    fitobj.nh2 = nfw.NfwHalo()
+    fitobj.nh2.z_cluster= fitobj.halo2_z
+    fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin
+    fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin 
+    fitobj.nh2.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+
+    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0., 2., 14.5, 14.5])
+    fitobj.plot_shears(shear_model_g1, shear_model_g2,quiver_scale=0.5)
+    pl.show()
+
+    fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(shears_info['g1']))*sigma_g_add
+    fitobj.shear_g2 =  shear_model_g2 + np.random.randn(len(shears_info['g2']))*sigma_g_add
+    fitobj.sigma_g =  np.std(shear_model_g2,ddof=1)
+    fitobj.inv_sq_sigma_g = 1./sigma_g_add**2
+    log.info('using sigma_g=%2.5f' , fitobj.sigma_g)
+
+
 
 
 if __name__=='__main__':
 
-    self_fit()
+    description = 'filaments_model_2hf'
+    parser = argparse.ArgumentParser(description=description, add_help=True)
+    parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
+    parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
+
+    global args
+
+    args = parser.parse_args()
+    # Parse the integer verbosity level from the command line args into a logging_level string
+    logging_levels = { 0: logging.CRITICAL, 
+                       1: logging.WARNING,
+                       2: logging.INFO,
+                       3: logging.DEBUG }
+    logging_level = logging_levels[args.verbosity]
+    log.setLevel(logging_level)
+
+    global config 
+    config = yaml.load(open(args.filename_config))
+    filaments_tools.config = config
+
+
+    filaments_model_1f.log = log
+
+    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+
+    get_mock_data()
+
+    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+

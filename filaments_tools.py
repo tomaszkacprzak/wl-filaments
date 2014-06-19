@@ -301,15 +301,6 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             hist_w[select] = 0
             hist_m[select] = 0
 
-
-
-            # if np.any(np.isnan(mean_g1)) | np.any(np.isnan(mean_g2)):
-            #     import pdb; pdb.set_trace()            
-
-            # import pdb; pdb.set_trace()
-            # pl.hist(mean_g1.flatten(),bins=50,histtype='step'); pl.hist(hist_g1.flatten()/sum(shear_weight_stamp.flatten()),bins=50,histtype='step'); pl.show()
-
-
             u_mid_mpc,v_mid_mpc = plotstools.get_bins_centers(grid_u_mpc) , plotstools.get_bins_centers(grid_v_mpc)
             u_mid_arcmin,v_mid_arcmin = plotstools.get_bins_centers(grid_u_arcmin) , plotstools.get_bins_centers(grid_v_arcmin)
             grid_2d_u_mpc , grid_2d_v_mpc = np.meshgrid(u_mid_mpc,v_mid_mpc,indexing='ij')
@@ -326,6 +317,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             binned_g2sc = mean_g2sc.flatten('F')
             binned_n = hist_n.flatten('F')
             binned_scinv = hist_scinv.flatten('F')
+            binned_w = hist_w.flatten('F')
 
             u_mpc = binned_u_mpc[:,None]
             v_mpc = binned_v_mpc[:,None]
@@ -339,7 +331,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             g2sc = binned_g2sc[:,None]
 
             mean_scinv = binned_scinv[:,None]
-            weight = g1*0 + 1. # set all rows to 1 
+            weight = binned_w[:,None]
             n_gals = binned_n[:,None] # set all rows to 1
             # scinv = scinv[:,None]
             # z = lenscat_stamp['z'][:,None]
@@ -358,8 +350,8 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             # plot_pair(halo1_u_rot_mpc , halo1_v_rot_mpc , halo2_u_rot_mpc , halo2_v_rot_mpc , shear_u_stamp_mpc, shear_v_stamp_mpc, shear_g1_stamp, shear_g2_stamp , close=False,nuse = 10,quiver_scale=2)
             # pl.show()
 
-            # dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1sc','g2sc','sc_sum',',weight','n_gals'] , 'formats' : ['f8']*8 + ['i8']*1 }
-            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,g1,g2,mean_scinv,weight,g1sc,g2sc,n_gals],axis=1)
+            # dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight','n_gals'] , 'formats' : ['f8']*10 + ['i8']*1 }
+            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,g1,g2,mean_scinv,g1sc,g2sc,weight,n_gals],axis=1)
             pairs_shear = tabletools.array2recarray(pairs_shear,dtype_shears_stacked)        
 
             pairs_shear_full = None

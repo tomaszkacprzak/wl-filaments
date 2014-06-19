@@ -319,6 +319,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
     vec_kappa0 = grid_kappa0[:,0]
     vec_radius = grid_radius[0,:]
     logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])+66
+    grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
 
     if hires:    
         n_upsample = 10
@@ -398,7 +399,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
         return prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
     else:
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
-        return prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
+        return prod2D_pdf, grid2D_dict, n_usable_results
     
     # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
@@ -666,9 +667,11 @@ def plotdata_all():
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
     if 'cfhtlens' in filename_pairs:
@@ -682,36 +685,44 @@ def plotdata_all():
 
     list_res_dict = []
 
-    ids=range(n_pairs)
-    prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
-    grid_kappa0 = grid_dict['grid_kappa0'][:,:,0,0]
-    grid_radius = grid_dict['grid_radius'][:,:,0,0]
-    prod_pdf_kappa0_radius = np.sum(prod_pdf,axis=(2,3))
+    mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
+    select = mass > 13.5
 
-    pl.figure()
-    pl.pcolormesh( grid_kappa0 , grid_radius, prod_pdf_kappa0_radius)
+    ids=np.arange(n_pairs)[select]
+    # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
+    prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch_2D(ids)
 
-    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf_kappa0_radius)
-    # pl.colorbar()
-    cp = pl.contour(grid_kappa0 , grid_radius, prod_pdf_kappa0_radius,levels=contour_levels,colors='m')
-    # pl.clabel(cp, inline=1, fontsize=10
 
-    pl.xlim([0,0.3])
-    pl.ylim([0,2])
-    # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
-    pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
-    pl.ylabel('half-mass radius [Mpc]')
-    pl.axis('tight')
-    title_str= "n_pairs=%d" % (n_pairs_used)
-    pl.title(title_str)
-    filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
-    pl.savefig(filename_fig)
-    log.info('saved %s' % filename_fig)
+    res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
 
+    list_res_dict.append(res_dict)
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
     tabletools.savePickle(filename_pickle,list_res_dict)
 
-    pl.show()
+    # grid_kappa0 = grid_dict['grid_kappa0'][:,:,0,0]
+    # grid_radius = grid_dict['grid_radius'][:,:,0,0]
+    # prod_pdf_kappa0_radius = np.sum(prod_pdf,axis=(2,3))
+
+    # pl.figure()
+    # pl.pcolormesh( grid_kappa0 , grid_radius, prod_pdf_kappa0_radius)
+
+    # contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf_kappa0_radius)
+    # # pl.colorbar()
+    # cp = pl.contour(grid_kappa0 , grid_radius, prod_pdf_kappa0_radius,levels=contour_levels,colors='m')
+    # # pl.clabel(cp, inline=1, fontsize=10
+
+    # pl.xlim([0,0.3])
+    # pl.ylim([0,2])
+    # # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
+    # pl.xlabel("'\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}'")
+    # pl.ylabel('half-mass radius [Mpc]')
+    # pl.axis('tight')
+    # title_str= "n_pairs=%d" % (n_pairs_used)
+    # pl.title(title_str)
+    # filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
+    # pl.savefig(filename_fig)
+    # log.info('saved %s' % filename_fig)
+    # pl.show()
 
 def triangle_plots():
 
@@ -767,9 +778,6 @@ def triangle_plots():
                 continue
         
         res_all = res if res_all == None else res_all+res
-
-        # print halo1[ida]['m200'],halo2[ida]['m200']
-
 
     print 'median redshift z=%2.2f' % np.median(halo1['z'][select])
     print 'median mass m=%2.2f' % np.median(mass[select])
