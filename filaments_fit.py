@@ -98,7 +98,10 @@ def fit_2hf():
     fitobj = filaments_model_2hf.modelfit()
     fitobj.get_bcc_pz(config['filename_pz'])
     prob_z = fitobj.prob_z
-    
+    sigma_ell = fitobj.sigma_ell
+    grid_z_centers = fitobj.grid_z_centers
+    grid_z_edges = fitobj.grid_z_edges
+
     # empty container list for probability measurements
     # table_stats = np.zeros(len(range(id_pair_first,id_pair_last)) , dtype=dtype_stats)
 
@@ -131,6 +134,8 @@ def fit_2hf():
 
         fitobj = filaments_model_2hf.modelfit()
         fitobj.prob_z = prob_z
+        fitobj.grid_z_centers = grid_z_centers
+        fitobj.grid_z_edges = grid_z_edges
         fitobj.sigma_ell = sigma_ell
         fitobj.shear_u_arcmin =  shears_info['u_arcmin']
         fitobj.shear_v_arcmin =  shears_info['v_arcmin']
