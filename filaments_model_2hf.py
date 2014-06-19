@@ -477,7 +477,7 @@ class modelfit():
 
             elif 'pp2' in filename_lenscat:
 
-                pickle = tabletools.loadPickle('filename_lenscat')
+                pickle = tabletools.loadPickle(filename_lenscat)
                 self.prob_z =  pickle['prob_z']
                 self.grid_z_centers = pickle['bins_z']
                 self.grid_z_edges = plotstools.get_bins_edges(self.grid_z_centers)
