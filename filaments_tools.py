@@ -28,14 +28,25 @@ logger.propagate = False
 
 config = {}
 
-def get_halo_map(filename_pairs):
+def get_halo_map(filename_pairs,color=None):
 
-    table_pairs = tabletools.loadTable(filename_pairs)
     table_halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
     table_halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
-    # table_halos = tabletools.loadTable(os.environ['HOME']+'/data/BCC/bcc_a1.0b/aardvark_v1.0/halos/Aardvark_v1.0_halos_r1_rotated.0.fit')
-    # table_halo3 = table_halos[:10000]
+    table_pairs = tabletools.loadTable(filename_pairs)
+    print 'before cuts len(table_pairs)=', len(table_pairs)
 
+    import numpy as np
+    m200_h1 = table_pairs['m200_h1_fit']
+    m200_h2 = table_pairs['m200_h2_fit']
+
+    mean_mass = (m200_h1+m200_h2)/2. 
+    select = mean_mass > -100000000000000000.5
+    table_halo1 = table_halo1[select]
+    table_halo2 = table_halo2[select]
+    table_pairs = table_pairs[select]
+    m200_h1 = m200_h1[select]
+    m200_h2 = m200_h2[select]
+    print 'after cuts len(table_pairs)=', len(table_pairs)
 
     # import numpy as np
     # select = table_halos['M200'] > 1e12
@@ -47,46 +58,59 @@ def get_halo_map(filename_pairs):
     # ra2 , dec2 = cosmology.deg_to_rad( table_pairs['ra2'] , table_pairs['dec2'] )
     ra1 , dec1 = table_pairs['ra1'] , table_pairs['dec1'] 
     ra2 , dec2 = table_pairs['ra2'] , table_pairs['dec2'] 
-    # ra3 , dec3 = table_halo3['RA']  , table_halo3['DEC'] 
 
+    normalised_z = table_pairs['z'] - min(table_pairs['z'])
+    normalised_z/=np.max(normalised_z)
 
-    from mpl_toolkits.basemap import Basemap
-    import numpy as np
+    # from mpl_toolkits.basemap import Basemap
     # import matplotlib.pyplot as plt
-    m = Basemap(projection='ortho',lat_0=-35,lon_0=-10,resolution='c')
-    m.drawparallels(np.arange(-90.,120.,30.))
-    m.drawmeridians(np.arange(0.,420.,60.))
-    m.drawmapboundary()
+    # m = Basemap(projection='ortho',lat_0=-35,lon_0=-10,resolution='c')
+    # m.drawparallels(np.arange(-90.,120.,30.))
+    # m.drawmeridians(np.arange(0.,420.,60.))
+    # m.drawmapboundary()
 
-
-
-    lats = dec1
-    lons = ra1
-    x1,y1 = m(ra1,dec1)
-    x2,y2 = m(ra2,dec2)
+    # lats = dec1
+    # lons = ra1
+    # x1,y1 = m(ra1,dec1)
+    # x2,y2 = m(ra2,dec2)
     # x3,y3 = m(ra3,dec3)
+    # x4,y4 = m(ra4,dec4)
 
-    def mass(x):
-        ll  = np.log10(x)
-        ll[ll==-np.inf] = 0
-        # return (ll - min(ll) )/ max(ll) * 50. + 10
-        return ll , (ll - min(ll)) * 100. + 10
+    # def mass(x):
+    #     ll  = np.log10(x)
+    #     ll[ll==-np.inf] = 0
+    #     # return (ll - min(ll) )/ max(ll) * 50. + 10
+    #     return ll , (ll - min(ll)) * 100. + 10
 
 
-    print max(table_halos['Z']) , min(table_halos['Z'])
-    m.scatter(x1,y1, mass(table_halo1['m200'])[1] , table_halo1['z'] , marker = 'o') #
-    m.scatter(x2,y2, mass(table_halo2['m200'])[1] , table_halo2['z'] , marker = 'o') #
+    # print max(table_halos['Z']) , min(table_halos['Z'])
+    # m.scatter(x1,y1, mass(table_halo1['m200'])[1] , table_halo1['z'] , marker = 'o') #
+    # m.scatter(x2,y2, mass(table_halo2['m200'])[1] , table_halo2['z'] , marker = 'o') #
     # m.scatter(x3,y3, mass(table_halo3['M200'])[1] , table_halo3['Z'] , marker = 'o') #
 
-    m.scatter(x1,y1, table_halo1['snr']*50 , table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
-    m.scatter(x2,y2, table_halo2['snr']*50 , table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+    # m.scatter(x1,y1, 4*m200_h1 , c=table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+    # m.scatter(x2,y2, 4*m200_h2 , c=table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+    # m.scatter(x3,y4, 10 , c=all_halo1['z'] , marker = 'o' ) #
+    # m.scatter(x2,y2, 10 , c=all_halo2['z'] , marker = 'o' ) #
+
+    # pl.figure()
+
+    if color==None:
+        pl.scatter(ra1,dec1, 4*m200_h1 , c=table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+        pl.scatter(ra2,dec2, 4*m200_h2 , c=table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+    else:
+        pl.scatter(ra1*60,dec1*60, 4*m200_h1 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+        pl.scatter(ra2*60,dec2*60, 4*m200_h2 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+
+
 
     for i in range(len(table_pairs)):
         # m.scatter([x1[i],x2[i]],[y1[i],y2[i]] , c=table_halo2['z'][i] , cmap=pl.matplotlib.cm.jet)
-        m.plot([x1[i],x2[i]],[y1[i],y2[i]])
+        # m.plot([x1[i],x2[i]],[y1[i],y2[i]],c=normalised_z)
+        # pl.plot([ra1[i],ra2[i]],[dec1[i],dec2[i]],c=normalised_z)
+        pl.plot([60*ra1[i],60*ra2[i]],[60*dec1[i],60*dec2[i]],c=color)
 
-    pl.colorbar()
-    pl.show()
+    # pl.colorbar()
 
 
 
@@ -622,7 +646,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     y=halocat['yphys'][:,None]
     z=halocat['zphys'][:,None]
     box_coords = np.concatenate( [x,y,z] , axis=1)
-         
+  
     logger.info('getting Ball Tree for 3D')
     BT = BallTree(box_coords, leaf_size=5)
     n_connections=70
@@ -692,7 +716,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     dz=  np.abs(vh1['z'] - vh2['z'])
     n_gal = dz*0 
 
-    ipair = np.ones(len(ih1),dtype=np.int8)
+    ipair = np.arange(len(ih1))
     # dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff'] ,
     row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
             DA[:,None],d_los[:,None],d_xy[:,None],

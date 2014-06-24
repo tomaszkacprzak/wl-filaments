@@ -207,6 +207,40 @@ class filament:
         
         return g1 , g2
 
+    def get_bcc_pz(self,filename_lenscat):
+
+        if self.prob_z == None:
+
+            # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+            # filename_lenscat = os.environ['HOME'] + '/data/BCC/bcc_a1.0b/aardvark_v1.0/lenscats/s2n10cats/aardvarkv1.0_des_lenscat_s2n10.351.fit'
+
+            if 'fits' in filename_lenscat:
+                lenscat = tabletools.loadTable(filename_lenscat)
+                if 'z' in lenscat.dtype.names:
+                    self.prob_z , _  = pl.histogram(lenscat['z'],bins=self.grid_z_edges,normed=True)
+                elif 'z-phot' in lenscat.dtype.names:
+                    self.prob_z , _  = pl.histogram(lenscat['z-phot'],bins=self.grid_z_edges,normed=True)
+
+                if 'e1' in lenscat.dtype.names:
+
+                    select = lenscat['star_flag'] == 0
+                    lenscat = lenscat[select]
+                    select = lenscat['fitclass'] == 0
+                    lenscat = lenscat[select]
+                    select = (lenscat['e1'] != 0.0) * (lenscat['e2'] != 0.0)
+                    lenscat = lenscat[select]
+                    self.sigma_ell = np.std(lenscat['e1']*lenscat['weight'],ddof=1)
+
+            elif 'pp2' in filename_lenscat:
+
+                pickle = tabletools.loadPickle(filename_lenscat)
+                self.prob_z =  pickle['prob_z']
+                self.grid_z_centers = pickle['bins_z']
+                self.grid_z_edges = plotstools.get_bins_edges(self.grid_z_centers)
+                self.sigma_ell = pickle['sigma_ell']
+                log.info('loaded sigma_ell=%2.2f', self.sigma_ell)
+
+
 
 def test():
 
@@ -261,13 +295,13 @@ def test_shear_profile():
     nu = 100
     nv = 80
     shear_u_mpc = np.linspace(-10,10,nu)
-    shear_v_mpc = np.linspace(-10,10,nv)
+    shear_v_mpc = np.linspace(-4,4,nv)
 
     U,V = np.meshgrid(shear_u_mpc,shear_v_mpc)
     shear_u_mpc,shear_v_mpc = U.flatten() , V.flatten()
 
-    u1_mpc = 10
-    u2_mpc = -10
+    u1_mpc = 8
+    u2_mpc = -8
     kappa0 = None
     radius_mpc = 1
 
@@ -276,37 +310,43 @@ def test_shear_profile():
     f.n_points = len(shear_u_mpc)
     f.redshift_offset = 0.2
 
-    f.get_bcc_pz()
+    filename_lenscat = 'CFHTLens_2014-06-14.normalised.pz.pp2'
+    f.get_bcc_pz(filename_lenscat)
     f.set_mean_inv_sigma_crit(f.grid_z_centers,f.prob_z,f.pair_z)
 
 
     kappa0 = 50
-    radius_mpc = 0.5
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz_new( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
-    pl.sublot(1,2,1)
+    radius_mpc = 1
+    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    # def filament_model_with_pz(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z, grid_z_centers , prob_z,  redshift_offset=0.2):    pl.sublot(1,2,1)
+
+    pl.figure()
+    pl.subplot(1,2,1)
     pl.scatter(shear_u_mpc , shear_v_mpc, c=model_pz_1 )
-    pl.sublot(1,2,2)
+    pl.subplot(1,2,2)
     pl.scatter(shear_u_mpc , shear_v_mpc, c=model_pz_2 )
     print min(model_pz_1)
 
     # pl.show()
 
-    kappa0 = 150
-    radius_mpc = 3
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz_new( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
-    pl.plot(shear_v_mpc,-model_pz_1,'bx',ms=20)
+    pl.figure()
+
+    kappa0 = 0.05
+    radius_mpc = 1
+    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    pl.plot(shear_v_mpc,-model_pz_1,'bx',ms=10)
     print min(model_pz_1)
 
-    kappa0 = 150
-    radius_mpc = 0.5
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz_new( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
-    pl.plot(shear_v_mpc,-model_pz_1,'gd')
+    kappa0 = 0.05
+    radius_mpc = 3
+    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    pl.plot(shear_v_mpc,-model_pz_1,'gd',ms=10)
     print min(model_pz_1)
 
-    kappa0 = 50
-    radius_mpc = 3
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz_new( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
-    pl.plot(shear_v_mpc,-model_pz_1,'m+',ms=20)
+    kappa0 = 0.05
+    radius_mpc = 5
+    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    pl.plot(shear_v_mpc,-model_pz_1,'m+',ms=10)
     print min(model_pz_1)
 
     # pl.yscale('log')
@@ -455,7 +495,7 @@ def get_2d_fiament_shear():
 if __name__=='__main__':
 
     # get_shear_lookup()
-    get_shear_profiles_plot()
+    # get_shear_profiles_plot()
     # test()
-    # test_shear_profile()
+    test_shear_profile()
     # get_2d_fiament_shear()

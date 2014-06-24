@@ -46,8 +46,10 @@ def add_stats():
     halo2 = tabletools.loadTable(filename_halos2)
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
-    pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h1_fit',dtype='f4')
-    pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h2_fit',dtype='f4')
+
+    if not 'm200_h1_fit' in pairs.dtype.names:
+        pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h1_fit',dtype='f4')
+        pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h2_fit',dtype='f4')
 
     filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
     grid_dict = tabletools.loadPickle(filename_grid)
@@ -296,8 +298,9 @@ def get_prob_prod_gridsearch(ids):
     
 
 
-def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
-
+def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
+    
+    import scipy.interpolate
     n_per_file = 1
     id_file_first = args.first_result_file
     id_file_last = id_file_first + args.n_results_files
@@ -322,7 +325,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
     grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
 
     if hires:    
-        n_upsample = 10
+        n_upsample = 20
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
@@ -348,10 +351,39 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
             log_prob = results_pickle
-                               
-            pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
-            pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
-            log_prob_2D = np.log(pdf_prob_2D)
+            grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
+            grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
+            grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
+            grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
+
+            if hires_marg:
+
+                log_prob_2D = np.zeros_like(log_prob[:,:,0,0])
+
+                for i1 in range(len(log_prob[:,0,0,0])):
+                    for i2 in range(len(log_prob[0,:,0,0])):
+                        m200_2D = log_prob[i1,i2,:,:]
+                        func_interp = scipy.interpolate.interp2d(grid_h1M200,grid_h2M200,m200_2D, kind='cubic')
+                        m200_2D_hires = func_interp(grid_h1M200_hires,grid_h2M200_hires)
+                        normalisation_const=2000
+                        m200_2D_hires_prob=np.exp(m200_2D_hires-normalisation_const)
+                        log_prob_2D[i1,i2] = np.log(np.sum(m200_2D_hires_prob))
+                        
+                        if plots:
+                            print grid_kappa0[i1,i2], grid_radius[i1,i2] , np.sum(mathstools.normalise(m200_2D_hires))/len(m200_2D_hires) , np.sum(mathstools.normalise(m200_2D))/len(m200_2D)
+                            pl.figure()
+                            pl.subplot(1,2,1)
+                            pl.imshow(mathstools.normalise(m200_2D),interpolation='nearest')
+                            pl.subplot(1,2,2)
+                            pl.imshow(mathstools.normalise(m200_2D_hires),interpolation='nearest')
+                            pl.show()
+
+            else:
+                                   
+                pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
+                pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
+                log_prob_2D = np.log(pdf_prob_2D)
+
             logprob_kappa0_radius += log_prob_2D
             plot_prob_all, _, _, _ = mathstools.get_normalisation(logprob_kappa0_radius)  
             plot_prob_this, _, _, _ = mathstools.get_normalisation(log_prob_2D)   
@@ -360,19 +392,19 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
                 # from scipy import interpolate
                 # spline = interpolate.bisplrep(grid_kappa0,grid_radius,log_prob_2D,s=0)
                 # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
-                # func_interp = interpolate.interp2d(grid_kappa0.T,grid_radius.T,log_prob_2D, kind='linear')
-                # log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
-                d1 =vec_kappa0[1]-vec_kappa0[0]
-                d2 =vec_radius[1]-vec_radius[0]
-                x=grid_kappa0_hires.flatten()/d1
-                y=(grid_radius_hires.flatten() - min(grid_radius.flatten()))/d2
-                log_prob_2D_hires = np.reshape(bilinear_interpolate(log_prob_2D,x,y),[len(vec_radius_hires),len(vec_radius_hires)]).T
-                log_prob_2D_hires[-1,:] = 2*log_prob_2D_hires[-2,:] - log_prob_2D_hires[-3,:]
-                log_prob_2D_hires[:,-1] = 2*log_prob_2D_hires[:,-2] - log_prob_2D_hires[:,-3]
+                func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
+                log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                # d1 =vec_kappa0[1]-vec_kappa0[0]
+                # d2 =vec_radius[1]-vec_radius[0]
+                # x=grid_kappa0_hires.flatten()/d1
+                # y=(grid_radius_hires.flatten() - min(grid_radius.flatten()))/d2
+                # log_prob_2D_hires = np.reshape(bilinear_interpolate(log_prob_2D,x,y),[len(vec_radius_hires),len(vec_radius_hires)]).T
+                # log_prob_2D_hires[-1,:] = 2*log_prob_2D_hires[-2,:] - log_prob_2D_hires[-3,:]
+                # log_prob_2D_hires[:,-1] = 2*log_prob_2D_hires[:,-2] - log_prob_2D_hires[:,-3]
                 logprob_kappa0_radius_hires += log_prob_2D_hires
 
             if plots:
-                if nf % 100 == 0:
+                if nf % 10 == 0:
                     plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
                     plot_prob_this_hires, _, _,_ = mathstools.get_normalisation(log_prob_2D_hires)   
                     pl.figure(figsize=(10,10))
@@ -384,6 +416,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
                     pl.pcolormesh(grid_kappa0_hires, grid_radius_hires , plot_prob_all_hires); pl.colorbar()
                     pl.subplot(2,2,4)
                     pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , plot_prob_this_hires); pl.colorbar()
+                    pl.suptitle(nf)
                     pl.show()
 
           
@@ -392,12 +425,10 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=False):
             if nf % 100 == 0 : log.info('%4d n_usable_results=%d' , nf , n_usable_results)
 
 
-    log.warning('untested code!')
     if hires:
-        grid_pickle['grid_kappa0'] = grid_kappa0_hires
-        grid_pickle['grid_radius'] = grid_radius_hires
+        grid2D_dict = { 'grid_kappa0'  : grid_kappa0_hires , 'grid_radius' : grid_radius_hires}  
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
-        return prod2D_pdf, grid_kappa0_hires, grid_radius_hires, n_usable_results
+        return prod2D_pdf, grid2D_dict, n_usable_results
     else:
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
         return prod2D_pdf, grid2D_dict, n_usable_results
@@ -604,6 +635,7 @@ def plotdata_vs_mass():
 
 def plot_pickle(filename_pickle):
 
+    # filename_pickle
     # filename_pickle = 'cfhtlens-lrgs.plotdata.mass.pp2'
     # filename_pickle = 'bcc-e.plotdata.mass.pp2'
     pickle=tabletools.loadPickle(filename_pickle)
@@ -615,7 +647,7 @@ def plot_pickle(filename_pickle):
 
     plotstools.plot_dist_meshgrid(X,prob,labels=[r"$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$",r'radius $\mathrm{Mpc}/h$',r"M200_halo1 $\mathrm{M}_{\odot}/h$",r"M200_halo2 $\mathrm{M}_{\odot}/h$"],contour=True)
     # pl.suptitle('CFHTLens + BOSS-DR10 LRGs, using %d halo pairs' % pickle[0]['n_obj'])
-    pl.suptitle('BCC-e, using %d halo pairs' % pickle[0]['n_obj'])
+    pl.suptitle('CFHTLens + BOSS-DR10, using %d halo pairs' % pickle[0]['n_obj'])
     pl.show()
 
 
@@ -702,10 +734,15 @@ def plotdata_all():
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
     list_res_dict = []
+    
+    # filename_prune = 'pairs_cfhtlens_lrgs.prune.fits'
+    # pairs_prune = tabletools.loadTable(filename_prune)
+    # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = mass > 13.8
+    select = (mass < 16.5) * (mass > 13.5)
 
+    # ids=np.arange(n_pairs)[select*select_prune]
     ids=np.arange(n_pairs)[select]
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
     prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch_2D(ids)
@@ -772,7 +809,7 @@ def triangle_plots():
     n_used=0
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = mass > 13
+    select = mass > 13.
 
     for ida in range(id_file_first,id_file_last):
 
@@ -806,8 +843,13 @@ def triangle_plots():
     print 'n_used', n_used
 
     import plotstools, mathstools
-    prob=mathstools.normalise(res_all)
-    plotstools.plot_dist_meshgrid(X,prob,labels=[r"$\Delta \Sigma 10^{14} * M_{\odot} \mathrm{Mpc}^{-2} h$",'radius Mpc/h',r"$M200_halo1 M_{\odot}/h$",r"$M200_halo2 M_{\odot}/h$"],contour=True)
+    # prob=mathstools.normalise(res_all)
+
+    labels=[r"$\Delta \Sigma 10^{14} * M_{\odot} \mathrm{Mpc}^{-2} h$",'radius Mpc/h',r"$M200_halo1 M_{\odot}/h$",r"$M200_halo2 M_{\odot}/h$"]
+    mdd = plotstools.multi_dim_dist()
+    mdd.n_upsample=10
+    mdd.labels=labels
+    mdd.plot_dist_meshgrid(X,res_all)
     pl.show()
 
 
@@ -849,12 +891,202 @@ def plot_data_stamp():
         pl.close()
 
 
+def plot_halo_map():
+
+    filaments_tools.get_halo_map(config['filename_pairs'])
+
+def remove_similar_connections():
+
+    filename_pairs = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    pairs['ipair'] = np.arange(len(pairs))
+
+    n_pairs = len(pairs)
+    remove_list = []
+    pairs_new = range(len(pairs))
+    min_angle = 30 # deg
+    min_dist=4
+    n_all = 0
+
+    unique_halos, unique_indices = np.unique(np.concatenate([pairs['ih1'],pairs['ih2']]),return_index=True)
+    unique_ra = np.concatenate([halo1,halo2])['ra'][unique_indices]
+    unique_de = np.concatenate([halo1,halo2])['dec'][unique_indices]
+    unique_z = np.concatenate([halo1,halo2])['z'][unique_indices]
+    unique_DA =  cosmology.get_ang_diam_dist(unique_z)  
+    unique_haloinfo = np.concatenate([halo1,halo2])[unique_indices]
+    x,y,z = cosmology.spherical_to_cartesian_with_redshift(unique_ra,unique_de,unique_z)
+    n_unique=len(unique_de)
+    box_coords = np.concatenate([x[:,None],y[:,None],z[:,None]],axis=1)
+
+    log.info('getting Ball Tree for 3D')
+    BT = BallTree(box_coords, leaf_size=5)
+    n_connections=100
+    bt_dx,bt_id = BT.query(box_coords,k=n_connections)
+
+    bt_id_reduced = bt_id[:,1:]
+    bt_dx_reduced = bt_dx[:,1:]
+    ih1 = np.kron( np.ones((n_connections-1,1),dtype=np.int8), np.arange(0,n_unique) ).T
+    ih2 = bt_id_reduced
+    DA  = bt_dx_reduced
+
+    log.info('number of pairs %d ' % len(ih1))
+    select = ih1 < ih2
+    ih1 = ih1[select]
+    ih2 = ih2[select]
+    DA = DA[select]
+    log.info('number of pairs after removing duplicates %d ' % len(ih1))
+
+    log.info('calculating x-y distance')
+    halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(  unique_ra[ih1] , unique_de[ih1]  )
+    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(  unique_ra[ih2] , unique_de[ih2]  )
+    
+    min_dist = 1
+    # d_xy  = (unique_DA[ih1] + unique_DA[ih2])/2. * cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)
+    d_xy  =  cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)*180./np.pi
+
+    remove_lrgs = []
+    for ip in range(len(d_xy)):
+        if ip >= len(d_xy):
+            continue
+        if d_xy[ip] < min_dist:
+
+            print ih1[ip],ih2[ip],d_xy[ip], unique_haloinfo['dered_r'][ih1[ip]] , unique_haloinfo['dered_r'][ih2[ip]], len(ih1), len(ih2), len(d_xy)
+            if unique_haloinfo['dered_r'][ih1[ip]] < unique_haloinfo['dered_r'][ih2[ip]]:
+                remove_lrgs.append(unique_halos[ih2[ip]])
+                select = (ih1 == ih2[ip]) | (ih2 == ih2[ip])
+                ih1  = ih1[~select]
+                ih2  = ih2[~select]
+                d_xy = d_xy[~select]
+            else:
+                remove_lrgs.append(unique_halos[ih1[ip]])
+                select = (ih1 == ih1[ip]) | (ih2 == ih1[ip])
+                ih1  = ih1[~select]
+                ih2  = ih2[~select]
+                d_xy = d_xy[~select]
+            print len(ih1), len(ih2), len(d_xy)
+            
+    print len(remove_lrgs), len(unique_halos)
+
+    pl.figure()
+    pl.scatter(unique_ra,unique_de,c='r')
+    pl.scatter(unique_ra[ih1],unique_de[ih1],c='b')
+    pl.scatter(unique_ra[ih2],unique_de[ih2],c='c')
+    pl.show()
+
+    list_pairs = []
+    for ip, vp in enumerate(pairs):
+        if (vp['ih1'] in remove_lrgs) or (vp['ih2'] in remove_lrgs):
+            remove_list.append(ip)
+
+    for x in set(remove_list): pairs_new.remove(x)
+    pairs_prune = pairs[pairs_new]
+    halo1_prune = halo1[pairs_new]
+    halo2_prune = halo2[pairs_new]
+
+    mass= (pairs_prune['m200_h1_fit'] + pairs_prune['m200_h2_fit'])/2.
+    sorting = np.argsort(mass)[::-1]
+
+    pairs_prune = pairs_prune[sorting]
+    halo1_prune = halo1_prune[sorting]
+    halo2_prune = halo2_prune[sorting]
+
+    filename_pairs_selected = filename_pairs.replace('.fits','.prune.fits')
+    filename_halo1_selected = filename_halos1.replace('.halos1.fits','.prune.halos1.fits')
+    filename_halo2_selected = filename_halos2.replace('.halos2.fits','.prune.halos2.fits')
+    tabletools.saveTable(filename_pairs_selected,pairs_prune)
+    tabletools.saveTable(filename_halo1_selected, halo1_prune)
+    tabletools.saveTable(filename_halo2_selected, halo2_prune)
+
+    # filaments_tools.get_halo_map(filename_pairs,color='c')
+    # filaments_tools.get_halo_map(filename_pairs_selected,color='r')
+    # pl.show()
+
+    pairs = pairs_prune
+    halo1 = halo1_prune
+    halo2 = halo2_prune
+    remove_list = []
+    pairs_new = range(len(pairs))
+
+    for ic1,vc1 in enumerate(pairs):
+        for ic2,vc2 in enumerate(pairs):
+
+            # only one triangle:
+            if ic1>ic2:
+        
+                # connection 1 and 2 have the same node
+                same_node=None
+                if vc1['ih1'] == vc2['ih1']:
+                    same_node_ra , same_node_de = vc2['ra1'] ,  vc2['dec1']
+                    other1_ra , other1_de = vc1['ra2'] , vc1['dec2'] 
+                    other2_ra , other2_de = vc2['ra2'] , vc2['dec2']
+                elif vc1['ih2'] == vc2['ih2']:
+                    same_node_ra , same_node_de = vc2['ra2'] ,  vc2['dec2']
+                    other1_ra , other1_de = vc1['ra1'] , vc1['dec1'] 
+                    other2_ra , other2_de = vc2['ra1'] , vc2['dec1']
+                elif vc1['ih1'] == vc2['ih2']:
+                    same_node_ra , same_node_de = vc2['ra1'] ,  vc2['dec1']
+                    other1_ra , other1_de = vc1['ra2'] , vc1['dec2'] 
+                    other2_ra , other2_de = vc2['ra2'] , vc2['dec2']
+                else:
+                    continue
+
+                # decide if to remove connection or not
+
+                x1=np.array( [other1_ra , other1_de] ) - np.array( [ same_node_ra , same_node_de ] )
+                x2=np.array( [other2_ra , other2_de] ) - np.array( [ same_node_ra , same_node_de ] )
+                angle = np.arccos( np.dot(x1,x2) / np.linalg.norm(x1) / np.linalg.norm(x2) ) /np.pi * 180
+
+                if angle > min_angle:
+                    # print '%4d %4d %4d %4d %5.4f  - saved both %d %d' % (vc1['ih1'],vc1['ih2'],vc2['ih1'],vc2['ih2'],angle,vc1['ipair'],vc2['ipair']) 
+                    pass
+                else:
+                    mass1= vc1['m200_h1_fit'] + vc1['m200_h2_fit']
+                    mass2= vc2['m200_h1_fit'] + vc2['m200_h2_fit']
+                    if mass1>=mass2:
+                        remove_list.append(vc2['ipair'])
+                        # print 'removed' , vc1['ipair']
+                    else:
+                        remove_list.append(vc1['ipair'])
+                    n_all+=1
+                    if n_all % 100 == 0 : print n_all, n_pairs**2/2., len(remove_list), len(set(remove_list))
+                        # print 'removed' , vc2['ipair']
+
+    for ip,vp in enumerate(pairs): 
+        if vp['ipair'] in remove_list:
+            pairs_new.remove(ip)
+
+    pairs_prune = pairs[pairs_new]
+    halo1_prune = halo1[pairs_new]
+    halo2_prune = halo2[pairs_new]
+
+    mass= (pairs_prune['m200_h1_fit'] + pairs_prune['m200_h2_fit'])/2.
+    sorting = np.argsort(mass)[::-1]
+
+    pairs_prune = pairs_prune[sorting]
+    halo1_prune = halo1_prune[sorting]
+    halo2_prune = halo2_prune[sorting]
+
+    filename_pairs_selected = filename_pairs.replace('.fits','.prune2.fits')
+    filename_halo1_selected = filename_halos1.replace('.halos1.fits','.prune2.halos1.fits')
+    filename_halo2_selected = filename_halos2.replace('.halos2.fits','.prune2.halos2.fits')
+    tabletools.saveTable(filename_pairs_selected,pairs_prune)
+    tabletools.saveTable(filename_halo1_selected, halo1_prune)
+    tabletools.saveTable(filename_halo2_selected, halo2_prune)
+
+    filaments_tools.get_halo_map(filename_pairs,color='c')
+    filaments_tools.get_halo_map(filename_pairs_selected,color='r')
+    pl.show()
 
    
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
@@ -867,7 +1099,7 @@ def main():
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
     parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
 
-    # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
+    # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data'), len(remove_list), len(set(remove_list)
 
     global args
 

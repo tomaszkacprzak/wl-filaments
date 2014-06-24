@@ -124,6 +124,13 @@ def get_pairs(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtl
     n_pairs = len(pairs_table)
     return n_pairs
 
+def get_pairs_graph(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtlens.fits',range_Dxy=[6,10]):
+
+    import graphstools
+    halos = tabletools.loadTable(filename_halos)
+    X = np.concatenate( [ np.arange(len(halos))[:,None] , halos['ra'][:,None] , halos['dec'][:,None] , halos['z'][:,None], halos['dered_r'][:,None], np.zeros(len(halos))[:,None] ],axis=1 )
+    pairs = graphstools.get_graph(X)
+
 def fix_case(arr):
 
     arr.dtype.names = [n.lower() for n in arr.dtype.names]
@@ -437,9 +444,14 @@ def main():
         # select_halos_LRG(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         # select_halos_LRGCLASS(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         # select_halos_CLUSTERZ(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
-        select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
-        filaments_tools.add_phys_dist(filename_halos=filename_halos)
-        n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+   
+        # select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        # filaments_tools.add_phys_dist(filename_halos=filename_halos)
+        if config['use_graph']:
+            n_pairs = get_pairs_graph(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+        else:
+            n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+
 
     elif (config['mode'] == 'null1_unpaired') or (config['mode'] == 'null1_all'):
 

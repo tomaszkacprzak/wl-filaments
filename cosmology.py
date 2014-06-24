@@ -138,6 +138,12 @@ def get_gnomonic_projection_shear(ra_rad, de_rad , ra_center_rad, de_center_rad,
 
 
 
+def get_angular_separation_vec(radec1_rad,radec2_rad):
+
+    d_ra =  np.abs(radec1_rad[:,0]-radec2_rad[:,0])
+    d_de =  np.abs(radec1_rad[:,1]-radec2_rad[:,1])
+    theta = np.arccos( np.sin(de1_rad)*np.sin(de2_rad) + np.cos(de1_rad)*np.cos(de2_rad)*np.cos(d_ra))
+    return theta
 
 
 def get_angular_separation(ra1_rad,de1_rad,ra2_rad,de2_rad):
