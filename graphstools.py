@@ -31,6 +31,12 @@ def get_nearest_nodes(node_id):
     # dxy = cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad) * 180. / np.pi
     dxy = np.sqrt((halo1_ra_rad*180/np.pi - halo2_ra_rad*180/np.pi)**2 + (halo1_de_rad*180/np.pi - halo2_de_rad*180/np.pi)**2)
     ids = all_nodes_sorted_this[bt_id[0]][:,col_ids_sorted]
+
+    # return in the order of decreasing m200
+    sorting = np.argsort(all_nodes_sorted[ids.astype(np.int32),col_w])[::-1]
+    ids_sorted = ids[sorting]
+    dxy_sorted = dxy[sorting]
+
       
     return ids,dxy
 
@@ -38,7 +44,7 @@ def connect_node(node_id):
 
     if len(nodes_used) == 0:
         nodes_used.append(node_id)
-        print 'added node %d' % (node_id)
+        print 'added node % 5d %2.2f' % (node_id,all_nodes_sorted[node_id,col_w])
     else:
         ids, dxy = get_nearest_nodes(node_id)
 
@@ -49,7 +55,7 @@ def connect_node(node_id):
                 add_node=False
         if add_node:
             nodes_used.append(node_id)
-            print 'added node %d min(dx)=%2.4f, len(nodes_used)=%d' % (node_id,min(dxy),len(nodes_used))
+            print 'added node % 5d min(dx)=%2.4f, len(nodes_used)=%d mass=%2.2f' % (node_id,min(dxy),len(nodes_used),all_nodes_sorted[node_id,col_w])
 
 
 def get_graph(all_nodes,min_dist):
@@ -57,7 +63,7 @@ def get_graph(all_nodes,min_dist):
     X :  id, x1, x2, z, w, id_sorted
     """
     n_nodes = all_nodes.shape[0]
-    sorting = np.argsort(all_nodes[:,col_w])
+    sorting = np.argsort(all_nodes[:,col_w])[::-1]
 
     global min_dist_deg
     min_dist_deg = min_dist

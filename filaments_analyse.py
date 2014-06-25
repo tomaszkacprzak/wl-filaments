@@ -38,18 +38,23 @@ def add_stats():
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
 
     filename_pairs = config['filename_pairs']
-    filename_halos = config['filename_pairs']
+    filename_halos = config['filename_halos']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
 
+    halos = tabletools.loadTable(filename_halos)
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
+    n_halos = len(halos)
 
     if not 'm200_h1_fit' in pairs.dtype.names:
         pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h1_fit',dtype='f4')
         pairs = tabletools.appendColumn(arr=np.zeros(n_pairs),rec=pairs,name='m200_h2_fit',dtype='f4')
+
+    if not 'm200_fit' in halos.dtype.names:
+        halos = tabletools.appendColumn(arr=np.zeros(n_halos),rec=halos,name='m200_fit',dtype='f4')
 
     filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
     grid_dict = tabletools.loadPickle(filename_grid)
@@ -87,7 +92,12 @@ def add_stats():
             pairs['m200_h1_fit'][nf] = ml_mass_h1
             pairs['m200_h2_fit'][nf] = ml_mass_h2
 
-            log.info('%4d m200_h1_fit=%2.4f m200_h1_fit=%2.4f' % (nf,ml_mass_h1,ml_mass_h2) )
+            ih1 = pairs['ih1'][nf]
+            ih2 = pairs['ih2'][nf]
+            halos['m200_fit'][ih1] = ml_mass_h1
+            halos['m200_fit'][ih2] = ml_mass_h2
+
+            log.info('%4d m200_h1_fit=%2.4f m200_h2_fit=%2.4f %d %d' % (nf,ml_mass_h1,ml_mass_h2,ih1,ih2) )
 
             # pl.plot(grid_h1M200,prod_pdf_h1M200,'r')
             # pl.plot(grid_h2M200,prod_pdf_h2M200,'g')
@@ -97,8 +107,8 @@ def add_stats():
             # pl.axvline(halo2['m200'][nf],c='g',marker='o')          
             # pl.show()
 
-    filename_pairs_new = filename_pairs.replace('.fits','.addstats.fits')
-    tabletools.saveTable(filename_pairs_new,pairs)
+    tabletools.saveTable(filename_pairs,pairs)
+    tabletools.saveTable(filename_halos,halos)
 
 
 
@@ -833,9 +843,7 @@ def triangle_plots():
             if (res.shape != res_all.shape):
                 print 'something wrong with the shape', res
                 continue
-        # res = res*214.524/2.577
-        res = res
-        
+       
         res_all = res if res_all == None else res_all+res
 
     print 'median redshift z=%2.2f' % np.median(halo1['z'][select])
@@ -843,13 +851,12 @@ def triangle_plots():
     print 'n_used', n_used
 
     import plotstools, mathstools
-    # prob=mathstools.normalise(res_all)
+    prob=mathstools.normalise(res_all)
 
     labels=[r"$\Delta \Sigma 10^{14} * M_{\odot} \mathrm{Mpc}^{-2} h$",'radius Mpc/h',r"$M200_halo1 M_{\odot}/h$",r"$M200_halo2 M_{\odot}/h$"]
     mdd = plotstools.multi_dim_dist()
-    mdd.n_upsample=10
     mdd.labels=labels
-    mdd.plot_dist_meshgrid(X,res_all)
+    mdd.plot_dist_meshgrid(X,prob)
     pl.show()
 
 

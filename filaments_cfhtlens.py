@@ -50,22 +50,22 @@ def figure_fields():
     pairs = tabletools.loadTable(config['filename_pairs'])
 
     pl.subplot(2,2,1)
-    pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    # pl.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
+    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    pl.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
     filaments_tools.get_halo_map(config['filename_pairs'])
     pl.xlim(box_w1[0],box_w1[1])
     pl.ylim(box_w1[2],box_w1[3])
     pl.colorbar()
 
     pl.subplot(2,2,2)
-    pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
     pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
     filaments_tools.get_halo_map(config['filename_pairs'])
     pl.xlim(box_w2[0],box_w2[1])
     pl.ylim(box_w2[2],box_w2[3])
 
     pl.subplot(2,2,3)
-    pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
     pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
     filaments_tools.get_halo_map(config['filename_pairs'])
     pl.xlim(box_w3[0],box_w3[1])
@@ -74,6 +74,7 @@ def figure_fields():
 
     pl.subplot(2,2,4)
     # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
     normalised_z = halos['z'] - min(halos['z'])
     normalised_z/=np.max(normalised_z)
 
@@ -84,7 +85,8 @@ def figure_fields():
     pl.colorbar()
     filename_fig = 'filament_map.png'
     pl.savefig(filename_fig)
-    logger.info('saved %s' , filament_fig)
+    logger.info('saved %s' , filename_fig)
+    pl.close()
     # pl.show()
 
 
@@ -234,7 +236,8 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
 
     # filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLS_wide_clusters_Durret2011/wide.fits'
-    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    # filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLenS_BOSSDR10-LRGs.fits'
     halocat = pyfits.getdata(filename_halos_cfhtlens)
 
     # filename_halos_bcc = 'halos_bcc.fits'
@@ -258,16 +261,16 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
-    # filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
-    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+    # filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-04-07.fits'
     shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
     if 'ALPHA_J2000' in shearcat.dtype.names:
         cfhtlens_coords = np.concatenate([shearcat['ALPHA_J2000'][:,None],shearcat['DELTA_J2000'][:,None]],axis=1)
-    elif 'ra'in shearcat.dtype.names:
+    elif 'ra' in shearcat.dtype.names:
         cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
     logger.info('getting BT')
     BT = BallTree(cfhtlens_coords, leaf_size=5)
-    theta_add = 0.1
+    theta_add = 0
     boss_coords1 = np.concatenate([ halocat['ra'][:,None]           , halocat['dec'][:,None]           ] , axis=1)
     boss_coords2 = np.concatenate([ halocat['ra'][:,None]-theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
     boss_coords3 = np.concatenate([ halocat['ra'][:,None]+theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
@@ -280,7 +283,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     bt3_dx,bt_id = BT.query(boss_coords3,k=n_connections)
     bt4_dx,bt_id = BT.query(boss_coords4,k=n_connections)
     bt5_dx,bt_id = BT.query(boss_coords5,k=n_connections)
-    limit_dx = 0.05 
+    limit_dx = 0.1
     select = (bt1_dx < limit_dx)*(bt2_dx < limit_dx)*(bt3_dx < limit_dx)*(bt4_dx < limit_dx)*(bt5_dx < limit_dx)
     select = select.flatten()
     halocat=halocat[select]
@@ -300,14 +303,14 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     logger.info('selected on proximity to CFHTLens, remaining number of halos: %d' % len(halocat))
 
     index=range(0,len(halocat))
-    halocat = tabletools.appendColumn(halocat,'id',index,dtype='i8')
-    halocat = tabletools.appendColumn(halocat,'m200',index,dtype='i8')
-    halocat = tabletools.appendColumn(halocat,'snr',index,dtype='i8')
+    halocat = tabletools.ensureColumn(rec=halocat, name='id', arr=index, dtype='i8')
+    halocat = tabletools.ensureColumn(rec=halocat, name='m200' )
+    halocat = tabletools.ensureColumn(rec=halocat, name='snr'  )
     fix_case( halocat )
     # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
 
     import graphstools
-    X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['dered_r'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+    X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
     select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'])
     halocat = halocat[select]
 

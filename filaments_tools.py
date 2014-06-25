@@ -743,6 +743,14 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     vh1 = vh1[select]
     vh2 = vh2[select]
     logger.info('number of pairs before after similar connections = %d' , len(pairs_table))
+
+    pairs_table=tabletools.ensureColumn(rec=pairs_table,name='m200_h1_fit')
+    pairs_table=tabletools.ensureColumn(rec=pairs_table,name='m200_h2_fit')
+    for ip in range(len(pairs_table)):
+        pairs_table['m200_h1_fit'][ip] = vh1['m200_fit'][ip]
+        pairs_table['m200_h2_fit'][ip] = vh2['m200_fit'][ip]
+        print 'halos: % 4d % 4d mass= %2.2f %2.2f' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h1_fit'][ip])
+
     
     return (pairs_table, vh1, vh2)
 
@@ -754,19 +762,12 @@ def add_phys_dist(filename_halos):
     # box_coords = cosmology.get_euclidian_coords(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
     x,y,z = cosmology.spherical_to_cartesian_with_redshift(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
     DA = cosmology.get_ang_diam_dist(big_catalog['z'])  
-    if 'xphys' not in big_catalog.dtype.names:
-        logger.info('adding new columns')
-        big_catalog=tabletools.appendColumn(big_catalog, 'xphys', x, dtype='f8')
-        big_catalog=tabletools.appendColumn(big_catalog, 'yphys', y, dtype='f8')
-        big_catalog=tabletools.appendColumn(big_catalog, 'zphys', z, dtype='f8')
-        big_catalog=tabletools.appendColumn(big_catalog, 'DA', DA, dtype='f8')
-    else:
-        logger.info('updating columns')
-        big_catalog['xphys'] = x
-        big_catalog['yphys'] = y
-        big_catalog['zphys'] = z
-        big_catalog['DA'] = DA
-
+    
+    big_catalog=tabletools.ensureColumn(rec=big_catalog, name='xphys', arr=x,  dtype='f8')
+    big_catalog=tabletools.ensureColumn(rec=big_catalog, name='yphys', arr=y,  dtype='f8')
+    big_catalog=tabletools.ensureColumn(rec=big_catalog, name='zphys', arr=z,  dtype='f8')
+    big_catalog=tabletools.ensureColumn(rec=big_catalog, name='DA',    arr=DA, dtype='f8')
+  
     logger.info('number of halos %d', len(big_catalog))
     tabletools.saveTable(filename_halos,big_catalog)
     logger.info('wrote %s' % filename_halos)
