@@ -83,7 +83,7 @@ def figure_fields():
     pl.ylim(box_w4[2],box_w4[3])
     pl.colorbar()
     filename_fig = 'filament_map.png'
-    pl.savefig(filament_fig)
+    pl.savefig(filename_fig)
     logger.info('saved %s' , filament_fig)
     # pl.show()
 
@@ -267,7 +267,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
         cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
     logger.info('getting BT')
     BT = BallTree(cfhtlens_coords, leaf_size=5)
-    theta_add = 0.25
+    theta_add = 0.1
     boss_coords1 = np.concatenate([ halocat['ra'][:,None]           , halocat['dec'][:,None]           ] , axis=1)
     boss_coords2 = np.concatenate([ halocat['ra'][:,None]-theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
     boss_coords3 = np.concatenate([ halocat['ra'][:,None]+theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
@@ -280,7 +280,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     bt3_dx,bt_id = BT.query(boss_coords3,k=n_connections)
     bt4_dx,bt_id = BT.query(boss_coords4,k=n_connections)
     bt5_dx,bt_id = BT.query(boss_coords5,k=n_connections)
-    limit_dx = 0.1  
+    limit_dx = 0.05 
     select = (bt1_dx < limit_dx)*(bt2_dx < limit_dx)*(bt3_dx < limit_dx)*(bt4_dx < limit_dx)*(bt5_dx < limit_dx)
     select = select.flatten()
     halocat=halocat[select]
@@ -501,8 +501,8 @@ def main():
         # select_halos_LRGCLASS(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         # select_halos_CLUSTERZ(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
    
-        # select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
-        # filaments_tools.add_phys_dist(filename_halos=filename_halos)
+        select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
+        filaments_tools.add_phys_dist(filename_halos=filename_halos)
         n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 
 
