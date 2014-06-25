@@ -37,6 +37,57 @@ shear2_col = 's2'
 
 cfhtlens_shear_catalog = None
 
+def figure_fields():
+
+    box_w1 = [29.5,39,-11,-3]
+    box_w2 = [208,220,50,58]
+    box_w3 = [330,336,-1,5]
+    box_w4 = [132,137,-2.5,-1]
+
+    halos = tabletools.loadTable(config['filename_halos'])
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
+    pairs = tabletools.loadTable(config['filename_pairs'])
+
+    pl.subplot(2,2,1)
+    pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    # pl.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
+    filaments_tools.get_halo_map(config['filename_pairs'])
+    pl.xlim(box_w1[0],box_w1[1])
+    pl.ylim(box_w1[2],box_w1[3])
+    pl.colorbar()
+
+    pl.subplot(2,2,2)
+    pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    filaments_tools.get_halo_map(config['filename_pairs'])
+    pl.xlim(box_w2[0],box_w2[1])
+    pl.ylim(box_w2[2],box_w2[3])
+
+    pl.subplot(2,2,3)
+    pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    filaments_tools.get_halo_map(config['filename_pairs'])
+    pl.xlim(box_w3[0],box_w3[1])
+    pl.ylim(box_w3[2],box_w3[3])
+    # pl.show()
+
+    pl.subplot(2,2,4)
+    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    normalised_z = halos['z'] - min(halos['z'])
+    normalised_z/=np.max(normalised_z)
+
+    pl.scatter(halos['ra'],halos['dec'],s=50,c=normalised_z)
+    filaments_tools.get_halo_map(config['filename_pairs'])
+    pl.xlim(box_w4[0],box_w4[1])
+    pl.ylim(box_w4[2],box_w4[3])
+    pl.colorbar()
+    filename_fig = 'filament_map.png'
+    pl.savefig(filament_fig)
+    logger.info('saved %s' , filament_fig)
+    # pl.show()
+
+
 def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
@@ -124,13 +175,6 @@ def get_pairs(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtl
     n_pairs = len(pairs_table)
     return n_pairs
 
-def get_pairs_graph(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtlens.fits',range_Dxy=[6,10]):
-
-    import graphstools
-    halos = tabletools.loadTable(filename_halos)
-    X = np.concatenate( [ np.arange(len(halos))[:,None] , halos['ra'][:,None] , halos['dec'][:,None] , halos['z'][:,None], halos['dered_r'][:,None], np.zeros(len(halos))[:,None] ],axis=1 )
-    pairs = graphstools.get_graph(X)
-
 def fix_case(arr):
 
     arr.dtype.names = [n.lower() for n in arr.dtype.names]
@@ -214,9 +258,13 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
-    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+    # filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-04-07.fits'
     shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
-    cfhtlens_coords = np.concatenate([shearcat['ALPHA_J2000'][:,None],shearcat['DELTA_J2000'][:,None]],axis=1)
+    if 'ALPHA_J2000' in shearcat.dtype.names:
+        cfhtlens_coords = np.concatenate([shearcat['ALPHA_J2000'][:,None],shearcat['DELTA_J2000'][:,None]],axis=1)
+    elif 'ra'in shearcat.dtype.names:
+        cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
     logger.info('getting BT')
     BT = BallTree(cfhtlens_coords, leaf_size=5)
     theta_add = 0.25
@@ -240,7 +288,10 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     perm3 = np.random.permutation(len(shearcat))[:20000]
     pl.figure(figsize=(50,30))
     pl.scatter(halocat['ra']        , halocat['dec']        , 70 , marker='s', c='g' )
-    pl.scatter(shearcat['ALPHA_J2000'][perm3],shearcat['DELTA_J2000'][perm3] , 0.1  , marker='o', c='b')
+    if 'ALPHA_J2000' in shearcat.dtype.names: 
+        pl.scatter(shearcat['ALPHA_J2000'][perm3],shearcat['DELTA_J2000'][perm3] , 0.1  , marker='o', c='b')
+    elif 'ra' in shearcat.dtype.names: 
+        pl.scatter(shearcat['ra'][perm3],shearcat['dec'][perm3] , 0.1  , marker='o', c='b')
     filename_fig = 'figs/scatter.lrgs_in_cfhtlens.%s.png'  % args.filename_config.replace('.yaml','')
     pl.savefig(filename_fig)
     logger.info('saved %s' % filename_fig)
@@ -255,7 +306,12 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     fix_case( halocat )
     # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
 
-    logger.info('number of halos %d', len(halocat))
+    import graphstools
+    X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['dered_r'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+    select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'])
+    halocat = halocat[select]
+
+    logger.info('number of halos after graph selection %d', len(halocat))
     tabletools.saveTable(filename_halos,halocat)
     logger.info('wrote %s' % filename_halos)
 
@@ -447,10 +503,7 @@ def main():
    
         # select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         # filaments_tools.add_phys_dist(filename_halos=filename_halos)
-        if config['use_graph']:
-            n_pairs = get_pairs_graph(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
-        else:
-            n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+        n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
 
 
     elif (config['mode'] == 'null1_unpaired') or (config['mode'] == 'null1_all'):
@@ -463,6 +516,8 @@ def main():
 
     id_pair_first = args.first
     id_pair_last = n_pairs if args.num == -1 else id_pair_first + args.num
+
+    figure_fields()
 
     logger.info('getting noisy shear catalogs for pairs from %d to %d' , id_pair_first, id_pair_last)
     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=id_pair_first,id_last=id_pair_last)

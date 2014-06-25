@@ -36,9 +36,12 @@ def get_halo_map(filename_pairs,color=None):
     print 'before cuts len(table_pairs)=', len(table_pairs)
 
     import numpy as np
-    m200_h1 = table_pairs['m200_h1_fit']
-    m200_h2 = table_pairs['m200_h2_fit']
-
+    if 'm200_h1_fit' in table_pairs.dtype.names:
+        m200_h1 = table_pairs['m200_h1_fit']
+        m200_h2 = table_pairs['m200_h2_fit']
+    else:
+        m200_h1 = table_pairs['ipair']*0 + 50
+        m200_h2 = table_pairs['ipair']*0 + 50
     mean_mass = (m200_h1+m200_h2)/2. 
     select = mean_mass > -100000000000000000.5
     table_halo1 = table_halo1[select]
@@ -97,10 +100,10 @@ def get_halo_map(filename_pairs,color=None):
 
     if color==None:
         pl.scatter(ra1,dec1, 4*m200_h1 , c=table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
-        pl.scatter(ra2,dec2, 4*m200_h2 , c=table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+        pl.scatter(ra2,dec2, 4*m200_h2 , c=table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #        
     else:
-        pl.scatter(ra1*60,dec1*60, 4*m200_h1 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
-        pl.scatter(ra2*60,dec2*60, 4*m200_h2 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+        pl.scatter(ra1,dec1, 4*m200_h1 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
+        pl.scatter(ra2,dec2, 4*m200_h2 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
 
 
 
@@ -108,7 +111,12 @@ def get_halo_map(filename_pairs,color=None):
         # m.scatter([x1[i],x2[i]],[y1[i],y2[i]] , c=table_halo2['z'][i] , cmap=pl.matplotlib.cm.jet)
         # m.plot([x1[i],x2[i]],[y1[i],y2[i]],c=normalised_z)
         # pl.plot([ra1[i],ra2[i]],[dec1[i],dec2[i]],c=normalised_z)
-        pl.plot([60*ra1[i],60*ra2[i]],[60*dec1[i],60*dec2[i]],c=color)
+        if color==None:
+            pl.plot([ra1[i],ra2[i]],[dec1[i],dec2[i]],c='r')
+            # pl.text( (ra1[i]+ra2[i])/2. , (dec1[i]+dec2[i])/2., 'r=%2.2fMpc z=%2.2f'%(table_pairs[i]['R_pair'],table_pairs[i]['z']) , fontsize=8 )
+        else:
+            pl.plot([ra1[i],ra2[i]],[dec1[i],dec2[i]],c=color)
+            # pl.text( (ra1[i]+ra2[i])/2. , (dec1[i]+dec2[i])/2., 'r=%2.2fMpc z=%2.2f'%(table_pairs[i]['R_pair'],table_pairs[i]['z']) , fontsize=8 )
 
     # pl.colorbar()
 
@@ -726,6 +734,15 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
             R_pair[:,None],drloss[:,None],dz[:,None],ipair[:,None]*0,ipair[:,None]*0]
     pairs_table = np.concatenate(row,axis=1)
     pairs_table = tabletools.array2recarray(pairs_table,dtype_pairs)
+
+    import graphstools
+    select = graphstools.remove_similar_connections(pairs_table,min_angle=config['graph_min_angle'])
+
+    logger.info('number of pairs before removing similar connections = %d' , len(pairs_table))
+    pairs_table = pairs_table[select]
+    vh1 = vh1[select]
+    vh2 = vh2[select]
+    logger.info('number of pairs before after similar connections = %d' , len(pairs_table))
     
     return (pairs_table, vh1, vh2)
 
