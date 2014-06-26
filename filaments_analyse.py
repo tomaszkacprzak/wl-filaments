@@ -658,9 +658,6 @@ def plot_pickle(filename_pickle):
     plotstools.plot_dist_meshgrid(X,prob,labels=[r"$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$",r'radius $\mathrm{Mpc}/h$',r"M200_halo1 $\mathrm{M}_{\odot}/h$",r"M200_halo2 $\mathrm{M}_{\odot}/h$"],contour=True)
     # pl.suptitle('CFHTLens + BOSS-DR10 LRGs, using %d halo pairs' % pickle[0]['n_obj'])
     pl.suptitle('CFHTLens + BOSS-DR10, using %d halo pairs' % pickle[0]['n_obj'])
-    pl.show()
-
-
 
 
 def plot_vs_mass():
@@ -727,7 +724,7 @@ def plotdata_all():
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
-    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
+    # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
@@ -750,7 +747,8 @@ def plotdata_all():
     # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = (mass < 16.5) * (mass > 13.5)
+    select = (mass < 16.5) * (mass > 13.73)
+    # select = (pairs['m200_h1_fit'] > 13.7) | (pairs['m200_h2_fit'] > 13.7)
 
     # ids=np.arange(n_pairs)[select*select_prune]
     ids=np.arange(n_pairs)[select]
@@ -765,6 +763,18 @@ def plotdata_all():
     tabletools.savePickle(filename_pickle,list_res_dict)
 
     plot_pickle(filename_pickle)
+
+    id_radius=20
+    at_radius=grid_dict['grid_radius'][0,id_radius]
+    print at_radius
+    pl.figure()
+    kappa_at_radius=prod_pdf[:,id_radius]
+    kappa_at_radius/=np.sum(kappa_at_radius)
+    kappa_grid = grid_dict['grid_kappa0'][:,id_radius]
+    pl.plot(kappa_grid,kappa_at_radius)
+    pl.title('radius=%2.2f'%at_radius)
+    pl.show()
+
 
     # grid_kappa0 = grid_dict['grid_kappa0'][:,:,0,0]
     # grid_radius = grid_dict['grid_radius'][:,:,0,0]
@@ -797,7 +807,6 @@ def triangle_plots():
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
-    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
@@ -819,7 +828,7 @@ def triangle_plots():
     n_used=0
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = mass > 13.
+    select = mass > 13.3
 
     for ida in range(id_file_first,id_file_last):
 
@@ -858,7 +867,6 @@ def triangle_plots():
     mdd.labels=labels
     mdd.plot_dist_meshgrid(X,prob)
     pl.show()
-
 
 def plot_data_stamp():
 

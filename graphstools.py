@@ -15,7 +15,8 @@ col_ids_sorted = 5
 
 nodes_used = []
 
-min_dist_deg = 0.4
+min_dist_deg = 0.3
+min_dist_z = 0.1
 
 def get_nearest_nodes(node_id):
 
@@ -47,15 +48,16 @@ def connect_node(node_id):
         print 'added node % 5d %2.2f' % (node_id,all_nodes_sorted[node_id,col_w])
     else:
         ids, dxy = get_nearest_nodes(node_id)
+        dz = np.abs(all_nodes_sorted[ids.astype(np.int32),col_z] - all_nodes_sorted[node_id,col_z]) 
 
         add_node=True
         for i in range(len(ids)):
             if (ids[i] in nodes_used) & (dxy[i] < min_dist_deg):
-                # print 'skipping node %d as it is close to %d with dx=%2.2f deg' % (node_id, ids[i], dxy[i])
                 add_node=False
+                # print 'skipping node %d as it is close to %d with dx=%2.2f deg' % (node_id, ids[i], dxy[i])
         if add_node:
             nodes_used.append(node_id)
-            print 'added node % 5d min(dx)=%2.4f, len(nodes_used)=%d mass=%2.2f' % (node_id,min(dxy),len(nodes_used),all_nodes_sorted[node_id,col_w])
+            print 'added node % 5d min(dx)=%2.4f, min(dz)=%2.4f, len(nodes_used)=%d mass=%2.2f' % (node_id,min(dxy),min(dz),len(nodes_used),all_nodes_sorted[node_id,col_w])
 
 
 def get_graph(all_nodes,min_dist):

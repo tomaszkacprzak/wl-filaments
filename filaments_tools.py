@@ -746,10 +746,14 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
 
     pairs_table=tabletools.ensureColumn(rec=pairs_table,name='m200_h1_fit')
     pairs_table=tabletools.ensureColumn(rec=pairs_table,name='m200_h2_fit')
+    if 'm200_fit' in vh1.dtype.names:
+        m200_col = 'm200_fit' 
+    elif 'm200' in vh1.dtype.names:
+        m200_col = 'm200' 
     for ip in range(len(pairs_table)):
-        pairs_table['m200_h1_fit'][ip] = vh1['m200_fit'][ip]
-        pairs_table['m200_h2_fit'][ip] = vh2['m200_fit'][ip]
-        print 'halos: % 4d % 4d mass= %2.2f %2.2f' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h1_fit'][ip])
+        pairs_table['m200_h1_fit'][ip] = vh1[m200_col][ip]
+        pairs_table['m200_h2_fit'][ip] = vh2[m200_col][ip]
+        print 'halos: % 4d % 4d mass= %2.2f %2.2f' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h2_fit'][ip])
 
     
     return (pairs_table, vh1, vh2)

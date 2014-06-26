@@ -49,53 +49,61 @@ def figure_fields():
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
 
-    pl.subplot(2,2,1)
-    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    pl.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
-    filaments_tools.get_halo_map(config['filename_pairs'])
-    pl.xlim(box_w1[0],box_w1[1])
-    pl.ylim(box_w1[2],box_w1[3])
-    pl.colorbar()
+    import matplotlib.gridspec as gridspec
+    gs1 = gridspec.GridSpec(2, 22)
+    gs1.update(left=0.05, right=0.48, wspace=0.05)
+    ax1 = plt.subplot(gs1[:-1, :])
+    ax2 = plt.subplot(gs1[-1, :-1])
+    ax3 = plt.subplot(gs1[-1, -1])
 
-    pl.subplot(2,2,2)
+    # pl.subplot(2,2,1)
     # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    ax1.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
     filaments_tools.get_halo_map(config['filename_pairs'])
-    pl.xlim(box_w2[0],box_w2[1])
-    pl.ylim(box_w2[2],box_w2[3])
+    ax1.xlim(box_w1[0],box_w1[1])
+    ax1.ylim(box_w1[2],box_w1[3])
+    ax1.colorbar()
 
-    pl.subplot(2,2,3)
+    # pl.subplot(2,2,2)
     # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    ax2.scatter(halos['ra'],halos['dec'],s=2,c='g')
     filaments_tools.get_halo_map(config['filename_pairs'])
-    pl.xlim(box_w3[0],box_w3[1])
-    pl.ylim(box_w3[2],box_w3[3])
+    ax2.xlim(box_w2[0],box_w2[1])
+    ax2.ylim(box_w2[2],box_w2[3])
+
+    ax3.subplot(2,2,3)
+    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    ax3.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    filaments_tools.get_halo_map(config['filename_pairs'])
+    ax3.xlim(box_w3[0],box_w3[1])
+    ax3.ylim(box_w3[2],box_w3[3])
     # pl.show()
 
-    pl.subplot(2,2,4)
-    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    pl.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    ax4.subplot(2,2,4)
+    # ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    ax4.scatter(halos['ra'],halos['dec'],s=2,c='g')
     normalised_z = halos['z'] - min(halos['z'])
     normalised_z/=np.max(normalised_z)
 
-    pl.scatter(halos['ra'],halos['dec'],s=50,c=normalised_z)
+    ax4.scatter(halos['ra'],halos['dec'],s=50,c=normalised_z)
     filaments_tools.get_halo_map(config['filename_pairs'])
-    pl.xlim(box_w4[0],box_w4[1])
-    pl.ylim(box_w4[2],box_w4[3])
-    pl.colorbar()
+    ax4.xlim(box_w4[0],box_w4[1])
+    ax4.ylim(box_w4[2],box_w4[3])
+    ax4.colorbar()
     filename_fig = 'filament_map.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
+    pl.show()
     pl.close()
-    # pl.show()
 
 
 def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
     if cfhtlens_shear_catalog == None:
-        filename_chftlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
-        cfhtlens_shear_catalog = tabletools.loadTable(filename_chftlens_shears)
+        filename_cfhtlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+        # filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+        cfhtlens_shear_catalog = tabletools.loadTable(filename_cfhtlens_shears)
         if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
             select = cfhtlens_shear_catalog['star_flag'] == 0
             cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
@@ -413,6 +421,13 @@ def select_halos_CLUSTERZ(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos
     logger.info('selected on m200 number of halos: %d' % len(halocat))
 
     fix_case( halocat )
+
+    import graphstools
+    X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+    select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'])
+    halocat = halocat[select]
+    logger.info('number of halos after graph selection %d', len(halocat))
+
     
     logger.info('number of halos %d', len(halocat))
     tabletools.saveTable(filename_halos,halocat)
