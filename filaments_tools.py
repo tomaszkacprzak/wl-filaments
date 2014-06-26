@@ -743,6 +743,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     vh1 = vh1[select]
     vh2 = vh2[select]
     logger.info('number of pairs before after similar connections = %d' , len(pairs_table))
+    pairs_table['ipair'] = range(len(pairs_table))
 
     pairs_table=tabletools.ensureColumn(rec=pairs_table,name='m200_h1_fit')
     pairs_table=tabletools.ensureColumn(rec=pairs_table,name='m200_h2_fit')
