@@ -4,6 +4,9 @@ mode : pairs # null1_unpaired or pairs or selftest
 range_Dxy : [6,18]
 range_M : [1.2e14,1e16]
 range_z : [0.2, 0.6]
+graph_min_dist_deg : 0.3
+graph_min_angle : 30
+graph_min_z : 0.3
 filename_halos : halos_bcc.fits
 filename_pairs : pairs_bcc.fits
 filename_pairs_exclude : none # not important when mode==pairs

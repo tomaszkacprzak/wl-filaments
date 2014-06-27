@@ -10,8 +10,8 @@ class cosmoparams:
 
     def __init__(self):
 
-        self.Omega_m = 0.3
-        self.Omega_Lambda = 0.7
+        self.Omega_m = 0.271
+        self.Omega_Lambda = 0.729
         self.w = -1.
         self.Omega_k = 0.
         self.h = 0.7
