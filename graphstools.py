@@ -15,9 +15,6 @@ col_ids_sorted = 5
 
 nodes_used = []
 
-min_dist_deg = 0.3
-min_dist_z = 0.1
-
 def get_nearest_nodes(node_id):
 
 
@@ -52,7 +49,7 @@ def connect_node(node_id):
 
         add_node=True
         for i in range(len(ids)):
-            if (ids[i] in nodes_used) & (dxy[i] < min_dist_deg):
+            if (ids[i] in nodes_used) & (dxy[i] < min_dist_deg) & (dz[i] < min_dist_z):
                 add_node=False
                 # print 'skipping node %d as it is close to %d with dx=%2.2f deg' % (node_id, ids[i], dxy[i])
         if add_node:
@@ -60,7 +57,7 @@ def connect_node(node_id):
             print 'added node % 5d min(dx)=%2.4f, min(dz)=%2.4f, len(nodes_used)=%d mass=%2.2f' % (node_id,min(dxy),min(dz),len(nodes_used),all_nodes_sorted[node_id,col_w])
 
 
-def get_graph(all_nodes,min_dist):
+def get_graph(all_nodes,min_dist,min_z):
     """
     X :  id, x1, x2, z, w, id_sorted
     """
@@ -68,7 +65,9 @@ def get_graph(all_nodes,min_dist):
     sorting = np.argsort(all_nodes[:,col_w])[::-1]
 
     global min_dist_deg
+    global min_dist_z
     min_dist_deg = min_dist
+    min_dist_z = min_z
 
     global all_nodes_sorted
     all_nodes_sorted=all_nodes[sorting,:]

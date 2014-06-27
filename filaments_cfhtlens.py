@@ -49,7 +49,11 @@ def figure_fields():
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
 
-    import matplotlib.gridspec as gridspec
+    try:
+        import matplotlib.gridspec as gridspec
+    except:
+        logger.error('gridspec not found - no plot today')
+        return None
     gs1 = gridspec.GridSpec(2, 22)
     gs1.update(left=0.05, right=0.48, wspace=0.05)
     ax1 = plt.subplot(gs1[:-1, :])
@@ -319,7 +323,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
 
     import graphstools
     X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
-    select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'])
+    select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'],min_z=config['graph_min_dist_z'])
     halocat = halocat[select]
 
     logger.info('number of halos after graph selection %d', len(halocat))

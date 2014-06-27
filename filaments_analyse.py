@@ -335,7 +335,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
     grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
 
     if hires:    
-        n_upsample = 20
+        n_upsample = 10
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
@@ -746,14 +746,34 @@ def plotdata_all():
     # pairs_prune = tabletools.loadTable(filename_prune)
     # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
+    mass_prior= (halo1['m200']+halo2['m200'])/2.
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = (mass < 16.5) * (mass > 13.73)
+    # mass= halo1['m200']
+    select = (mass < 16.5) * (10.**mass > 6e13)
+    # print np.nonzero(select)
     # select = (pairs['m200_h1_fit'] > 13.7) | (pairs['m200_h2_fit'] > 13.7)
+    # select = (pairs['m200_h1_fit'] > 14) | (pairs['m200_h2_fit'] > 14)
+    # select = (halo1['m200'] > 14.2) | (halo2['m200'] > 13.5) # 011 nice shape 2+ sigma
+    # select = mass_prior > 14 # 011 
+    # sorting=np.argsort(mass)[::-1]
+    # sorting=np.argsort(mass_prior)[::-1]
+    # sorting=np.argsort(mass)[::-1]
+    # select = sorting[:50]
+    print 'min(mass[select])', min(mass[select])
+    # print select
+    # print mass_prior[select]
+    # 70 - 2.57
+    # 80 - 2.7
+    # 90 - 2.17
+    # 100 - 2.39
+    # 110 - 2.53
 
     # ids=np.arange(n_pairs)[select*select_prune]
     ids=np.arange(n_pairs)[select]
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
     prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch_2D(ids)
+
+    print 'used %d pairs' % n_pairs_used
 
 
     res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
@@ -764,13 +784,21 @@ def plotdata_all():
 
     plot_pickle(filename_pickle)
 
-    id_radius=20
+    prob_kappa0 = np.sum(prod_pdf,axis=1)
+    grid_kappa0 = grid_dict['grid_kappa0'][:,0] 
+    max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_kappa0,prob_kappa0)
+    print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+
+    id_radius=15
     at_radius=grid_dict['grid_radius'][0,id_radius]
-    print at_radius
+    print 'using radius=' , at_radius
     pl.figure()
     kappa_at_radius=prod_pdf[:,id_radius]
     kappa_at_radius/=np.sum(kappa_at_radius)
     kappa_grid = grid_dict['grid_kappa0'][:,id_radius]
+    max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(kappa_grid,kappa_at_radius)
+    print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+
     pl.plot(kappa_grid,kappa_at_radius)
     pl.title('radius=%2.2f'%at_radius)
     pl.show()
