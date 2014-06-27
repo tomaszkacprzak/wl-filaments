@@ -1,4 +1,4 @@
-import pyfits, os, yaml, argparse, sys, logging , cosmology , plotstools , tabletools
+import pyfits, os, yaml, argparse, sys, logging , cosmology , plotstools , tabletools, matplotlib
 import numpy as np
 import pylab as pl
 import scipy.interpolate as interp
@@ -28,7 +28,7 @@ logger.propagate = False
 
 config = {}
 
-def get_halo_map(filename_pairs,color=None):
+def get_halo_map(filename_pairs,color=None,pl=pl):
 
     table_halo1 = tabletools.loadTable(filename_pairs.replace('.fits','.halos1.fits'))
     table_halo2 = tabletools.loadTable(filename_pairs.replace('.fits','.halos2.fits'))
@@ -99,8 +99,8 @@ def get_halo_map(filename_pairs,color=None):
     # pl.figure()
 
     if color==None:
-        pl.scatter(ra1,dec1, 4*m200_h1 , c=table_halo1['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
-        pl.scatter(ra2,dec2, 4*m200_h2 , c=table_halo2['z'] , marker = 'o' , cmap=pl.matplotlib.cm.jet) #        
+        pl.scatter(ra1,dec1, 4*m200_h1 , c=table_halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
+        pl.scatter(ra2,dec2, 4*m200_h2 , c=table_halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #        
     else:
         pl.scatter(ra1,dec1, 4*m200_h1 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #
         pl.scatter(ra2,dec2, 4*m200_h2 , c=color , marker = 'o' , cmap=pl.matplotlib.cm.jet) #

@@ -39,10 +39,10 @@ cfhtlens_shear_catalog = None
 
 def figure_fields():
 
-    box_w1 = [29.5,39,-11,-3]
-    box_w2 = [208,220,50,58]
-    box_w3 = [330,336,-1,5]
-    box_w4 = [132,137,-2.5,-1]
+    box_w1 = [29.5,39.5,-12,-3]
+    box_w2 = [208,221,50.5,58.5]
+    box_w3 = [329.5,336,-2,5.5]
+    box_w4 = [131.5,137.5,-6.5,-0.5]
 
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
@@ -50,51 +50,64 @@ def figure_fields():
     pairs = tabletools.loadTable(config['filename_pairs'])
 
     import matplotlib.gridspec as gridspec
-    gs1 = gridspec.GridSpec(2, 22)
-    gs1.update(left=0.05, right=0.48, wspace=0.05)
-    ax1 = plt.subplot(gs1[:-1, :])
-    ax2 = plt.subplot(gs1[-1, :-1])
-    ax3 = plt.subplot(gs1[-1, -1])
+    fig = pl.figure(1)
+    fig.clf()
+    gs = gridspec.GridSpec( 2, 2, width_ratios=[1,1], height_ratios=[2,1], wspace=0.25, hspace=0.25)
+    ax1 = fig.add_subplot(gs[0]) # 7x10
+    ax2 = fig.add_subplot(gs[1]) # 7x12
+    ax3 = fig.add_subplot(gs[2]) # 7x6
+    ax4 = fig.add_subplot(gs[3]) # 2x5
+
+    fig.text(0.5, 0.04, 'RA', ha='center', va='center')
+    fig.text(0.06, 0.5, 'Dec', ha='center', va='center', rotation='vertical')
 
     # pl.subplot(2,2,1)
     # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
     ax1.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
-    filaments_tools.get_halo_map(config['filename_pairs'])
-    ax1.xlim(box_w1[0],box_w1[1])
-    ax1.ylim(box_w1[2],box_w1[3])
-    ax1.colorbar()
+    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax1)
+    ax1.set_xlim(box_w1[0],box_w1[1])
+    ax1.set_ylim(box_w1[2],box_w1[3])
+    # ax1.set_xlabel('RA')
+    # ax1.set_ylabel('Dec')
 
     # pl.subplot(2,2,2)
     # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
     ax2.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    filaments_tools.get_halo_map(config['filename_pairs'])
-    ax2.xlim(box_w2[0],box_w2[1])
-    ax2.ylim(box_w2[2],box_w2[3])
+    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax2)
+    ax2.set_xlim(box_w2[0],box_w2[1])
+    ax2.set_ylim(box_w2[2],box_w2[3])
+    # ax2.set_xlabel('RA')
+    # ax2.set_ylabel('Dec')
 
-    ax3.subplot(2,2,3)
+    # ax3.subplot(2,2,3)
     # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
     ax3.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    filaments_tools.get_halo_map(config['filename_pairs'])
-    ax3.xlim(box_w3[0],box_w3[1])
-    ax3.ylim(box_w3[2],box_w3[3])
+    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax3)
+    ax3.set_xlim(box_w3[0],box_w3[1])
+    ax3.set_ylim(box_w3[2],box_w3[3])
+    # ax3.set_xlabel('RA')
+    # ax3.set_ylabel('Dec')
     # pl.show()
 
-    ax4.subplot(2,2,4)
+    # ax4.subplot(2,2,4)
     # ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax4.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    normalised_z = halos['z'] - min(halos['z'])
-    normalised_z/=np.max(normalised_z)
+    cax=ax4.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
+    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax4)
+    ax4.set_xlim(box_w4[0],box_w4[1])
+    ax4.set_ylim(box_w4[2],box_w4[3])
+    # ax4.set_xlabel('RA')
+    # ax4.set_ylabel('Dec')
 
-    ax4.scatter(halos['ra'],halos['dec'],s=50,c=normalised_z)
-    filaments_tools.get_halo_map(config['filename_pairs'])
-    ax4.xlim(box_w4[0],box_w4[1])
-    ax4.ylim(box_w4[2],box_w4[3])
-    ax4.colorbar()
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
+    fig.colorbar(cax,cax=cbar_ax)
+    # fig.colorbar(cax)
     filename_fig = 'filament_map.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
-    pl.show()
-    pl.close()
+    fig.show()
+    # fig.close()
+    import pdb; pdb.set_trace()
 
 
 def get_shears_for_single_pair(halo1,halo2,idp=0):
