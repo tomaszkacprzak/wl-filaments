@@ -64,6 +64,8 @@ def get_graph(all_nodes,min_dist,min_z):
     n_nodes = all_nodes.shape[0]
     sorting = np.argsort(all_nodes[:,col_w])[::-1]
 
+    import pdb; pdb.set_trace()
+
     global min_dist_deg
     global min_dist_z
     min_dist_deg = min_dist

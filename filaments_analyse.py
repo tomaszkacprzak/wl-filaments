@@ -33,6 +33,105 @@ prob_z = None
 dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ,'sigma_g' ] , 
         'formats' : ['i8'] + ['f8']*16 }
 
+def figure_fields():
+
+    box_w1 = [29.5,39.5,-12,-3]
+    box_w2 = [208,221,50.5,58.5]
+    box_w3 = [329.5,336,-2,5.5]
+    box_w4 = [131.5,137.5,-6.5,-0.5]
+
+    halos = tabletools.loadTable(config['filename_halos'])
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
+    pairs = tabletools.loadTable(config['filename_pairs'])
+    halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
+    halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
+
+    mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
+    # mass= halo1['m200']
+    select = (mass < 16.5) * (10.**mass > 6e13)
+
+    pairs=pairs[select]
+    halo1=halo1[select]
+    halo2=halo2[select]
+
+
+    try:
+        import matplotlib
+        import matplotlib.gridspec as gridspec
+    except:
+        logger.error('gridspec not found - no plot today')
+        return None
+
+    import matplotlib.gridspec as gridspec
+    fig = pl.figure(1)
+    fig.clf()
+    gs = gridspec.GridSpec( 2, 2, width_ratios=[1,1], height_ratios=[2,1], wspace=0.25, hspace=0.25)
+    ax1 = fig.add_subplot(gs[0]) # 7x10
+    ax2 = fig.add_subplot(gs[1]) # 7x12
+    ax3 = fig.add_subplot(gs[2]) # 7x6
+    ax4 = fig.add_subplot(gs[3]) # 2x5
+
+    fig.text(0.5, 0.04, 'RA', ha='center', va='center')
+    fig.text(0.06, 0.5, 'Dec', ha='center', va='center', rotation='vertical')
+
+    # pl.subplot(2,2,1)
+    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    ax1.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
+    ax1.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
+    ax1.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
+    for i in range(len(pairs)): ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    ax1.set_xlim(box_w1[0],box_w1[1])
+    ax1.set_ylim(box_w1[2],box_w1[3])
+    # ax1.set_xlabel('RA')
+    # ax1.set_ylabel('Dec')
+
+    # pl.subplot(2,2,2)
+    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    ax2.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    ax2.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
+    ax2.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
+    for i in range(len(pairs)): ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    ax2.set_xlim(box_w2[0],box_w2[1])
+    ax2.set_ylim(box_w2[2],box_w2[3])
+    # ax2.set_xlabel('RA')
+    # ax2.set_ylabel('Dec')
+
+    # ax3.subplot(2,2,3)
+    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    ax3.scatter(halos['ra'],halos['dec'],s=2,c='g')
+    ax3.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
+    ax3.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
+    for i in range(len(pairs)): ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    ax3.set_xlim(box_w3[0],box_w3[1])
+    ax3.set_ylim(box_w3[2],box_w3[3])
+    # ax3.set_xlabel('RA')
+    # ax3.set_ylabel('Dec')
+    # pl.show()
+
+    # ax4.subplot(2,2,4)
+    # ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
+    cax=ax4.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
+    ax4.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
+    ax4.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
+    for i in range(len(pairs)): ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    ax4.set_xlim(box_w4[0],box_w4[1])
+    ax4.set_ylim(box_w4[2],box_w4[3])
+    # ax4.set_xlabel('RA')
+    # ax4.set_ylabel('Dec')
+
+    fig.subplots_adjust(right=0.8)
+    cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
+    fig.colorbar(cax,cax=cbar_ax)
+    # fig.colorbar(cax)
+    filename_fig = 'filament_map.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' , filename_fig)
+    fig.show()
+    # fig.close()
+    import pdb; pdb.set_trace()
+
+
 def add_stats():
 
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
@@ -335,7 +434,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
     grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
 
     if hires:    
-        n_upsample = 10
+        n_upsample = 20
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
@@ -697,7 +796,7 @@ def plot_vs_mass():
 
         pl.xlim([0,0.2])
         pl.ylim([0.25,4])
-        # pl.xlabel("r'$\Delta \Sigma 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
+        # pl.xlabel("r'$\Delta \Simga 10^{14} * M_{*} \mathrm{Mpc}^{-2}$'")
         pl.xlabel(r'$\Delta \Sigma 10^{14} M_{*} h \mathrm{Mpc}^{-2}$')
         pl.ylabel('half-mass radius [Mpc/h]')
         title_str= r'%s: mean halo %s $\in [%2.1e , %2.1e]$ , n_pairs=%d' % (args.filename_config.replace('.yaml',''),mass_param_name , snr_bin['bin_min'] , snr_bin['bin_max'] , snr_bin['n_pairs_used'] )
@@ -717,6 +816,34 @@ def plot_vs_mass():
 
 
     pl.show()
+
+def plot_single_pair():
+
+
+    # nf = args.first
+    # n_per_file = 1
+    # filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf*n_per_file, (nf+1)*n_per_file , name_data)
+    # try:
+    #     results_pickle = tabletools.loadPickle(filename_pickle,log=1)
+    # except:
+    #     log.debug('missing %s' % filename_pickle)
+    #     return 
+    
+    # log_prob = results_pickle
+    # grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
+    # grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
+    # grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
+    # grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
+
+    # pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
+    # pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
+    # log_prob_2D = np.log(pdf_prob_2D)
+    # func_interp = scipy.interpolate.interp2d(vec_m,vec_radius,log_prob_2D, kind='cubic')
+    # log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+
+    pass
+
+
 
 def plotdata_all():
 
@@ -782,25 +909,47 @@ def plotdata_all():
     filename_pickle = args.filename_config.replace('.yaml','.plotdata.mass.pp2')
     tabletools.savePickle(filename_pickle,list_res_dict)
 
+    # 2D plot_dist
     plot_pickle(filename_pickle)
 
+    # single 2d plot
+
+    max0, max1 = np.unravel_index(prod_pdf.argmax(), prod_pdf.shape)
+    print grid_dict['grid_kappa0'][max0,max1], grid_dict['grid_radius'][max0,max1]
+    max_radius = grid_dict['grid_radius'][0,max1]
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
+    xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
+    ylabel=r'radius $\mathrm{Mpc}/h$'
+    pl.figure()
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
+    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+    pl.axhline(max_radius,color='r')
+    pl.xlabel(xlabel)
+    pl.ylabel(ylabel)
+    pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    pl.axis('tight')
+
+    # plot 1d - just kappa0
     prob_kappa0 = np.sum(prod_pdf,axis=1)
     grid_kappa0 = grid_dict['grid_kappa0'][:,0] 
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_kappa0,prob_kappa0)
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
 
-    id_radius=15
+    id_radius=max1
     at_radius=grid_dict['grid_radius'][0,id_radius]
     print 'using radius=' , at_radius
-    pl.figure()
-    kappa_at_radius=prod_pdf[:,id_radius]
+    kappa_at_radius=prod_pdf[:,id_radius].copy()
     kappa_at_radius/=np.sum(kappa_at_radius)
     kappa_grid = grid_dict['grid_kappa0'][:,id_radius]
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(kappa_grid,kappa_at_radius)
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
 
+    pl.figure()
     pl.plot(kappa_grid,kappa_at_radius)
-    pl.title('radius=%2.2f'%at_radius)
+    pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_radius,n_pairs_used))
+    pl.xlabel(xlabel)
+
+
     pl.show()
 
 
@@ -890,9 +1039,10 @@ def triangle_plots():
     import plotstools, mathstools
     prob=mathstools.normalise(res_all)
 
-    labels=[r"$\Delta \Sigma 10^{14} * M_{\odot} \mathrm{Mpc}^{-2} h$",'radius Mpc/h',r"$M200_halo1 M_{\odot}/h$",r"$M200_halo2 M_{\odot}/h$"]
+    labels=[r"$\Delta \Sigma 10^{14} * M_{\odot} \mathrm{Mpc}^{-2} h$",'radius Mpc/h',r"M200 halo1 $M_{\odot}/h$",r"M200 halo2 $M_{\odot}/h$"]
     mdd = plotstools.multi_dim_dist()
     mdd.labels=labels
+    mdd.n_upsample = 10
     mdd.plot_dist_meshgrid(X,prob)
     pl.show()
 
@@ -1129,7 +1279,7 @@ def remove_similar_connections():
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)

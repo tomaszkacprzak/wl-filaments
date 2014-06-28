@@ -37,84 +37,6 @@ shear2_col = 's2'
 
 cfhtlens_shear_catalog = None
 
-def figure_fields():
-
-    box_w1 = [29.5,39.5,-12,-3]
-    box_w2 = [208,221,50.5,58.5]
-    box_w3 = [329.5,336,-2,5.5]
-    box_w4 = [131.5,137.5,-6.5,-0.5]
-
-    halos = tabletools.loadTable(config['filename_halos'])
-    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
-    bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
-    pairs = tabletools.loadTable(config['filename_pairs'])
-
-    try:
-        import matplotlib.gridspec as gridspec
-    except:
-        logger.error('gridspec not found - no plot today')
-        return None
-
-    import matplotlib.gridspec as gridspec
-    fig = pl.figure(1)
-    fig.clf()
-    gs = gridspec.GridSpec( 2, 2, width_ratios=[1,1], height_ratios=[2,1], wspace=0.25, hspace=0.25)
-    ax1 = fig.add_subplot(gs[0]) # 7x10
-    ax2 = fig.add_subplot(gs[1]) # 7x12
-    ax3 = fig.add_subplot(gs[2]) # 7x6
-    ax4 = fig.add_subplot(gs[3]) # 2x5
-
-    fig.text(0.5, 0.04, 'RA', ha='center', va='center')
-    fig.text(0.06, 0.5, 'Dec', ha='center', va='center', rotation='vertical')
-
-    # pl.subplot(2,2,1)
-    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax1.scatter(halos['ra'],halos['dec'],s=10,c=halos['z'])
-    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax1)
-    ax1.set_xlim(box_w1[0],box_w1[1])
-    ax1.set_ylim(box_w1[2],box_w1[3])
-    # ax1.set_xlabel('RA')
-    # ax1.set_ylabel('Dec')
-
-    # pl.subplot(2,2,2)
-    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax2.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax2)
-    ax2.set_xlim(box_w2[0],box_w2[1])
-    ax2.set_ylim(box_w2[2],box_w2[3])
-    # ax2.set_xlabel('RA')
-    # ax2.set_ylabel('Dec')
-
-    # ax3.subplot(2,2,3)
-    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax3.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax3)
-    ax3.set_xlim(box_w3[0],box_w3[1])
-    ax3.set_ylim(box_w3[2],box_w3[3])
-    # ax3.set_xlabel('RA')
-    # ax3.set_ylabel('Dec')
-    # pl.show()
-
-    # ax4.subplot(2,2,4)
-    # ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    cax=ax4.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
-    filaments_tools.get_halo_map(config['filename_pairs'],pl=ax4)
-    ax4.set_xlim(box_w4[0],box_w4[1])
-    ax4.set_ylim(box_w4[2],box_w4[3])
-    # ax4.set_xlabel('RA')
-    # ax4.set_ylabel('Dec')
-
-    fig.subplots_adjust(right=0.8)
-    cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
-    fig.colorbar(cax,cax=cbar_ax)
-    # fig.colorbar(cax)
-    filename_fig = 'filament_map.png'
-    pl.savefig(filename_fig)
-    logger.info('saved %s' , filename_fig)
-    fig.show()
-    # fig.close()
-    import pdb; pdb.set_trace()
-
 
 def get_shears_for_single_pair(halo1,halo2,idp=0):
 
@@ -258,7 +180,7 @@ def select_halos(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
 
-def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits'):
+def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
 
     logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
 
@@ -322,7 +244,7 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
         pl.scatter(shearcat['ALPHA_J2000'][perm3],shearcat['DELTA_J2000'][perm3] , 0.1  , marker='o', c='b')
     elif 'ra' in shearcat.dtype.names: 
         pl.scatter(shearcat['ra'][perm3],shearcat['dec'][perm3] , 0.1  , marker='o', c='b')
-    filename_fig = 'figs/scatter.lrgs_in_cfhtlens.%s.png'  % args.filename_config.replace('.yaml','')
+    filename_fig = 'figs/scatter.lrgs_in_cfhtlens.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' % filename_fig)
     pl.close()
@@ -336,12 +258,13 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     fix_case( halocat )
     # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
 
-    import graphstools
-    X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
-    select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'],min_z=config['graph_min_dist_z'])
-    halocat = halocat[select]
-
-    logger.info('number of halos after graph selection %d', len(halocat))
+    if apply_graph:
+        import graphstools
+        X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+        select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'],min_z=config['graph_min_dist_z'])
+        halocat = halocat[select]
+        logger.info('number of halos after graph selection %d', len(halocat))
+        
     tabletools.saveTable(filename_halos,halocat)
     logger.info('wrote %s' % filename_halos)
 
@@ -561,4 +484,6 @@ def main():
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
-main()
+if __name__ == '__main__':
+
+    main()

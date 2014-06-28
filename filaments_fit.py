@@ -38,7 +38,6 @@ prob_z = None
 
 N_BURNIN = 1000
 
-
 def fit_2hf():
 
     filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
