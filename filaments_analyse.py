@@ -55,12 +55,14 @@ def figure_fields():
     halo1=halo1[select]
     halo2=halo2[select]
 
+    print 'using %d pairs' % len(halo2)
+
 
     try:
         import matplotlib
         import matplotlib.gridspec as gridspec
     except:
-        logger.error('gridspec not found - no plot today')
+        log.error('gridspec not found - no plot today')
         return None
 
     import matplotlib.gridspec as gridspec
@@ -876,7 +878,7 @@ def plotdata_all():
     mass_prior= (halo1['m200']+halo2['m200'])/2.
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     # mass= halo1['m200']
-    select = (mass < 16.5) * (10.**mass > 6e13)
+    select = (mass < 16.5) * (10.**mass > 7e13)
     # print np.nonzero(select)
     # select = (pairs['m200_h1_fit'] > 13.7) | (pairs['m200_h2_fit'] > 13.7)
     # select = (pairs['m200_h1_fit'] > 14) | (pairs['m200_h2_fit'] > 14)

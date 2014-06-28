@@ -34,10 +34,12 @@ cospars = cosmology.cosmoparams()
 
 def get_stamps():
     
-    filename_halos = config['filename_allhalos_cat']
-    filename_shear = config['filename_allhalos_shears']
+    filename_halos = config['filename_halos']
+    filename_shear = config['filename_shears']
     halos = tabletools.loadTable(filename_halos)
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='index',dtype='i4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_fit',dtype='f4')
+    # halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='log_like',dtype='%df4'%config['M200']['n_grid'])
     n_halos = len(halos)
     log.info('halos %d' , len(halos))
 
@@ -66,14 +68,6 @@ def get_stamps():
 
         ihalo = halos['index'][ih]
         vhalo = halos[ih]
-
-        filename_results_prob = 'results.prob.%04d.%04d.fits' % (id_first, id_last) 
-        if not os.path.isfile(filename_results_prob):
-            halos_results = np.empty(args.num,dtype={'names':['ihalo','m200_fit','log_prob'],'formats':['i4','f4','%df4'%config['M200']['n_grid']]})
-            log.info('created empty halos_results')
-        else:
-            halos_results = pyfits.getdata(filename_results_prob)
-            log.info('loaded %s' , filename_results_prob)
 
         global cfhtlens_shear_catalog
         if cfhtlens_shear_catalog == None:
@@ -183,13 +177,12 @@ def get_stamps():
 
         log_post , grid_M200 = fitobj.run_gridsearch()
         ml_m200 = grid_M200[np.argmax(log_post)]
-        
-        halos_results['ihalo'][ih-id_first] = ihalo
-        halos_results['m200_fit'][ih-id_first] = ml_m200
-        halos_results['log_prob'][ih-id_first] = log_post
 
-        pyfits.writeto(filename_results_prob,halos_results,clobber=True)
-        log.info('saved %s' , filename_results_prob)
+        halos['m200_fit'][ih]=ml_m200
+        # halos['log_like'][ih]=log_post
+
+        pyfits.writeto(filename_halos,halos,clobber=True)
+        log.info('saved %s' , filename_halos)
 
         log.info('%5d n_gals=%d n_eff=%2.2f m200_fit=%2.2f' % (ihalo,len(shear_g1_stamp),np.sum(shear_weight_stamp),ml_m200))
 
@@ -221,7 +214,7 @@ def main():
     log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
     import filaments_cfhtlens
-    # filaments_cfhtlens.select_halos_LRG(range_z=config['range_z'],range_M=config['range_M'],filename_halos=config['filename_allhalos_cat'],apply_graph=False)
+    # filaments_cfhtlens.select_halos_LRG(range_z=config['range_z'],range_M=config['range_M'],filename_halos=config['filename_halos'],apply_graph=False)
     get_stamps()
     
 

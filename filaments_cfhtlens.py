@@ -115,9 +115,9 @@ def get_pairs_null1(filename_pairs_null1 = 'pairs_cfhtlens_null1.fits', filename
     # pl.scatter(pairs_table['ra2'] , pairs_table['dec2'])
     # pl.show()
 
-def get_pairs(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtlens.fits',range_Dxy=[6,10]):
+def get_pairs(filename_pairs = 'pairs_cfhtlens.fits',filename_halos='halos_cfhtlens.fits',range_Dxy=[6,10], Dlos=6):
 
-    pairs_table, halos1, halos2 = filaments_tools.get_pairs(range_Dxy=range_Dxy,Dlos=6,filename_halos=filename_halos)
+    pairs_table, halos1, halos2 = filaments_tools.get_pairs(range_Dxy=range_Dxy,Dlos=Dlos,filename_halos=filename_halos)
 
     tabletools.saveTable(filename_pairs,pairs_table)   
     tabletools.saveTable(filename_pairs.replace('.fits','.halos1.fits'), halos1)    
@@ -179,6 +179,23 @@ def select_halos(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens
     filename_fig = 'figs/hist.cfhtlens.png'
     pl.savefig(filename_fig)
     logger.info('saved %s' , filename_fig)
+
+def select_halos_all(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
+
+    halocat = tabletools.loadTable(config['filename_allhalos'])
+    select = halocat['m200_fit'] > 13.0
+    halocat = halocat[select]
+
+    if apply_graph:
+        import graphstools
+        X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+        select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'],min_z=config['graph_min_dist_z'])
+        halocat = halocat[select]
+        logger.info('number of halos after graph selection %d', len(halocat))
+        
+    tabletools.saveTable(filename_halos,halocat)
+    logger.info('wrote %s' % filename_halos)
+
 
 def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
 
@@ -448,6 +465,7 @@ def main():
     range_M = map(float,config['range_M'])
     range_Dxy = map(float,config['range_Dxy'])
     range_z = map(float,config['range_z'])
+    max_dlos = config['max_dlos']
     filename_halos=config['filename_halos']
     filename_pairs = config['filename_pairs']
     filename_shears = config['filename_shears']
@@ -463,7 +481,7 @@ def main():
    
         select_fun(filename_halos=filename_halos,range_M=range_M,range_z=range_z)
         filaments_tools.add_phys_dist(filename_halos=filename_halos)
-        n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy)
+        n_pairs = get_pairs(filename_halos=filename_halos, filename_pairs=filename_pairs, range_Dxy=range_Dxy, Dlos=max_dlos)
 
 
     elif (config['mode'] == 'null1_unpaired') or (config['mode'] == 'null1_all'):
@@ -476,8 +494,6 @@ def main():
 
     id_pair_first = args.first
     id_pair_last = n_pairs if args.num == -1 else id_pair_first + args.num
-
-    figure_fields()
 
     logger.info('getting noisy shear catalogs for pairs from %d to %d' , id_pair_first, id_pair_last)
     filaments_tools.get_shears_for_pairs(filename_pairs=filename_pairs, filename_shears=filename_shears, function_shears_for_single_pair=get_shears_for_single_pair,id_first=id_pair_first,id_last=id_pair_last)

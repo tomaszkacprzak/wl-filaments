@@ -106,7 +106,7 @@ def fit_2hf():
 
     for id_pair in range(id_pair_first,id_pair_last):
 
-	id_shear = pairs_table[id_pair]['ipair']
+    	id_shear = pairs_table[id_pair]['ipair']
         log.info('--------- pair %d shear %d --------' , id_pair, id_shear) 
         # now we use that
         if config['mode']=='selftest':
