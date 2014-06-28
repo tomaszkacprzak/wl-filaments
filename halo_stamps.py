@@ -38,10 +38,14 @@ def get_stamps():
     filename_shear = config['filename_allhalos_shears']
     halos = tabletools.loadTable(filename_halos)
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='index',dtype='i4')
+    n_halos = len(halos)
     log.info('halos %d' , len(halos))
 
     id_first = args.first
-    id_last = args.first + args.num
+    if (args.first+args.num) < n_halos:
+        id_last = args.first + args.num
+    else:
+        id_last = n_halos
    
     box_size=30 # arcmin
     pixel_size=0.5
@@ -56,6 +60,7 @@ def get_stamps():
     binned_shear_m  = np.zeros_like(grid_u_arcmin) 
 
     cfhtlens_shear_catalog=None
+    log.info('running on %d - %d',id_first,id_last)
     for ih in range(id_first, id_last):
 
 
@@ -72,7 +77,7 @@ def get_stamps():
 
         global cfhtlens_shear_catalog
         if cfhtlens_shear_catalog == None:
-            filename_chftlens_shears = 'CFHTLens_2014-04-07.fits'
+            filename_chftlens_shears = config['filename_cfhtlens_shears']
             cfhtlens_shear_catalog = tabletools.loadTable(filename_chftlens_shears)
             if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
                 select = cfhtlens_shear_catalog['star_flag'] == 0
