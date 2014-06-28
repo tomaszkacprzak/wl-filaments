@@ -1,4 +1,4 @@
-import os, yaml, argparse, sys, logging , pyfits,  emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament
+import os, yaml, argparse, sys, logging , pyfits,  emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament, time
 import numpy as np
 import pylab as pl
 import warnings
@@ -111,18 +111,21 @@ class modelfit():
 
 
         nuse=1
-        line_width=0.005* quiver_scale
+        # line_width=0.005* quiver_scale
+        line_width=0.002
 
         if unit=='arcmin':
-            pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='b',label='original',scale=quiver_scale , width = line_width)  
             pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
             pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
         elif unit=='Mpc':
-            pl.quiver(self.shear_u_mpc[::nuse],self.shear_v_mpc[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.quiver(self.shear_u_mpc[::nuse],self.shear_v_mpc[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='b',label='original',scale=quiver_scale , width = line_width)  
             pl.xlim([min(self.shear_u_mpc),max(self.shear_u_mpc)])
             pl.ylim([min(self.shear_v_mpc),max(self.shear_v_mpc)])
 
         pl.axis('equal')
+        pl.xlabel(unit)
+        pl.ylabel(unit)
 
     def plot_shears_mag(self,g1,g2):
 
@@ -251,8 +254,8 @@ class modelfit():
         self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
         self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr
 
-        filament_u1_mpc = self.halo1_u_mpc - self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + self.nh2.R_200
+        filament_u1_mpc = self.halo1_u_mpc - 0.3*self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc + 0.3*self.nh2.R_200
 
         h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
@@ -714,7 +717,6 @@ def get_mock_data():
     filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
     filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
     filename_shears = config['filename_shears']                                  # args.filename_shears 
-    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
@@ -723,18 +725,13 @@ def get_mock_data():
     sigma_g_add =  0.
 
     id_pair = 48
-    shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+    shears_info = tabletools.loadPickle(filename_shears,id_pair)
 
     fitobj = modelfit()
-    fitobj.get_bcc_pz('aardvarkv1.0_des_lenscat_s2n10.351.fit')
+    fitobj.get_bcc_pz(config['filename_pz'])
 
-    fitobj.halo1_z = 0.2
-    fitobj.halo2_z = 0.2
-    fitobj.halo1_u_arcmin = 20
-    fitobj.halo1_v_arcmin = 0
-    fitobj.halo2_u_arcmin = -20
-    fitobj.halo2_v_arcmin = 0
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_u_mpc =  shears_info['u_mpc']
     fitobj.shear_v_mpc =  shears_info['v_mpc']
 
@@ -772,8 +769,14 @@ def get_mock_data():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0., 2., 14.5, 14.5])
-    fitobj.plot_shears(shear_model_g1, shear_model_g2,quiver_scale=0.5)
+    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0.4, 0.5, 14., 14,])
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g1)   
+    pl.colorbar()
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g2)
+    pl.figure()
+    fitobj.plot_shears(shear_model_g1,shear_model_g2,limit_mask,quiver_scale=2)
     pl.show()
 
     fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(shears_info['g1']))*sigma_g_add
@@ -805,10 +808,6 @@ if __name__=='__main__':
 
     global config 
     config = yaml.load(open(args.filename_config))
-    filaments_tools.config = config
-
-
-    filaments_model_1f.log = log
 
     log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 

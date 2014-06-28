@@ -47,6 +47,78 @@ def figure_fields():
     halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
 
+    if 'm200_h1_fit' not in pairs.dtype.names:
+        if 'm200' in halos.dtype.names:
+            pairs = tabletools.appendColumn(rec=pairs,arr=np.log10(halo1['m200']),name='m200_h1_fit')
+            pairs = tabletools.appendColumn(rec=pairs,arr=np.log10(halo2['m200']),name='m200_h2_fit')
+            
+    mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
+    # mass= halo1['m200']
+    select = (mass < 16.5) * (10.**mass > 1e14)
+
+    pairs=pairs[select]
+    halo1=halo1[select]
+    halo2=halo2[select]
+
+    print 'using %d pairs' % len(halo2)
+
+    from mpl_toolkits.basemap import Basemap
+    import matplotlib.pyplot as pl
+    m = Basemap(projection='ortho',lat_0=-35,lon_0=-10,resolution='c')
+    m.drawparallels(np.arange(-90.,120.,30.))
+    m.drawmeridians(np.arange(0.,420.,60.))
+    m.drawmapboundary()
+
+    x1,y1 = m(pairs['ra1'],pairs['dec1'])
+    x2,y2 = m(pairs['ra2'],pairs['dec2'])
+    x3,y3 = m(halos['ra'],halos['dec'])
+
+    m.scatter(x1,y1, pairs['m200_h1_fit'] , pairs['z'] , marker = 'o') #
+    m.scatter(x2,y2, pairs['m200_h2_fit'] , pairs['z'] , marker = 'o') #
+    m.scatter(x3,y3, halos['m200']     , halos['z'] , marker = 'o') #
+
+    for i in range(len(pairs)):
+        # m.scatter([x1[i],x2[i]],[y1[i],y2[i]] , c=table_halo2['z'][i] , cmap=pl.matplotlib.cm.jet)
+        m.plot([x1[i],x2[i]],[y1[i],y2[i]])
+
+
+
+    # pl.figure()
+    # pl.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
+    # pl.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' ) #
+    # pl.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' ) #      
+    # for i in range(len(pairs)): pl.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    # pl.xlabel('RA')
+    # pl.ylabel('Dec')
+    # # pl.colorbar()
+
+    filename_fig = 'filament_map.png'
+    pl.savefig(filename_fig)
+    log.info('saved %s' , filename_fig)
+    pl.show()
+    import pdb; pdb.set_trace()
+
+
+
+def figure_fields_cfhtlens():
+
+    box_w1 = [29.5,39.5,-12,-3]
+    box_w2 = [208,221,50.5,58.5]
+    box_w3 = [329.5,336,-2,5.5]
+    box_w4 = [131.5,137.5,-6.5,-0.5]
+
+    halos = tabletools.loadTable(config['filename_halos'])
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
+    pairs = tabletools.loadTable(config['filename_pairs'])
+    halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
+    halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
+
+    if 'm200_h1_fit' not in pairs.dtype.names:
+        if 'm200' in halos.dtype.names:
+            pairs = tabletools.appendColumn(rec=pairs,arr=halo1['m200'],name='m200_h1_fit')
+            pairs = tabletools.appendColumn(rec=pairs,arr=halo2['m200'],name='m200_h2_fit')
+            
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     # mass= halo1['m200']
     select = (mass < 16.5) * (10.**mass > 6e13)
@@ -878,13 +950,13 @@ def plotdata_all():
     mass_prior= (halo1['m200']+halo2['m200'])/2.
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     # mass= halo1['m200']
-    select = (mass < 16.5) * (10.**mass > 7e13)
+    select = (mass < 16.5) * (10.**mass > 1e14)
     # print np.nonzero(select)
     # select = (pairs['m200_h1_fit'] > 13.7) | (pairs['m200_h2_fit'] > 13.7)
-    # select = (pairs['m200_h1_fit'] > 14) | (pairs['m200_h2_fit'] > 14)
+    # select = (pairs['m200_h1_fit'] > 13.) | (pairs['m200_h2_fit'] > 13.)
     # select = (halo1['m200'] > 14.2) | (halo2['m200'] > 13.5) # 011 nice shape 2+ sigma
     # select = mass_prior > 14 # 011 
-    # sorting=np.argsort(mass)[::-1]
+    sorting=np.argsort(mass)[::-1]
     # sorting=np.argsort(mass_prior)[::-1]
     # sorting=np.argsort(mass)[::-1]
     # select = sorting[:50]
@@ -1007,7 +1079,7 @@ def triangle_plots():
     n_used=0
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = mass > 13.3
+    select = mass > 13.9
 
     for ida in range(id_file_first,id_file_last):
 
@@ -1281,7 +1353,7 @@ def remove_similar_connections():
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields_cfhtlens' , 'figure_fields']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
