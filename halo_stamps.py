@@ -65,14 +65,14 @@ def get_stamps():
         filename_results_prob = 'results.prob.%04d.%04d.fits' % (id_first, id_last) 
         if not os.path.isfile(filename_results_prob):
             halos_results = np.empty(args.num,dtype={'names':['ihalo','m200_fit','log_prob'],'formats':['i4','f4','%df4'%config['M200']['n_grid']]})
-            print 'created empty halos_results'
+            log.info('created empty halos_results')
         else:
             halos_results = pyfits.getdata(filename_results_prob)
-            print 'loaded ' , filename_results_prob
+            log.info('loaded %s' , filename_results_prob)
 
         global cfhtlens_shear_catalog
         if cfhtlens_shear_catalog == None:
-            filename_chftlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+            filename_chftlens_shears = 'CFHTLens_2014-04-07.fits'
             cfhtlens_shear_catalog = tabletools.loadTable(filename_chftlens_shears)
             if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
                 select = cfhtlens_shear_catalog['star_flag'] == 0
@@ -184,7 +184,7 @@ def get_stamps():
         halos_results['log_prob'][ih-id_first] = log_post
 
         pyfits.writeto(filename_results_prob,halos_results,clobber=True)
-        print 'saved' , filename_results_prob
+        log.info('saved %s' , filename_results_prob)
 
         log.info('%5d n_gals=%d n_eff=%2.2f m200_fit=%2.2f' % (ihalo,len(shear_g1_stamp),np.sum(shear_weight_stamp),ml_m200))
 
