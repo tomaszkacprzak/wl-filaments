@@ -58,6 +58,7 @@ class modelfit():
         self.n_walkers = 10
         self.n_grid = 10
         self.save_all_models = False
+        self.kappa_is_K = False
 
         self.n_dim = 4 
         self.parameters = [None]*self.n_dim
@@ -239,10 +240,16 @@ class modelfit():
         self.n_model_evals +=1
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
-        filament_kappa0 = params[0]
-        filament_radius = params[1]
-        halo2_M200 = 10.**params[3]
-        halo1_M200 = 10.**params[2]
+        if self.kappa_is_K: # model where kappa is dependent on halo mass
+            halo2_M200 = 10.**params[3]
+            halo1_M200 = 10.**params[2]
+            filament_kappa0 = params[0]*(halo2_M200+halo1_M200)/1e14
+            filament_radius = params[1]
+        else:   # standard model
+            filament_kappa0 = params[0]
+            filament_radius = params[1]
+            halo2_M200 = 10.**params[3]
+            halo1_M200 = 10.**params[2]
 
 
         self.nh1.M_200= halo1_M200

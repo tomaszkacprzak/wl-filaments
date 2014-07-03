@@ -62,6 +62,8 @@ def add_model_selection():
     pairs = tabletools.ensureColumn(rec=pairs,name='BF2',dtype='f4')
     pairs = tabletools.ensureColumn(rec=pairs,name='MLRT1',dtype='f4')
     pairs = tabletools.ensureColumn(rec=pairs,name='MLRT2',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius',dtype='f4')
 
 
     for ic in range(n_pairs):
@@ -132,6 +134,13 @@ def add_model_selection():
         pairs['MLRT2'][ic] = MLRT2
         print '% 4d ih1=% 5d ih2=% 5d m200_h1=%2.2f m200_h2=%2.2f BF1=%2.3f \t BF2=%2.3f \t\tMLRT1=%2.3f\t\tMLRT2=%2.3f\t\tclass=%d' % (ic, pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],bf1,bf2,MLRT1,MLRT2,pairs['eyeball_class'][ic])
         # import pdb; pdb.set_trace()
+
+        max_model = np.unravel_index(prob_2D_hires.argmax(), prob_2D_hires.shape)
+        ML_kappa0 = grid_kappa0_hires[max_model]
+        ML_radius = grid_radius_hires[max_model]
+        pairs['ML_kappa0'][ic] = ML_kappa0
+        pairs['ML_radius'][ic] = ML_radius
+
 
     pl.figure();pl.scatter(pairs['BF1'],pairs['eyeball_class']); pl.xlim([0,100]); 
     pl.figure();pl.scatter(pairs['BF2'],pairs['eyeball_class']); pl.xlim([0,100]); 
