@@ -42,8 +42,9 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
     if cfhtlens_shear_catalog == None:
-        filename_cfhtlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
-        # filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+        # filename_cfhtlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+        filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_ecorr_pass2.fits'
+
         cfhtlens_shear_catalog = tabletools.loadTable(filename_cfhtlens_shears)
         if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
             select = cfhtlens_shear_catalog['star_flag'] == 0
@@ -57,8 +58,12 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
             logger.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
 
     # correcting additive systematics
-    shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , -(cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2'])
-    shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ra'] , cfhtlens_shear_catalog['dec'] ,  cfhtlens_shear_catalog['z']
+    if 'e1corr' in cfhtlens_shear_catalog.dtype.names:       
+        shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1corr'] , -cfhtlens_shear_catalog['e2corr']
+        shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ALPHA_J2000'] , cfhtlens_shear_catalog['DELTA_J2000'] ,  cfhtlens_shear_catalog['Z_B']
+    else:
+        shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , -(cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2'])
+        shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ra'] , cfhtlens_shear_catalog['dec'] ,  cfhtlens_shear_catalog['z']
 
     halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
     halo2_ra_deg , halo2_de_deg = halo2['ra'],halo2['dec']
