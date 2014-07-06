@@ -47,8 +47,9 @@ class filament:
         truncation_radius = truncation * radius_mpc
         r = np.abs(shear_v_mpc)
         # dens = kappa0 / (1. + (r / radius_mpc)**2 )
-        dens = (amplitude / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
-        dens[r>truncation_radius]=0.
+        # dens = (amplitude / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
+        dens = amplitude / (1. + (r/radius_mpc)**2) 
+        # dens[r>truncation_radius]=0.
         dens *=  self.scale_dens
 
         # # zero the filament outside halos
@@ -314,7 +315,6 @@ def test_shear_profile():
     f.get_bcc_pz(filename_lenscat)
     f.set_mean_inv_sigma_crit(f.grid_z_centers,f.prob_z,f.pair_z)
 
-
     kappa0 = 50
     radius_mpc = 1
     model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
@@ -331,24 +331,36 @@ def test_shear_profile():
 
     pl.figure()
 
-    kappa0 = 0.05
+    # kappa0 = 0.05
+    # radius_mpc = 1
+    # model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    # pl.plot(shear_v_mpc,-model_pz_1,'bx',ms=10)
+    # print min(model_pz_1)
+
+
+    kappa0 = 1
     radius_mpc = 1
     model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
-    pl.plot(shear_v_mpc,-model_pz_1,'bx',ms=10)
-    print min(model_pz_1)
-
-    kappa0 = 0.05
-    radius_mpc = 3
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    truncation = 10
+    truncation_radius = truncation * radius_mpc
+    trunc= np.cos(np.pi*shear_v_mpc/truncation_radius/2)**2
+    model_pz_1_trunc=model_pz_1*trunc
+    model_pz_1=model_pz_1*trunc
     pl.plot(shear_v_mpc,-model_pz_1,'gd',ms=10)
     print min(model_pz_1)
 
-    kappa0 = 0.05
-    radius_mpc = 5
+    kappa0 = 1
+    radius_mpc = 1
     model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
     pl.plot(shear_v_mpc,-model_pz_1,'m+',ms=10)
     print min(model_pz_1)
 
+    pl.figure()
+    pl.plot(shear_v_mpc,-(model_pz_1-model_pz_1_trunc)/model_pz_1,'m+',ms=10)
+
+
+    # pl.xlim([0,2])
+    # pl.ylim([0.0,0.03])
     # pl.yscale('log')
     pl.show()
 

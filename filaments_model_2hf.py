@@ -1,4 +1,4 @@
-import os, yaml, argparse, sys, logging , pyfits,  emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament
+import os, yaml, argparse, sys, logging , pyfits,  emcee, tabletools, cosmology, filaments_tools, nfw, plotstools, filament, time
 import numpy as np
 import pylab as pl
 import warnings
@@ -14,7 +14,7 @@ log.addHandler(stream_handler)
 log.propagate = False
 
 redshift_offset = 0.2
-weak_limit = 0.2
+weak_limit = 0.05
 
 dtype_stats = {'names' : ['id',
                             'kappa0_signif',
@@ -58,6 +58,7 @@ class modelfit():
         self.n_walkers = 10
         self.n_grid = 10
         self.save_all_models = False
+        self.kappa_is_K = False
 
         self.n_dim = 4 
         self.parameters = [None]*self.n_dim
@@ -111,18 +112,21 @@ class modelfit():
 
 
         nuse=1
-        line_width=0.005* quiver_scale
+        # line_width=0.005* quiver_scale
+        line_width=0.002
 
         if unit=='arcmin':
-            pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.quiver(self.shear_u_arcmin[::nuse],self.shear_v_arcmin[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='b',label='original',scale=quiver_scale , width = line_width)  
             pl.xlim([min(self.shear_u_arcmin),max(self.shear_u_arcmin)])
             pl.ylim([min(self.shear_v_arcmin),max(self.shear_v_arcmin)])
         elif unit=='Mpc':
-            pl.quiver(self.shear_u_mpc[::nuse],self.shear_v_mpc[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='r',label='original',scale=quiver_scale , width = line_width)  
+            pl.quiver(self.shear_u_mpc[::nuse],self.shear_v_mpc[::nuse],emag[::nuse]*np.cos(ephi)[::nuse],emag[::nuse]*np.sin(ephi)[::nuse],linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='b',label='original',scale=quiver_scale , width = line_width)  
             pl.xlim([min(self.shear_u_mpc),max(self.shear_u_mpc)])
             pl.ylim([min(self.shear_v_mpc),max(self.shear_v_mpc)])
 
         pl.axis('equal')
+        pl.xlabel(unit)
+        pl.ylabel(unit)
 
     def plot_shears_mag(self,g1,g2):
 
@@ -236,10 +240,16 @@ class modelfit():
         self.n_model_evals +=1
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
-        filament_kappa0 = params[0]
-        filament_radius = params[1]
-        halo2_M200 = 10.**params[3]
-        halo1_M200 = 10.**params[2]
+        if self.kappa_is_K: # model where kappa is dependent on halo mass
+            halo2_M200 = 10.**params[3]
+            halo1_M200 = 10.**params[2]
+            filament_kappa0 = params[0]*(halo2_M200+halo1_M200)/1e14
+            filament_radius = params[1]
+        else:   # standard model
+            filament_kappa0 = params[0]
+            filament_radius = params[1]
+            halo2_M200 = 10.**params[3]
+            halo1_M200 = 10.**params[2]
 
 
         self.nh1.M_200= halo1_M200
@@ -251,8 +261,8 @@ class modelfit():
         self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
         self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr
 
-        filament_u1_mpc = self.halo1_u_mpc - self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + self.nh2.R_200
+        filament_u1_mpc = self.halo1_u_mpc - 0.3*self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc + 0.3*self.nh2.R_200
 
         h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
@@ -714,7 +724,6 @@ def get_mock_data():
     filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
     filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
     filename_shears = config['filename_shears']                                  # args.filename_shears 
-    filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
@@ -722,19 +731,14 @@ def get_mock_data():
 
     sigma_g_add =  0.
 
-    id_pair = 48
-    shears_info = tabletools.loadTable(filename_shears,hdu=id_pair+1)
+    id_pair = 2
+    shears_info = tabletools.loadPickle(filename_shears,id_pair)
 
     fitobj = modelfit()
-    fitobj.get_bcc_pz('aardvarkv1.0_des_lenscat_s2n10.351.fit')
+    fitobj.get_bcc_pz(config['filename_pz'])
 
-    fitobj.halo1_z = 0.2
-    fitobj.halo2_z = 0.2
-    fitobj.halo1_u_arcmin = 20
-    fitobj.halo1_v_arcmin = 0
-    fitobj.halo2_u_arcmin = -20
-    fitobj.halo2_v_arcmin = 0
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_u_mpc =  shears_info['u_mpc']
     fitobj.shear_v_mpc =  shears_info['v_mpc']
 
@@ -772,8 +776,14 @@ def get_mock_data():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0., 2., 14.5, 14.5])
-    fitobj.plot_shears(shear_model_g1, shear_model_g2,quiver_scale=0.5)
+    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0.4, 0.5, 14., 14,])
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g1)   
+    pl.colorbar()
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g2)
+    pl.figure()
+    fitobj.plot_shears(shear_model_g1,shear_model_g2,limit_mask,quiver_scale=2)
     pl.show()
 
     fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(shears_info['g1']))*sigma_g_add
@@ -782,7 +792,158 @@ def get_mock_data():
     fitobj.inv_sq_sigma_g = 1./sigma_g_add**2
     log.info('using sigma_g=%2.5f' , fitobj.sigma_g)
 
+def test_overlap():
 
+    filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
+    filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
+    filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
+    sigma_g_add =  0.1
+
+    id_pair = 2
+    shears_info = tabletools.loadPickle(filename_shears,id_pair)
+
+    fitobj = modelfit()
+    fitobj.get_bcc_pz(config['filename_pz'])
+
+    fitobj.shear_v_arcmin =  shears_info['v_arcmin'][::4]
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin'][::4]
+    fitobj.shear_u_mpc =  shears_info['u_mpc'][::4]
+    fitobj.shear_v_mpc =  shears_info['v_mpc'][::4]
+
+    fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
+    fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
+    fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair]
+    fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair]
+    fitobj.halo1_z =  pairs_table['z'][id_pair]
+
+    fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
+    fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
+    fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
+    fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
+    fitobj.halo2_z =  pairs_table['z'][id_pair]
+
+    fitobj.pair_z  = (fitobj.halo1_z + fitobj.halo2_z) / 2.
+
+    fitobj.filam = filament.filament()
+    fitobj.filam.pair_z =fitobj.pair_z
+    fitobj.filam.grid_z_centers = fitobj.grid_z_centers
+    fitobj.filam.prob_z = fitobj.prob_z
+    fitobj.filam.set_mean_inv_sigma_crit(fitobj.filam.grid_z_centers,fitobj.filam.prob_z,fitobj.filam.pair_z)
+
+    fitobj.nh1 = nfw.NfwHalo()
+    fitobj.nh1.z_cluster= fitobj.halo1_z
+    fitobj.nh1.theta_cx = fitobj.halo1_u_arcmin
+    fitobj.nh1.theta_cy = fitobj.halo1_v_arcmin 
+    fitobj.nh1.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+
+    fitobj.nh2 = nfw.NfwHalo()
+    fitobj.nh2.z_cluster= fitobj.halo2_z
+    fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin + 10
+    fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin + 5     # add mis-centering
+    fitobj.nh2.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0.0, 0.5, 14., 14,])
+    fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin - 5     # remobe miscentering
+    fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin - 10
+
+
+    # second fitobj
+    fitobj2 = modelfit()
+    fitobj2.get_bcc_pz(config['filename_pz'])
+
+    fitobj2.shear_v_arcmin =  shears_info['v_arcmin'][::4]
+    fitobj2.shear_u_arcmin =  shears_info['u_arcmin'][::4]
+    fitobj2.shear_u_mpc =  shears_info['u_mpc'][::4]
+    fitobj2.shear_v_mpc =  shears_info['v_mpc'][::4]
+
+    fitobj2.halo1_u_arcmin =  (pairs_table['u1_arcmin'][id_pair] + pairs_table['u2_arcmin'][id_pair])/2.
+    fitobj2.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair] + 20 
+    fitobj2.halo1_u_mpc =  (pairs_table['u1_mpc'][id_pair]  + pairs_table['u1_mpc'][id_pair])/2.
+    fitobj2.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair] + 3.77
+    fitobj2.halo1_z =  pairs_table['z'][id_pair]
+
+    fitobj2.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
+    fitobj2.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
+    fitobj2.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
+    fitobj2.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
+    fitobj2.halo2_z =  pairs_table['z'][id_pair]
+
+    fitobj2.pair_z  = (fitobj2.halo1_z + fitobj2.halo2_z) / 2.
+
+    fitobj2.filam = filament.filament()
+    fitobj2.filam.pair_z =fitobj2.pair_z
+    fitobj2.filam.grid_z_centers = fitobj2.grid_z_centers
+    fitobj2.filam.prob_z = fitobj2.prob_z
+    fitobj2.filam.set_mean_inv_sigma_crit(fitobj2.filam.grid_z_centers,fitobj2.filam.prob_z,fitobj2.filam.pair_z)
+
+    fitobj2.nh1 = nfw.NfwHalo()
+    fitobj2.nh1.z_cluster= fitobj2.halo1_z
+    fitobj2.nh1.theta_cx = fitobj2.halo1_u_arcmin
+    fitobj2.nh1.theta_cy = fitobj2.halo1_v_arcmin 
+    fitobj2.nh1.set_mean_inv_sigma_crit(fitobj2.grid_z_centers,fitobj2.prob_z,fitobj2.pair_z)
+
+    fitobj2.nh2 = nfw.NfwHalo()
+    fitobj2.nh2.z_cluster= fitobj2.halo2_z
+    fitobj2.nh2.theta_cx = fitobj2.halo2_u_arcmin
+    fitobj2.nh2.theta_cy = fitobj2.halo2_v_arcmin 
+    fitobj2.nh2.set_mean_inv_sigma_crit(fitobj2.grid_z_centers,fitobj2.prob_z,fitobj2.pair_z)
+
+    shear_model_g1_neighbour, shear_model_g2_neighbour, limit_mask = fitobj2.draw_model([0.0, 0.5, 10, 10,])
+
+
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g1+shear_model_g1_neighbour , lw=0)   
+    pl.colorbar()
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g2+shear_model_g2_neighbour, lw=0)
+    pl.figure()
+    fitobj.plot_shears(shear_model_g1,shear_model_g2,limit_mask,quiver_scale=2)
+    pl.show()
+
+    fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(fitobj.shear_u_arcmin))*sigma_g_add
+    fitobj.shear_g2 =  shear_model_g2 + np.random.randn(len(fitobj.shear_u_arcmin))*sigma_g_add
+    fitobj.sigma_g =  np.std(shear_model_g2,ddof=1)
+    fitobj.inv_sq_sigma_g = 1./sigma_g_add**2
+    log.info('using sigma_g=%2.5f' , fitobj.sigma_g)
+
+    fitobj.parameters[0]['box']['min'] = config['kappa0']['box']['min']
+    fitobj.parameters[0]['box']['max'] = config['kappa0']['box']['max']
+    fitobj.parameters[0]['n_grid'] = config['kappa0']['n_grid']
+
+    fitobj.parameters[1]['box']['min'] = config['radius']['box']['min']
+    fitobj.parameters[1]['box']['max'] = config['radius']['box']['max']
+    fitobj.parameters[1]['n_grid'] = config['radius']['n_grid']
+    
+    fitobj.parameters[2]['box']['min'] = config['h1M200']['box']['min']
+    fitobj.parameters[2]['box']['max'] = config['h1M200']['box']['max']
+    fitobj.parameters[2]['n_grid'] = config['h1M200']['n_grid']
+    
+    fitobj.parameters[3]['box']['min'] = config['h2M200']['box']['min']
+    fitobj.parameters[3]['box']['max'] = config['h2M200']['box']['max']
+    fitobj.parameters[3]['n_grid'] = config['h2M200']['n_grid']
+
+    log_post , params, grids = fitobj.run_gridsearch()
+
+    import pdb; pdb.set_trace()
+    grid_info = {}
+    grid_info['grid_kappa0'] = grids[0]
+    grid_info['grid_radius'] = grids[1]
+    grid_info['grid_h1M200'] = grids[2]
+    grid_info['grid_h2M200'] = grids[3]
+    grid_info['post_kappa0'] = params[0]
+    grid_info['post_radius'] = params[1]
+    grid_info['post_h1M200'] = params[2]
+    grid_info['post_h2M200'] = params[3]
+    filename_results_grid = 'results/results.grid.' +   os.path.basename(filename_shears).replace('.fits','.pp2')
+    tabletools.savePickle(filename_results_grid,grid_info)
+
+    filename_results_prob = 'results/results.prob.%04d.%04d.' % (0, 1) +   os.path.basename(filename_shears).replace('.fits','.pp2')
+    tabletools.savePickle(filename_results_prob,log_post.astype(np.float32),append=False)
 
 
 if __name__=='__main__':
@@ -805,14 +966,11 @@ if __name__=='__main__':
 
     global config 
     config = yaml.load(open(args.filename_config))
-    filaments_tools.config = config
-
-
-    filaments_model_1f.log = log
 
     log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
-    get_mock_data()
+    # get_mock_data()
+    test_overlap()
 
     log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
