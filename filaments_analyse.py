@@ -64,7 +64,11 @@ def add_model_selection():
     pairs = tabletools.ensureColumn(rec=pairs,name='MLRT2',dtype='f4')
     pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0',dtype='f4')
     pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius',dtype='f4')
-
+    pairs = tabletools.ensureColumn(rec=pairs,name='sigma_null',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0_errhi',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0_errlo',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius_errhi',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius_errlo',dtype='f4')
 
     for ic in range(n_pairs):
         shears_info = tabletools.loadPickle(filename_shears,pos=ic)
@@ -72,8 +76,8 @@ def add_model_selection():
         filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, ic, ic+1, name_data)
         filename_pickle_cons = '%s/results.prob.%04d.%04d.%s.pp2'  % ('results_const', ic, ic+1, name_data)
         try:
-            log_like = tabletools.loadPickle(filename_pickle,log=1)
-            log_like_const = tabletools.loadPickle(filename_pickle_cons,log=1)
+            log_like = tabletools.loadPickle(filename_pickle,log=0)
+            log_like_const = tabletools.loadPickle(filename_pickle_cons,log=0)
         except:
             log.debug('missing %s' % filename_pickle)
             continue
@@ -82,6 +86,10 @@ def add_model_selection():
         prob_like = np.exp(log_like - normalisation_const)
         prob_like_2D = np.sum(prob_like,axis=(2,3))
         log_prob_2D = np.log(prob_like_2D)
+        select= np.isinf(log_prob_2D) | np.isnan(log_prob_2D)
+        min_val = log_prob_2D[~select].min()
+        log_prob_2D[select] = min_val
+        n_halo_grid  = log_like.shape[2]*log_like.shape[3]
 
         grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
         grid_radius = grid_pickle['grid_radius'][:,:,0,0]
@@ -90,10 +98,11 @@ def add_model_selection():
         vec_kappa0 = grid_kappa0[:,0]
         vec_radius = grid_radius[0,:]
        
-        n_upsample = 50
+        n_upsample = 20
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
+        import scipy.interpolate
         func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
         log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
         # prob_2D_hires = np.exp(log_prob_2D_hires-log_prob_2D_hires.max())
@@ -111,19 +120,44 @@ def add_model_selection():
         prob_like_const = np.exp(log_like_const - normalisation_const)
         prob_like_const_1D = np.sum(prob_like_const,axis=(1,2))
         log_like_const_1D = np.log(prob_like_const_1D)
-        vec_kappa0_const = np.linspace(vec_kappa0_const.min(),vec_kappa0_const.max(),len(vec_kappa0_const)*n_upsample)
+        vec_kappa0_const_hires = np.linspace(vec_kappa0_const.min(),vec_kappa0_const.max(),len(vec_kappa0_const)*n_upsample)
         func_interp = scipy.interpolate.interp1d(np.linspace(0,1,len(prob_like_const_1D)),log_like_const_1D,'cubic')
         log_like_const_1D = func_interp(np.linspace(0,1,len(prob_like_const_1D)*n_upsample))
         # prob_like_const_1D = np.exp(log_like_const_1D-log_prob_2D_hires.max())
         prob_like_const_1D = np.exp(log_like_const_1D)
+        n_halo_grid_const  = log_like_const.shape[1]*log_like_const.shape[2]
 
-        max_radius_prior = 1.5
-        select = vec_radius_hires < max_radius_prior
-        prob_2D_use = prob_2D_hires[1:,select]
+        max_density_prior = 500
+        max_kappa0_prior = 0.7
+        max_radius_prior = 3.0
+        rho_crit = 2.77501358101e+11
+        int_DS = 1e14*(grid_kappa0_hires * ( grid_radius_hires * np.pi ) /2.) 
+        d_rs = (int_DS / rho_crit) 
+        # select = (d_rs < max_density_prior) * (grid_kappa0_hires>1e-2) * (grid_radius_hires < max_radius_prior)
+        select = (grid_kappa0_hires>1e-2) * (grid_radius_hires < max_radius_prior) * (grid_kappa0_hires < max_kappa0_prior)
+        prob_2D_use = prob_2D_hires[select]
+        # pl.figure()
+        # pl.contour(grid_kappa0_hires,grid_radius_hires,d_rs,levels=[max_density_prior,0])
+        # pl.show()
 
-        warnings.warn('f1=%2.4e f2=%2.4e f3=%2.4e' % ( prob_2D_use.size , prob_2D_hires[0,0].size , prob_like_const_1D.size ))
-        bf1 = (   np.sum(prob_2D_use) / prob_2D_use.size )  / ( prob_2D_hires[0,0]         / prob_2D_hires[0,0].size  )
-        bf2 = (   np.sum(prob_2D_use) / prob_2D_use.size )  / ( np.sum(prob_like_const_1D) / prob_like_const_1D.size    )
+        max_const_prior = 100
+        select = vec_kappa0_const_hires < max_const_prior
+        prob_like_const_1D_use = prob_like_const_1D[select]
+
+        d1=prob_2D_use.size  * n_halo_grid
+        d2=prob_2D_hires[0,0].size * n_halo_grid
+        d3=prob_like_const_1D_use.size * n_halo_grid_const
+        warnings.warn('f1=%d f2=%d f3=%d' % (d1,d2,d3)) 
+        bf1 = (   np.sum(prob_2D_use) / d1 )  / ( prob_2D_hires[0,0]             / d2  )
+        bf2 = (   np.sum(prob_2D_use) / d1 )  / ( np.sum(prob_like_const_1D_use) / d3    )
+        if np.isnan(bf1): 
+            print 'bf1 is nan'
+            bf1 = 0.
+            import pdb; pdb.set_trace()
+
+        if np.isnan(bf2): 
+            bf2 = 0.
+            print 'bf2 is nan'
 
         MLRT1 = maximum_likelihood_ratio_test(log_like[1:,0:5,:,:],log_like[0,0,:,:],2)
         MLRT2 = maximum_likelihood_ratio_test(log_like[1:,0:5,:,:],log_like_const,1)
@@ -132,7 +166,12 @@ def add_model_selection():
         pairs['BF2'][ic] = bf2
         pairs['MLRT1'][ic] = MLRT1
         pairs['MLRT2'][ic] = MLRT2
-        print '% 4d ih1=% 5d ih2=% 5d m200_h1=%2.2f m200_h2=%2.2f BF1=%2.3f \t BF2=%2.3f \t\tMLRT1=%2.3f\t\tMLRT2=%2.3f\t\tclass=%d' % (ic, pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],bf1,bf2,MLRT1,MLRT2,pairs['eyeball_class'][ic])
+
+        status_str='ok'
+        if ((pairs['BF1'][ic]>1) & (pairs['BF2'][ic]>1) & (pairs['eyeball_class'][ic] == 2)): status_str = '!! FP !!'
+        if (((pairs['BF1'][ic]<1) | (pairs['BF2'][ic]<1)) & (pairs['eyeball_class'][ic] == 1)): status_str = 'miss'
+
+        print '% 4d ih1=% 5d ih2=% 5d m200_h1=%2.2f m200_h2=%2.2f BF1=%12.3f \t BF2=%12.3f \t\tMLRT1=%12.3f\t\tMLRT2=%12.3f\t\tclass=%d %s' % (ic, pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],bf1,bf2,MLRT1,MLRT2,pairs['eyeball_class'][ic],status_str)
         # import pdb; pdb.set_trace()
 
         max_model = np.unravel_index(prob_2D_hires.argmax(), prob_2D_hires.shape)
@@ -140,17 +179,35 @@ def add_model_selection():
         ML_radius = grid_radius_hires[max_model]
         pairs['ML_kappa0'][ic] = ML_kappa0
         pairs['ML_radius'][ic] = ML_radius
+        import scipy.special
+        pairs['sigma_null'][ic] = scipy.special.erfinv(1.-MLRT1)*np.sqrt(2.)
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_kappa0_hires[:,max_model[1]],prob_2D_hires[:,max_model[1]])
+        pairs['ML_kappa0_errhi'][ic] =err_hi
+        pairs['ML_kappa0_errlo'][ic] =err_lo
+
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_radius_hires[max_model[0],:],prob_2D_hires[max_model[0],:])
+        pairs['ML_radius_errhi'][ic] =err_hi
+        pairs['ML_radius_errlo'][ic] =err_lo
 
 
-    pl.figure();pl.scatter(pairs['BF1'],pairs['eyeball_class']); pl.xlim([0,100]); 
-    pl.figure();pl.scatter(pairs['BF2'],pairs['eyeball_class']); pl.xlim([0,100]); 
-    pl.figure();pl.scatter(pairs['MLRT1'],pairs['eyeball_class']); pl.xlim([0,1]); 
-    pl.figure();pl.scatter(pairs['MLRT2'],pairs['eyeball_class']); pl.xlim([0,1]); 
-    pl.show()
+        # if ic == 73:
+        #     import pdb; pdb.set_trace()
+
+
+
+
+
+
+    # pl.figure();pl.scatter(pairs['BF1'],pairs['eyeball_class']); pl.xlim([0,100]); 
+    # pl.figure();pl.scatter(pairs['BF2'],pairs['eyeball_class']); pl.xlim([0,100]); 
+    # pl.figure();pl.scatter(pairs['MLRT1'],pairs['eyeball_class']); pl.xlim([0,1]); 
+    # pl.figure();pl.scatter(pairs['MLRT2'],pairs['eyeball_class']); pl.xlim([0,1]); 
+    # pl.show()
     tabletools.saveTable(filename_pairs,pairs)
 
     print 'MLRT n_clean '        , sum( (pairs['MLRT1']<0.2) & (pairs['MLRT2']<0.2) & (pairs['eyeball_class']==1))
     print 'MLRT n_contaminating ', sum( (pairs['MLRT1']<0.2) & (pairs['MLRT2']<0.2) & (pairs['eyeball_class']!=1))
+    print 'BF missed '         ,   sum( ((pairs['BF1']<1) | (pairs['BF2']<1)) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==1) )  )
     print 'BF n_clean '        ,   sum( (pairs['BF1']>1) & (pairs['BF2']>1) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==3) )  )
     print 'BF n_contaminating ',   sum( (pairs['BF1']>1) & (pairs['BF2']>1) & ( (pairs['eyeball_class']==2) | (pairs['eyeball_class']==0) )  )
 
@@ -266,7 +323,8 @@ def figure_fields_cfhtlens():
             pairs = tabletools.appendColumn(rec=pairs,arr=halo1['m200'],name='m200_h1_fit')
             pairs = tabletools.appendColumn(rec=pairs,arr=halo2['m200'],name='m200_h2_fit')
             
-    select = (pairs['BF1']>1) & (pairs['BF2']>1)
+    select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
+    # select = pairs['m200_h1_fit'] > 0
 
     pairs=pairs[select]
     halo1=halo1[select]
@@ -709,7 +767,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     import scipy.interpolate
     n_per_file = 1
     id_file_first = 0
-    id_file_last = max(ids)
+    id_file_last = max(ids)+1
     n_params = 4
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
 
@@ -748,11 +806,11 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             try:
                 results_pickle = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.debug('missing %s' % filename_pickle)
+                log.info('missing %s' % filename_pickle)
                 n_missing +=1
                 continue
             if len(results_pickle) == 0:
-                log.debug('empty %s' % filename_pickle)
+                log.info('empty %s' % filename_pickle)
                 n_missing +=1
                 continue
             if len(results_pickle) == 3:
@@ -793,6 +851,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 pdf_prob = np.exp(log_prob-log_prob.max()) 
                 pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                 log_prob_2D = np.log(pdf_prob_2D)
+                if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                    log.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                    log.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                    min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                    log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                    log_prob_2D[np.isnan(log_prob_2D)] = min_element
+
 
 
             logprob_kappa0_radius += log_prob_2D
@@ -805,6 +870,9 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
                 func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
                 log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                if np.any(np.isnan(log_prob_2D_hires)):
+                    print 'nans in log_prob_2D_hires'
+                    import pdb; pdb.set_trace()
                 # d1 =vec_kappa0[1]-vec_kappa0[0]
                 # d2 =vec_radius[1]-vec_radius[0]
                 # x=grid_kappa0_hires.flatten()/d1
@@ -1142,27 +1210,45 @@ def plot_single_pairs():
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
-    for ids in range(n_pairs):
+    if (args.n_results_files == 1) & (args.first_result_file==0):
+        id_file_first = args.first_result_file
+        id_file_last = n_pairs
+    else:
+        id_file_first = args.first_result_file
+        id_file_last = id_file_first + args.n_results_files
+
+    for ids in range(id_file_first,id_file_last):
 
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D([ids])
-        
-        title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['bayes_factor'][ids])
-        print title_str
+        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
+
+
+        title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF1=%2.4f BF2=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['BF1'][ids], pairs['BF2'][ids])
+        log.info(title_str)
+    
+        rho_crit = 2.77501358101e+11
+        int_DS = 1e14*(grid_dict['grid_kappa0'] * ( grid_dict['grid_radius'] * np.pi ) /2.) 
+        d_rs = int_DS / rho_crit
             
         xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
         ylabel=r'radius $\mathrm{Mpc}/h$'
 
-        pl.figure()
+        pl.figure(figsize=(10,8))
         pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
-        pl.colorbar()
+        cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
+        # pl.colorbar()
+        # pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],d_rs,levels=[500,200,100,50,0])
+
         pl.xlabel(xlabel)
         pl.ylabel(ylabel)
         pl.title(title_str)
         pl.axis('tight')
 
+
         filename_fig='figs/pair.%04d.kappa0-radius.png' % ids
         pl.savefig(filename_fig)
         log.info('saved %s',filename_fig)
+        # pl.show()
         pl.close()
 
 def plot_single_pairs_const():
@@ -1250,7 +1336,7 @@ def plotdata_all():
     # pairs_prune = tabletools.loadTable(filename_prune)
     # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
-    classification = np.loadtxt('classification.txt',dtype='i4')
+    # classification = np.loadtxt('classification.txt',dtype='i4')
     # mass_prior= (halo1['m200']+halo2['m200'])/2.
     # mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     # mass= halo1['m200']
@@ -1690,12 +1776,17 @@ def remove_manually():
     filename_pairs = config['filename_pairs']
     pairs = tabletools.loadTable(filename_pairs)
 
-    pairs = tabletools.ensureColumn(rec=pairs,dtype='i4',name='manual_remove')
-    pairs['manual_remove'][78]=1
-    pairs['manual_remove'][238]=1
-    pairs['manual_remove'][135]=1
+    pairs = tabletools.ensureColumn(rec=pairs,arr=np.zeros(len(pairs)),dtype='i4',name='manual_remove')
+    remove_list = [105,250]
+    remove_list2 = [46,221,37,82,127]
+    pairs['manual_remove'][remove_list]=2
+    pairs['manual_remove'][remove_list2]=1
 
+
+    print 'removed: ', remove_list , remove_list2
     tabletools.saveTable(filename_pairs,pairs)
+
+
 
 def snr_analysis():
 
