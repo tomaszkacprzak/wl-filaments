@@ -183,8 +183,10 @@ def select_halos(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens
 def select_halos_all(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
 
     halocat = tabletools.loadTable(config['filename_allhalos'])
-    select = halocat['m200_fit'] > 13.0
-    halocat = halocat[select]
+    # select on M
+    select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on SNR number of halos: %d' % len(halocat))
 
     if apply_graph:
         import graphstools
@@ -315,9 +317,9 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     logger.info('selected on Z number of halos: %d' % len(halocat))
 
     # select on M
-    # select = (halocat['snr'] > range_M[0]) * (halocat['snr'] < range_M[1])
-    # halocat=halocat[select]
-    # logger.info('selected on SNR number of halos: %d' % len(halocat))
+    select = (halocat['snr'] > range_M[0]) * (halocat['snr'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on SNR number of halos: %d' % len(halocat))
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')

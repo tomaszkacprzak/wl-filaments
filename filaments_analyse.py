@@ -323,9 +323,9 @@ def figure_fields_cfhtlens():
             pairs = tabletools.appendColumn(rec=pairs,arr=halo1['m200'],name='m200_h1_fit')
             pairs = tabletools.appendColumn(rec=pairs,arr=halo2['m200'],name='m200_h2_fit')
             
-    select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
-    # select = pairs['m200_h1_fit'] > 0
-
+    # select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
+    select = pairs['m200_h1_fit'] >= 0
+    # select = [5/8]
     pairs=pairs[select]
     halo1=halo1[select]
     halo2=halo2[select]
@@ -357,7 +357,7 @@ def figure_fields_cfhtlens():
     maxz=0.8
 
     ax1.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
-    ax1.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
+    # ax1.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s', vmin=minz, vmax=maxz)
     ax1.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
     ax1.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
     for i in range(len(pairs)): 
@@ -388,7 +388,7 @@ def figure_fields_cfhtlens():
     ax1.set_ylim(box_w1[2],box_w1[3])
 
     ax2.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
-    ax2.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
+    # ax2.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s',vmin=minz, vmax=maxz)
     ax2.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
     ax2.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
     for i in range(len(pairs)): 
@@ -418,7 +418,7 @@ def figure_fields_cfhtlens():
     ax2.set_ylim(box_w2[2],box_w2[3])
 
     ax3.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
-    ax3.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
+    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s',vmin=minz, vmax=maxz)
     ax3.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
     ax3.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
     for i in range(len(pairs)): 
@@ -447,7 +447,7 @@ def figure_fields_cfhtlens():
     ax3.set_ylim(box_w3[2],box_w3[3])
     
     ax4.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d')
-    cax=ax4.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s')
+    # cax=ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s')
     ax4.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
     cax=ax4.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
     for i in range(len(pairs)): 
@@ -789,8 +789,10 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
     list_ids_used = []
 
+    normalisation_factor=-10000
+
     if hires:    
-        n_upsample = 20
+        n_upsample = 50
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
@@ -860,7 +862,8 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
 
 
-            logprob_kappa0_radius += log_prob_2D
+            logprob_kappa0_radius += log_prob_2D + log_prob.max()
+            # logprob_kappa0_radius += log_prob_2D
             plot_prob_all, _, _, _ = mathstools.get_normalisation(logprob_kappa0_radius)  
             plot_prob_this, _, _, _ = mathstools.get_normalisation(log_prob_2D)   
 
@@ -1201,6 +1204,10 @@ def plot_single_pairs():
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
+    pairs = tabletools.ensureColumn(rec=pairs,name='BF1')
+    pairs = tabletools.ensureColumn(rec=pairs,name='BF2')
+    pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class')
+
     if 'cfhtlens' in filename_pairs:
         bins_snr_edges = [5,20]
         mass_param_name = 'snr'
@@ -1220,7 +1227,7 @@ def plot_single_pairs():
     for ids in range(id_file_first,id_file_last):
 
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D([ids])
-        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
+        # contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
 
 
         title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF1=%2.4f BF2=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['BF1'][ids], pairs['BF2'][ids])
@@ -1235,7 +1242,7 @@ def plot_single_pairs():
 
         pl.figure(figsize=(10,8))
         pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
-        cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
+        # cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
         # pl.colorbar()
         # pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],d_rs,levels=[500,200,100,50,0])
 
@@ -1361,7 +1368,9 @@ def plotdata_all():
 
     # select = (classification[:,1] == 1) #| (classification[:,1] == 3) 
     # select = (pairs['bayes_factor'] > 20) & (pairs['eyeball_class'] <2)
-    select = (pairs['BF1']>1) & (pairs['BF2']>1)
+    # select = (pairs['BF1']>1) & (pairs['BF2']>1)
+    # select = pairs['BF1']>-1
+    select = (pairs['R_pair'] < 20) & (pairs['m200_h1_fit'] > 13.7) & (pairs['m200_h2_fit'] > 13.7)
 
 
     # ids=np.arange(n_pairs)
@@ -1500,8 +1509,8 @@ def triangle_plots():
     n_used=0
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    # select = mass > 13.
-    select = pairs['eyeball_class'] == 3
+    select = mass > 13.
+    # select = pairs['eyeball_class'] == 3
 
     for ida in range(id_file_first,id_file_last):
 
