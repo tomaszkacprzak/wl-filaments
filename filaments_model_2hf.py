@@ -254,8 +254,8 @@ class modelfit():
         self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
         self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr
 
-        filament_u1_mpc = self.halo1_u_mpc - 0.3*self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + 0.3*self.nh2.R_200
+        filament_u1_mpc = self.halo1_u_mpc - 0.5*self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc + 0.5*self.nh2.R_200
 
         h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)

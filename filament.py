@@ -47,8 +47,9 @@ class filament:
         truncation_radius = truncation * radius_mpc
         r = np.abs(shear_v_mpc)
         # dens = kappa0 / (1. + (r / radius_mpc)**2 )
-        dens = (amplitude / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
-        dens[r>truncation_radius]=0.
+        dens = amplitude / (1. + (r/radius_mpc)**2) 
+        #dens = (amplitude / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
+        #dens[r>truncation_radius]=0.
         dens *=  self.scale_dens
 
         # # zero the filament outside halos
