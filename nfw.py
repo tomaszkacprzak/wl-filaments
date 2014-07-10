@@ -89,6 +89,7 @@ class NfwHalo:
         mod_gamma = np.zeros(x.shape);
 
 
+
         select = x < 1.
         kappa[select] =  2. * self.r_s * self.rho_s / Sigma_crit / (x[select]**2. -1.) * (1. - 2. / np.lib.scimath.sqrt(1. - x[select]**2) * np.arctanh(np.lib.scimath.sqrt( (1.-x[select]) / (1.+x[select]) )) )
         mod_gamma[select] = self.r_s * self.rho_s / Sigma_crit * ( 4./x[select]**2 * np.log(x[select]/2.) - 2./(x[select]**2-1) +  4. * np.arctanh(np.lib.scimath.sqrt((1.-x[select])/(1.+x[select]))) * (2. - 3.*x[select]**2) / ( x[select]**2 * np.lib.scimath.sqrt((1.-x[select]**2)**3)) )
@@ -106,7 +107,6 @@ class NfwHalo:
         mod_gamma[select] = (self.r_s * self.rho_s / Sigma_crit * ( 4./(x[select]**2) * np.log(x[select]/2.) - 2./(x[select]**2 - 1.) + 4.*np.arctanh(np.lib.scimath.sqrt( (1.-x[select])/(1.+x[select]))) * (2. - 3. * x[select]**2) / ( x[select]**2 * np.lib.scimath.power(1.-x[select]**2,1.5) ) ) )
         mod_gamma[select] = mod_gamma[select].real
      
-
         return (mod_gamma,kappa,Sigma_crit)
 
     def get_shears(self,theta_x,theta_y,z_source):
@@ -168,7 +168,14 @@ class NfwHalo:
 
     def get_shears_with_pz_fast(self,theta_x,theta_y , grid_z_centers , prob_z,  redshift_offset=0.2):
 
-        [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,None)
+        if self.z_source != None:
+
+            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,self.z_source)
+
+        else:
+
+            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,None)
+
 
         return h1g1, h1g2
 

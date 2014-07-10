@@ -248,8 +248,8 @@ class modelfit():
         else:   # standard model
             filament_kappa0 = params[0]
             filament_radius = params[1]
-            halo2_M200 = 10.**params[3]
-            halo1_M200 = 10.**params[2]
+            halo2_M200 = params[3]
+            halo1_M200 = params[2]
 
 
         self.nh1.M_200= halo1_M200

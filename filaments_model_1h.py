@@ -134,11 +134,6 @@ class modelfit():
         pl.colorbar()
         pl.axis('equal')
         
-    def plot_model(self,p):
-
-        model_g1 , model_g2, limit_mask = self.draw_model(p)
-        self.plot_residual(model_g1 , model_g2, limit_mask)        
-
         
     def get_concentr(self,M,z):
 
@@ -156,7 +151,7 @@ class modelfit():
 
         self.n_model_evals +=1
         pair_z = np.mean([self.halo_z])
-        halo_M200 = 10.**params[0]
+        halo_M200 = params[0]
 
         self.nh.M_200= halo_M200
         self.nh.concentr = self.get_concentr(halo_M200,self.halo_z)

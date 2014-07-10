@@ -14,7 +14,7 @@ class cosmoparams:
         self.Omega_Lambda = 0.729
         self.w = -1.
         self.Omega_k = 0.
-        self.h = 0.7
+        self.h = 1
         self.H_0 = 100. # 
         self.DH= 3000.       # Mpc
         self.G = 6.673e-11; # SI units m3 kg-1 s-2
@@ -92,8 +92,8 @@ def get_ang_diam_dist(z1, z2=0.):
     DM2 = cosmolopy.distance.comoving_distance_transverse(new_z2,**cosmo)
     ang_diam_dist =  (DM1-DM2)/(1.+new_z1)
 
-    if any(ang_diam_dist  < 0):
-        import pdb; pdb.set_trace()
+    # if any(ang_diam_dist  < 0):
+    #     import pdb; pdb.set_trace()
 
 
     return ang_diam_dist
