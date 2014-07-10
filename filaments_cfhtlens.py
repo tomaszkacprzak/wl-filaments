@@ -42,8 +42,9 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
     if cfhtlens_shear_catalog == None:
-        filename_cfhtlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
-        # filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+        # filename_cfhtlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
+        filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_ecorr_pass2.fits'
+
         cfhtlens_shear_catalog = tabletools.loadTable(filename_cfhtlens_shears)
         if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
             select = cfhtlens_shear_catalog['star_flag'] == 0
@@ -57,8 +58,12 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
             logger.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
 
     # correcting additive systematics
-    shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , -(cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2'])
-    shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ra'] , cfhtlens_shear_catalog['dec'] ,  cfhtlens_shear_catalog['z']
+    if 'e1corr' in cfhtlens_shear_catalog.dtype.names:       
+        shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1corr'] , -cfhtlens_shear_catalog['e2corr']
+        shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ALPHA_J2000'] , cfhtlens_shear_catalog['DELTA_J2000'] ,  cfhtlens_shear_catalog['Z_B']
+    else:
+        shear_g1 , shear_g2 = cfhtlens_shear_catalog['e1'] , -(cfhtlens_shear_catalog['e2']  - cfhtlens_shear_catalog['c2'])
+        shear_ra_deg , shear_de_deg , shear_z = cfhtlens_shear_catalog['ra'] , cfhtlens_shear_catalog['dec'] ,  cfhtlens_shear_catalog['z']
 
     halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
     halo2_ra_deg , halo2_de_deg = halo2['ra'],halo2['dec']
@@ -183,8 +188,10 @@ def select_halos(range_z=[0.1,0.6],range_M=[2,10],filename_halos='halos_cfhtlens
 def select_halos_all(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
 
     halocat = tabletools.loadTable(config['filename_allhalos'])
-    select = halocat['m200_fit'] > 13.0
-    halocat = halocat[select]
+    # select on M
+    select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on SNR number of halos: %d' % len(halocat))
 
     if apply_graph:
         import graphstools
@@ -195,6 +202,93 @@ def select_halos_all(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
         
     tabletools.saveTable(filename_halos,halocat)
     logger.info('wrote %s' % filename_halos)
+
+def select_halos_random(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
+
+    logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
+
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLenS_BOSSDR10-LRGs.fits'
+    halocat = tabletools.loadTable(filename_halos_cfhtlens)
+
+    sample = np.random.uniform(0,len(halocat),config['n_random_pairs'])
+    sample = sample.astype('i4')
+
+    halocat = halocat[sample]
+
+    # select on proximity to CFHTLens
+    logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
+    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+    shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
+    if 'ALPHA_J2000' in shearcat.dtype.names:
+        cfhtlens_coords = np.concatenate([shearcat['ALPHA_J2000'][:,None],shearcat['DELTA_J2000'][:,None]],axis=1)
+    elif 'ra' in shearcat.dtype.names:
+        cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
+
+    perm = np.random.permutation(len(shearcat))[:config['n_random_pairs']]
+    ra = shearcat['ALPHA_J2000'][perm]
+    dec = shearcat['DELTA_J2000'][perm]
+
+    halocat['ra'] = ra+np.random.randn(len(ra))*0.001
+    halocat['dec'] = dec+np.random.randn(len(ra))*0.001
+    
+    logger.info('getting BT')
+    BT = BallTree(cfhtlens_coords, leaf_size=5)
+    theta_add = 0
+    boss_coords1 = np.concatenate([ halocat['ra'][:,None]           , halocat['dec'][:,None]           ] , axis=1)
+    boss_coords2 = np.concatenate([ halocat['ra'][:,None]-theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
+    boss_coords3 = np.concatenate([ halocat['ra'][:,None]+theta_add , halocat['dec'][:,None]-theta_add ] , axis=1)
+    boss_coords4 = np.concatenate([ halocat['ra'][:,None]-theta_add , halocat['dec'][:,None]+theta_add ] , axis=1)
+    boss_coords5 = np.concatenate([ halocat['ra'][:,None]+theta_add , halocat['dec'][:,None]+theta_add ] , axis=1)
+    n_connections=1
+    logger.info('getting neighbours')
+    bt1_dx,bt_id = BT.query(boss_coords1,k=n_connections)
+    bt2_dx,bt_id = BT.query(boss_coords2,k=n_connections)
+    bt3_dx,bt_id = BT.query(boss_coords3,k=n_connections)
+    bt4_dx,bt_id = BT.query(boss_coords4,k=n_connections)
+    bt5_dx,bt_id = BT.query(boss_coords5,k=n_connections)
+    limit_dx = 0.1
+    select = (bt1_dx < limit_dx)*(bt2_dx < limit_dx)*(bt3_dx < limit_dx)*(bt4_dx < limit_dx)*(bt5_dx < limit_dx)
+    select = select.flatten()
+    halocat=halocat[select]
+
+    perm3 = np.random.permutation(len(shearcat))[:20000]
+    pl.figure(figsize=(50,30))
+    pl.scatter(halocat['ra']        , halocat['dec']        , 70 , marker='s', c='g' )
+    if 'ALPHA_J2000' in shearcat.dtype.names: 
+        pl.scatter(shearcat['ALPHA_J2000'][perm3],shearcat['DELTA_J2000'][perm3] , 0.1  , marker='o', c='b')
+    elif 'ra' in shearcat.dtype.names: 
+        pl.scatter(shearcat['ra'][perm3],shearcat['dec'][perm3] , 0.1  , marker='o', c='b')
+    filename_fig = 'figs/scatter.lrgs_in_cfhtlens.png'
+    pl.savefig(filename_fig)
+    logger.info('saved %s' % filename_fig)
+    pl.close()
+
+    logger.info('selected on proximity to CFHTLens, remaining number of halos: %d' % len(halocat))
+
+    index=range(0,len(halocat))
+    halocat = tabletools.ensureColumn(rec=halocat, name='id', arr=index, dtype='i8')
+    halocat = tabletools.ensureColumn(rec=halocat, name='m200' )
+    halocat = tabletools.ensureColumn(rec=halocat, name='snr'  )
+    fix_case( halocat )
+    # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
+
+    if apply_graph:
+        import graphstools
+        X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+        select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'],min_z=config['graph_min_dist_z'])
+        halocat = halocat[select]
+        logger.info('number of halos after graph selection %d', len(halocat))
+        
+    tabletools.saveTable(filename_halos,halocat)
+    logger.info('wrote %s' % filename_halos)
+
+    pl.figure()
+    pl.hist(halocat['z'],histtype='step',bins=200)
+  
+    filename_fig = 'figs/hist.cfhtlens.lrgs_redshifts.png'
+    pl.savefig(filename_fig)
+    logger.info('saved %s' , filename_fig)
+
 
 
 def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtlens.fits',apply_graph=True):
@@ -221,9 +315,9 @@ def select_halos_LRG(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfhtle
     logger.info('selected on Z number of halos: %d' % len(halocat))
 
     # select on M
-    # select = (halocat['snr'] > range_M[0]) * (halocat['snr'] < range_M[1])
-    # halocat=halocat[select]
-    # logger.info('selected on SNR number of halos: %d' % len(halocat))
+    select = (halocat['snr'] > range_M[0]) * (halocat['snr'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on SNR number of halos: %d' % len(halocat))
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')

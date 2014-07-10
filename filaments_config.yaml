@@ -32,6 +32,7 @@ kappa0 : { box: { min : 0       , max : 0.25} , n_grid : 2 }
 radius : { box: { min : 0.25    , max : 4  } , n_grid : 2 }
 h1M200 : { box: { min : 13      , max : 16 } , n_grid : 30 }
 h2M200 : { box: { min : 13      , max : 16 } , n_grid : 30 }
+kappa_is_K : False # option if to relate kappa0 to M_tot=(M200_halo1 + M200_halo2) via kappa0=K*m_tot/1e14
 
 # optimization properties
 optimization_mode : mcmc # or gridsearch

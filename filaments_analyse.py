@@ -1,7 +1,7 @@
 import os
 import matplotlib as mpl
 if 'DISPLAY' not in os.environ:
-    mpl.use('agg')
+    mpl.use('tkagg')
 import os, yaml, argparse, sys, logging , pyfits, emcee, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats
 import numpy as np
 import matplotlib.pyplot as pl
@@ -16,6 +16,8 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
+import warnings
+warnings.simplefilter("once")
 
 
 log = logging.getLogger("filam..fit") 
@@ -33,6 +35,200 @@ prob_z = None
 dtype_stats = {'names' : ['id','kappa0_signif', 'kappa0_map', 'kappa0_err_hi', 'kappa0_err_lo', 'radius_map',    'radius_err_hi', 'radius_err_lo', 'chi2_red_null', 'chi2_red_max',  'chi2_red_D', 'chi2_red_LRT' , 'chi2_null', 'chi2_max', 'chi2_D' , 'chi2_LRT' ,'sigma_g' ] , 
         'formats' : ['i8'] + ['f8']*16 }
 
+
+
+def add_model_selection():
+
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+    filename_pairs = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+    filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
+    grid_pickle = tabletools.loadPickle(filename_grid)
+    filename_grid_const = 'results_const/results.grid.%s.pp2' % (name_data)
+    grid_pickle_const = tabletools.loadPickle(filename_grid_const)
+
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+    if os.path.isfile('classification.txt'):
+        classification = np.loadtxt('classification.txt',dtype='i4')[:,1]
+        pairs = tabletools.ensureColumn(rec=pairs,arr=classification,name='eyeball_class',dtype='i4')
+
+    pairs = tabletools.ensureColumn(rec=pairs,name='BF1',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='BF2',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='MLRT1',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='MLRT2',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='sigma_null',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0_errhi',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0_errlo',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius_errhi',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius_errlo',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class',dtype='f4')
+
+    for ic in range(n_pairs):
+
+        filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, ic, ic+1, name_data)
+        filename_pickle_cons = '%s/results.prob.%04d.%04d.%s.pp2'  % ('results_const', ic, ic+1, name_data)
+        try:
+            log_like = tabletools.loadPickle(filename_pickle,log=0)
+            log_like_const = tabletools.loadPickle(filename_pickle_cons,log=0)
+        except:
+            log.debug('missing %s' % filename_pickle)
+            continue
+
+        normalisation_const = log_like.max()
+        prob_like = np.exp(log_like - normalisation_const)
+        prob_like_2D = np.sum(prob_like,axis=(2,3))
+        log_prob_2D = np.log(prob_like_2D)
+        select= np.isinf(log_prob_2D) | np.isnan(log_prob_2D)
+        min_val = log_prob_2D[~select].min()
+        log_prob_2D[select] = min_val
+        n_halo_grid  = log_like.shape[2]*log_like.shape[3]
+
+        grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
+        grid_radius = grid_pickle['grid_radius'][:,:,0,0]
+        vec_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
+        vec_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
+        vec_kappa0 = grid_kappa0[:,0]
+        vec_radius = grid_radius[0,:]
+       
+        n_upsample = 20
+        vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
+        vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
+        grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
+        import scipy.interpolate
+        func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
+        log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+        # prob_2D_hires = np.exp(log_prob_2D_hires-log_prob_2D_hires.max())
+        prob_2D_hires = np.exp(log_prob_2D_hires)
+
+        # pl.figure()
+        # pl.pcolormesh(grid_kappa0_hires,grid_radius_hires,np.exp(log_prob_2D_hires-log_prob_2D_hires.max()))
+        # pl.show()
+
+        # constant model
+        vec_kappa0_const = grid_pickle_const['grid_kappa0'][:,0,0,0] 
+        vec_h1M200_const = grid_pickle_const['grid_h1M200'][0,0,:,0] 
+        vec_h2M200_const = grid_pickle_const['grid_h2M200'][0,0,0,:] 
+        log_like_const = np.squeeze(log_like_const,1)
+        prob_like_const = np.exp(log_like_const - normalisation_const)
+        prob_like_const_1D = np.sum(prob_like_const,axis=(1,2))
+        log_like_const_1D = np.log(prob_like_const_1D)
+        log_like_const_1D[np.isinf(log_like_const_1D)]=log_like_const_1D[~np.isinf(log_like_const_1D)].min()
+        vec_kappa0_const_hires = np.linspace(vec_kappa0_const.min(),vec_kappa0_const.max(),len(vec_kappa0_const)*n_upsample)
+        func_interp = scipy.interpolate.interp1d(np.linspace(0,1,len(prob_like_const_1D)),log_like_const_1D,'cubic')
+        log_like_const_1D = func_interp(np.linspace(0,1,len(prob_like_const_1D)*n_upsample))
+        # prob_like_const_1D = np.exp(log_like_const_1D-log_prob_2D_hires.max())
+        prob_like_const_1D = np.exp(log_like_const_1D)
+        n_halo_grid_const  = log_like_const.shape[1]*log_like_const.shape[2]
+
+        max_density_prior = 500
+        max_kappa0_prior = 0.7
+        max_radius_prior = 3.0
+        rho_crit = 2.77501358101e+11
+        int_DS = 1e14*(grid_kappa0_hires * ( grid_radius_hires * np.pi ) /2.) 
+        d_rs = (int_DS / rho_crit) 
+        # select = (d_rs < max_density_prior) * (grid_kappa0_hires>1e-2) * (grid_radius_hires < max_radius_prior)
+        select = (grid_kappa0_hires>1e-2) * (grid_radius_hires < max_radius_prior) * (grid_kappa0_hires < max_kappa0_prior)
+        prob_2D_use = prob_2D_hires[select]
+        # pl.figure()
+        # pl.contour(grid_kappa0_hires,grid_radius_hires,d_rs,levels=[max_density_prior,0])
+        # pl.show()
+
+        max_const_prior = 100
+        select = vec_kappa0_const_hires < max_const_prior
+        prob_like_const_1D_use = prob_like_const_1D[select]
+
+        d1=prob_2D_use.size  * n_halo_grid
+        d2=prob_2D_hires[0,0].size * n_halo_grid
+        d3=prob_like_const_1D_use.size * n_halo_grid_const
+        warnings.warn('f1=%d f2=%d f3=%d' % (d1,d2,d3)) 
+        bf1 = (   np.sum(prob_2D_use) / d1 )  / ( prob_2D_hires[0,0]             / d2  )
+        bf2 = (   np.sum(prob_2D_use) / d1 )  / ( np.sum(prob_like_const_1D_use) / d3    )
+        if np.isnan(bf1): 
+            print 'bf1 is nan'
+            bf1 = 0.
+
+        if np.isnan(bf2): 
+            bf2 = 0.
+            print 'bf2 is nan'
+
+        MLRT1 = maximum_likelihood_ratio_test(log_like[1:,0:5,:,:],log_like[0,0,:,:],2)
+        MLRT2 = maximum_likelihood_ratio_test(log_like[1:,0:5,:,:],log_like_const,1)
+
+        pairs['BF1'][ic] = bf1
+        pairs['BF2'][ic] = bf2
+        pairs['MLRT1'][ic] = MLRT1
+        pairs['MLRT2'][ic] = MLRT2
+
+        status_str='ok'
+        if ((pairs['BF1'][ic]>1) & (pairs['BF2'][ic]>1) & (pairs['eyeball_class'][ic] == 2)): status_str = '!! FP !!'
+        if (((pairs['BF1'][ic]<1) | (pairs['BF2'][ic]<1)) & (pairs['eyeball_class'][ic] == 1)): status_str = 'miss'
+
+        print '% 4d ih1=% 5d ih2=% 5d m200_h1=%2.2f m200_h2=%2.2f BF1=%12.3f \t BF2=%12.3f \t\tMLRT1=%12.3f\t\tMLRT2=%12.3f\t\tclass=%d %s' % (ic, pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],bf1,bf2,MLRT1,MLRT2,pairs['eyeball_class'][ic],status_str)
+        # import pdb; pdb.set_trace()
+
+        max_model = np.unravel_index(prob_2D_hires.argmax(), prob_2D_hires.shape)
+        ML_kappa0 = grid_kappa0_hires[max_model]
+        ML_radius = grid_radius_hires[max_model]
+        pairs['ML_kappa0'][ic] = ML_kappa0
+        pairs['ML_radius'][ic] = ML_radius
+        import scipy.special
+        pairs['sigma_null'][ic] = scipy.special.erfinv(1.-MLRT1)*np.sqrt(2.)
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_kappa0_hires[:,max_model[1]],prob_2D_hires[:,max_model[1]])
+        pairs['ML_kappa0_errhi'][ic] =err_hi
+        pairs['ML_kappa0_errlo'][ic] =err_lo
+
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_radius_hires[max_model[0],:],prob_2D_hires[max_model[0],:])
+        pairs['ML_radius_errhi'][ic] =err_hi
+        pairs['ML_radius_errlo'][ic] =err_lo
+
+
+        # if ic == 73:
+        #     import pdb; pdb.set_trace()
+
+
+
+
+
+
+    # pl.figure();pl.scatter(pairs['BF1'],pairs['eyeball_class']); pl.xlim([0,100]); 
+    # pl.figure();pl.scatter(pairs['BF2'],pairs['eyeball_class']); pl.xlim([0,100]); 
+    # pl.figure();pl.scatter(pairs['MLRT1'],pairs['eyeball_class']); pl.xlim([0,1]); 
+    # pl.figure();pl.scatter(pairs['MLRT2'],pairs['eyeball_class']); pl.xlim([0,1]); 
+    # pl.show()
+    tabletools.saveTable(filename_pairs,pairs)
+
+    print 'MLRT n_clean '        , sum( (pairs['MLRT1']<0.2) & (pairs['MLRT2']<0.2) & (pairs['eyeball_class']==1))
+    print 'MLRT n_contaminating ', sum( (pairs['MLRT1']<0.2) & (pairs['MLRT2']<0.2) & (pairs['eyeball_class']!=1))
+    print 'BF missed '         ,   sum( ((pairs['BF1']<1) | (pairs['BF2']<1)) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==1) )  )
+    print 'BF n_clean '        ,   sum( (pairs['BF1']>1) & (pairs['BF2']>1) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==3) )  )
+    print 'BF n_contaminating ',   sum( (pairs['BF1']>1) & (pairs['BF2']>1) & ( (pairs['eyeball_class']==2) | (pairs['eyeball_class']==0) )  )
+
+    import pdb; pdb.set_trace()
+
+
+
+
+def maximum_likelihood_ratio_test(log_like_model,log_like_null,ndof):
+
+    max_null = np.unravel_index(log_like_null.argmax(), log_like_null.shape)
+    max_model = np.unravel_index(log_like_model.argmax(), log_like_model.shape)
+    chi2_null = log_like_null[max_null]
+    chi2_model = log_like_model[max_model]
+    D = 2*(chi2_model - chi2_null)
+    ndof=2
+    LRT_pval = 1. - scipy.stats.chi2.cdf(D, ndof)
+    # print 'chi2_max_null=%6.2f chi2_max_model=%6.2f chi2_red_null=%6.6f chi2_red_model=%6.6f chi2_D_red=%6.2e chi2_LRT_red=%6.2e max_model=%s max_null=%s' % (chi2_max_null, chi2_max_model, chi2_red_null , chi2_red_model, chi2_D_red, chi2_LRT_red, str(max_model), str(max_null))
+
+    return LRT_pval
+
 def figure_fields():
 
     box_w1 = [29.5,39.5,-12,-3]
@@ -43,9 +239,11 @@ def figure_fields():
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
+    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
     pairs = tabletools.loadTable(config['filename_pairs'])
     halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
+    cluscat = tabletools.loadTable(filename_cluscat)
 
     if 'm200_h1_fit' not in pairs.dtype.names:
         if 'm200' in halos.dtype.names:
@@ -60,7 +258,7 @@ def figure_fields():
     halo1=halo1[select]
     halo2=halo2[select]
 
-    print 'using %d pairs' % len(halo2)
+    # print 'using %d pairs' % len(halo2)
 
     from mpl_toolkits.basemap import Basemap
     import matplotlib.pyplot as pl
@@ -109,23 +307,29 @@ def figure_fields_cfhtlens():
 
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
+    filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
     halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
+    cluscat = tabletools.loadTable(filename_cluscat)
+    fieldscat = tabletools.loadTable(filename_fields)
+    select = (cluscat['m200'] > 14.) * (cluscat['z'] < 2)
+    cluscat = cluscat[select]
 
     if 'm200_h1_fit' not in pairs.dtype.names:
         if 'm200' in halos.dtype.names:
             pairs = tabletools.appendColumn(rec=pairs,arr=halo1['m200'],name='m200_h1_fit')
             pairs = tabletools.appendColumn(rec=pairs,arr=halo2['m200'],name='m200_h2_fit')
             
-    mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    # mass= halo1['m200']
-    select = (mass < 16.5) * (10.**mass > 6e13)
-
+    # select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
+    select = pairs['m200_h1_fit'] >= 0
+    # select = [5/8]
     pairs=pairs[select]
     halo1=halo1[select]
     halo2=halo2[select]
+    n_pairs_used = len(pairs)
 
     print 'using %d pairs' % len(halo2)
 
@@ -149,58 +353,135 @@ def figure_fields_cfhtlens():
     fig.text(0.5, 0.04, 'RA', ha='center', va='center')
     fig.text(0.06, 0.5, 'Dec', ha='center', va='center', rotation='vertical')
 
-    # pl.subplot(2,2,1)
-    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax1.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
-    ax1.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
-    ax1.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
-    for i in range(len(pairs)): ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    minz=0.2
+    maxz=0.8
+
+    ax1.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
+    # ax1.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s', vmin=minz, vmax=maxz)
+    ax1.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+    ax1.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+    for i in range(len(pairs)): 
+        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
+        ax1.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
+        ax1.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    for f in range(len(fieldscat)):
+        x1=fieldscat[f]['ra_min']
+        x2=fieldscat[f]['de_min']
+        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
+        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
+        if fieldscat[f]['bad']==1:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
+        else:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
+        ax1.add_patch(rect)
+    for h in range(len(cluscat)):
+        r200_mpc = cluscat['r200'][h]
+        z = cluscat['z'][h]
+        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+        ax1.add_artist(circle)
+
+
+
     ax1.set_xlim(box_w1[0],box_w1[1])
     ax1.set_ylim(box_w1[2],box_w1[3])
-    # ax1.set_xlabel('RA')
-    # ax1.set_ylabel('Dec')
 
-    # pl.subplot(2,2,2)
-    # pl.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax2.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    ax2.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
-    ax2.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
-    for i in range(len(pairs)): ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    ax2.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
+    # ax2.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s',vmin=minz, vmax=maxz)
+    ax2.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
+    ax2.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
+    for i in range(len(pairs)): 
+        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
+        ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
+        ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    for f in range(len(fieldscat)):
+        x1=fieldscat[f]['ra_min']
+        x2=fieldscat[f]['de_min']
+        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
+        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
+        if fieldscat[f]['bad']==1:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
+        else:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
+        ax2.add_patch(rect)
+    for h in range(len(cluscat)):
+        r200_mpc = cluscat['r200'][h]
+        z = cluscat['z'][h]
+        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+        ax2.add_artist(circle)
+
+
     ax2.set_xlim(box_w2[0],box_w2[1])
     ax2.set_ylim(box_w2[2],box_w2[3])
-    # ax2.set_xlabel('RA')
-    # ax2.set_ylabel('Dec')
 
-    # ax3.subplot(2,2,3)
-    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    ax3.scatter(halos['ra'],halos['dec'],s=2,c='g')
-    ax3.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
-    ax3.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
-    for i in range(len(pairs)): ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+    ax3.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
+    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s',vmin=minz, vmax=maxz)
+    ax3.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
+    ax3.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
+    for i in range(len(pairs)): 
+        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax3.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
+        ax3.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
+        ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    for f in range(len(fieldscat)):
+        x1=fieldscat[f]['ra_min']
+        x2=fieldscat[f]['de_min']
+        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
+        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
+        if fieldscat[f]['bad']==1:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
+        else:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
+        ax3.add_patch(rect)
+    for h in range(len(cluscat)):
+        r200_mpc = cluscat['r200'][h]
+        z = cluscat['z'][h]
+        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+        ax3.add_artist(circle)
+
     ax3.set_xlim(box_w3[0],box_w3[1])
     ax3.set_ylim(box_w3[2],box_w3[3])
-    # ax3.set_xlabel('RA')
-    # ax3.set_ylabel('Dec')
-    # pl.show()
+    
+    ax4.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d')
+    # cax=ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s')
+    ax4.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
+    cax=ax4.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
+    for i in range(len(pairs)): 
+        ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax4.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
+        ax4.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
+        ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    for f in range(len(fieldscat)):
+        x1=fieldscat[f]['ra_min']
+        x2=fieldscat[f]['de_min']
+        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
+        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
+        if fieldscat[f]['bad']==1:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
+        else:
+            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
+        ax4.add_patch(rect)
+    for h in range(len(cluscat)):
+        r200_mpc = cluscat['r200'][h]
+        z = cluscat['z'][h]
+        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+        ax4.add_artist(circle)
 
-    # ax4.subplot(2,2,4)
-    # ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=1,c='r')
-    cax=ax4.scatter(halos['ra'],halos['dec'],s=2,c=halos['z'])
-    ax4.scatter(pairs['ra1'],pairs['dec1'], 50 , c=halo1['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #
-    ax4.scatter(pairs['ra2'],pairs['dec2'], 50 , c=halo2['z'] , marker = 'o' , cmap=matplotlib.cm.jet) #      
-    for i in range(len(pairs)): ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
     ax4.set_xlim(box_w4[0],box_w4[1])
     ax4.set_ylim(box_w4[2],box_w4[3])
-    # ax4.set_xlabel('RA')
-    # ax4.set_ylabel('Dec')
 
     fig.subplots_adjust(right=0.8)
     cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
     fig.colorbar(cax,cax=cbar_ax)
-    # fig.colorbar(cax)
+    # fig.suptitle('%d pairs - class %d' % (n_pairs_used, classif))
     filename_fig = 'filament_map.png'
-    pl.savefig(filename_fig)
-    log.info('saved %s' , filename_fig)
+    # pl.savefig(filename_fig)
+    # log.info('saved %s' , filename_fig)
     fig.show()
     # fig.close()
     import pdb; pdb.set_trace()
@@ -481,12 +762,12 @@ def get_prob_prod_gridsearch(ids):
     
 
 
-def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
+def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,normalisation_const=None):
     
     import scipy.interpolate
     n_per_file = 1
-    id_file_first = args.first_result_file
-    id_file_last = id_file_first + args.n_results_files
+    id_file_first = 0
+    id_file_last = max(ids)+1
     n_params = 4
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
 
@@ -506,9 +787,12 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
     vec_radius = grid_radius[0,:]
     logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])+66
     grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
+    list_ids_used = []
+
+    normalisation_factor=-10000
 
     if hires:    
-        n_upsample = 20
+        n_upsample = 50
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
@@ -518,18 +802,21 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
 
         if nf in ids:
 
+
             # filename_pickle = 'results_local2scratch/results.prob.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
             filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf*n_per_file, (nf+1)*n_per_file , name_data)
             try:
                 results_pickle = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.debug('missing %s' % filename_pickle)
+                log.info('missing %s' % filename_pickle)
                 n_missing +=1
                 continue
             if len(results_pickle) == 0:
-                log.debug('empty %s' % filename_pickle)
+                log.info('empty %s' % filename_pickle)
                 n_missing +=1
                 continue
+            if len(results_pickle) == 3:
+                results_pickle = results_pickle[0]
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
@@ -562,12 +849,21 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
                             pl.show()
 
             else:
-                                   
-                pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
+                # log_prob *= 0.2
+                pdf_prob = np.exp(log_prob-log_prob.max()) 
                 pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                 log_prob_2D = np.log(pdf_prob_2D)
+                if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                    log.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                    log.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                    min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                    log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                    log_prob_2D[np.isnan(log_prob_2D)] = min_element
 
-            logprob_kappa0_radius += log_prob_2D
+
+
+            logprob_kappa0_radius += log_prob_2D + log_prob.max()
+            # logprob_kappa0_radius += log_prob_2D
             plot_prob_all, _, _, _ = mathstools.get_normalisation(logprob_kappa0_radius)  
             plot_prob_this, _, _, _ = mathstools.get_normalisation(log_prob_2D)   
 
@@ -577,6 +873,9 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
                 # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
                 func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
                 log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                if np.any(np.isnan(log_prob_2D_hires)):
+                    print 'nans in log_prob_2D_hires'
+                    import pdb; pdb.set_trace()
                 # d1 =vec_kappa0[1]-vec_kappa0[0]
                 # d2 =vec_radius[1]-vec_radius[0]
                 # x=grid_kappa0_hires.flatten()/d1
@@ -604,6 +903,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
 
           
             n_usable_results+=1
+            list_ids_used.append(nf)
             log.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
             if nf % 100 == 0 : log.info('%4d n_usable_results=%d' , nf , n_usable_results)
 
@@ -611,10 +911,10 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False):
     if hires:
         grid2D_dict = { 'grid_kappa0'  : grid_kappa0_hires , 'grid_radius' : grid_radius_hires}  
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
-        return prod2D_pdf, grid2D_dict, n_usable_results
+        return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
     else:
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
-        return prod2D_pdf, grid2D_dict, n_usable_results
+        return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
     
     # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
@@ -891,38 +1191,134 @@ def plot_vs_mass():
 
     pl.show()
 
-def plot_single_pair():
+def plot_single_pairs():
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+
+    pairs = tabletools.ensureColumn(rec=pairs,name='BF1')
+    pairs = tabletools.ensureColumn(rec=pairs,name='BF2')
+    pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class')
+
+    if 'cfhtlens' in filename_pairs:
+        bins_snr_edges = [5,20]
+        mass_param_name = 'snr'
+    else:
+        bins_snr_edges = [1e14,1e15]
+        mass_param_name = 'm200'
+    # bins_snr_centers = [ 3 , 6]
+    bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
+
+    if (args.n_results_files == 1) & (args.first_result_file==0):
+        id_file_first = args.first_result_file
+        id_file_last = n_pairs
+    else:
+        id_file_first = args.first_result_file
+        id_file_last = id_file_first + args.n_results_files
+
+    for ids in range(id_file_first,id_file_last):
+
+        prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D([ids])
+        # contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
 
 
-    # nf = args.first
-    # n_per_file = 1
-    # filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf*n_per_file, (nf+1)*n_per_file , name_data)
-    # try:
-    #     results_pickle = tabletools.loadPickle(filename_pickle,log=1)
-    # except:
-    #     log.debug('missing %s' % filename_pickle)
-    #     return 
+        title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF1=%2.4f BF2=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['BF1'][ids], pairs['BF2'][ids])
+        log.info(title_str)
     
-    # log_prob = results_pickle
-    # grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
-    # grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-    # grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
-    # grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
+        rho_crit = 2.77501358101e+11
+        int_DS = 1e14*(grid_dict['grid_kappa0'] * ( grid_dict['grid_radius'] * np.pi ) /2.) 
+        d_rs = int_DS / rho_crit
+            
+        xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
+        ylabel=r'radius $\mathrm{Mpc}/h$'
 
-    # pdf_prob , _ , _ , _ = mathstools.get_normalisation(log_prob)  
-    # pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
-    # log_prob_2D = np.log(pdf_prob_2D)
-    # func_interp = scipy.interpolate.interp2d(vec_m,vec_radius,log_prob_2D, kind='cubic')
-    # log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+        pl.figure(figsize=(10,8))
+        pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+        # cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
+        # pl.colorbar()
+        # pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],d_rs,levels=[500,200,100,50,0])
 
-    pass
+        pl.xlabel(xlabel)
+        pl.ylabel(ylabel)
+        pl.title(title_str)
+        pl.axis('tight')
 
+
+        filename_fig='figs/pair.%04d.kappa0-radius.png' % ids
+        pl.savefig(filename_fig)
+        log.info('saved %s',filename_fig)
+        # pl.show()
+        pl.close()
+
+def plot_single_pairs_const():
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+    n_upsample=20
+
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+    filename_grid_const = 'results_const/results.grid.%s.pp2' % (name_data)
+    grid_pickle_const = tabletools.loadPickle(filename_grid_const)
+
+    for ids in range(n_pairs):
+
+        filename_pickle_cons = '%s/results.prob.%04d.%04d.%s.pp2'  % ('results_const', ids, ids+1, name_data)
+        log_like_const = tabletools.loadPickle(filename_pickle_cons,log=1)
+
+
+         # constant model
+        vec_kappa0_const = grid_pickle_const['grid_kappa0'][:,0,0,0] 
+        vec_h1M200_const = grid_pickle_const['grid_h1M200'][0,0,:,0] 
+        vec_h2M200_const = grid_pickle_const['grid_h2M200'][0,0,0,:] 
+        log_like_const = np.squeeze(log_like_const,1)
+        prob_like_const = np.exp(log_like_const - log_like_const.max())
+        prob_like_const_1D = np.sum(prob_like_const,axis=(1,2))
+        log_like_const_1D = np.log(prob_like_const_1D)
+        vec_kappa0_const = np.linspace(vec_kappa0_const.min(),vec_kappa0_const.max(),len(vec_kappa0_const)*n_upsample)
+        func_interp = scipy.interpolate.interp1d(np.linspace(0,1,len(prob_like_const_1D)),log_like_const_1D,'cubic')
+        log_like_const_1D = func_interp(np.linspace(0,1,len(prob_like_const_1D)*n_upsample))
+        # prob_like_const_1D = np.exp(log_like_const_1D-log_prob_2D_hires.max())
+        prob_like_const_1D = np.exp(log_like_const_1D)
+
+       
+        title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['bayes_factor'][ids])
+        print title_str
+            
+        xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
+        ylabel=r'radius $\mathrm{Mpc}/h$'
+
+        pl.figure()
+        pl.plot(vec_kappa0_const,prob_like_const_1D)
+        pl.xlabel(xlabel)
+        pl.title(title_str)
+        pl.axis('tight')
+
+        filename_fig='figs/pair.%04d.kappa0-const.png' % ids
+        pl.savefig(filename_fig)
+        log.info('saved %s',filename_fig)
+        pl.close()
 
 
 def plotdata_all():
 
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
     filename_pairs = config['filename_pairs']
-    filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
     # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
@@ -947,20 +1343,21 @@ def plotdata_all():
     # pairs_prune = tabletools.loadTable(filename_prune)
     # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
-    mass_prior= (halo1['m200']+halo2['m200'])/2.
-    mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
+    # classification = np.loadtxt('classification.txt',dtype='i4')
+    # mass_prior= (halo1['m200']+halo2['m200'])/2.
+    # mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     # mass= halo1['m200']
-    select = (mass < 16.5) * (10.**mass > 1e14)
+    # select = (mass < 16.5) * (10.**mass > 0.9e13)
     # print np.nonzero(select)
     # select = (pairs['m200_h1_fit'] > 13.7) | (pairs['m200_h2_fit'] > 13.7)
     # select = (pairs['m200_h1_fit'] > 13.) | (pairs['m200_h2_fit'] > 13.)
     # select = (halo1['m200'] > 14.2) | (halo2['m200'] > 13.5) # 011 nice shape 2+ sigma
     # select = mass_prior > 14 # 011 
-    sorting=np.argsort(mass)[::-1]
+    # sorting=np.argsort(mass)[::-1]
     # sorting=np.argsort(mass_prior)[::-1]
     # sorting=np.argsort(mass)[::-1]
-    # select = sorting[:50]
-    print 'min(mass[select])', min(mass[select])
+    # select = sorting[:10]
+    # print 'min(mass[select])', min(mass[select])
     # print select
     # print mass_prior[select]
     # 70 - 2.57
@@ -969,12 +1366,23 @@ def plotdata_all():
     # 100 - 2.39
     # 110 - 2.53
 
-    # ids=np.arange(n_pairs)[select*select_prune]
+    # select = (classification[:,1] == 1) #| (classification[:,1] == 3) 
+    # select = (pairs['bayes_factor'] > 20) & (pairs['eyeball_class'] <2)
+    # select = (pairs['BF1']>1) & (pairs['BF2']>1)
+    # select = pairs['BF1']>-1
+    select = (pairs['R_pair'] < 20) & (pairs['m200_h1_fit'] > 13.7) & (pairs['m200_h2_fit'] > 13.7)
+
+
+    # ids=np.arange(n_pairs)
     ids=np.arange(n_pairs)[select]
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
-    prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch_2D(ids)
+    prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)
 
     print 'used %d pairs' % n_pairs_used
+
+    for ic in list_ids_used:
+        print 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f' % (pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'])
+        
 
 
     res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
@@ -994,10 +1402,32 @@ def plotdata_all():
     contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
     xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
     ylabel=r'radius $\mathrm{Mpc}/h$'
+    
     pl.figure()
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
     pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
     pl.axhline(max_radius,color='r')
+    pl.xlabel(xlabel)
+    pl.ylabel(ylabel)
+    pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    pl.axis('tight')
+
+    # paper plots in ugly colormap
+    pl.figure()
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels[::2],colors='b')
+    fmt = {}; strs = [ r'$1\sigma$', r'$3\sigma$', r'$5\sigma$'] ; 
+    for l,s in zip( cp.levels, strs ): 
+        fmt[l] = s
+    pl.clabel(cp, cp.levels, fmt=fmt)
+    # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'] )
+
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
     pl.xlabel(xlabel)
     pl.ylabel(ylabel)
     pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
@@ -1079,7 +1509,8 @@ def triangle_plots():
     n_used=0
 
     mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    select = mass > 13.9
+    select = mass > 13.
+    # select = pairs['eyeball_class'] == 3
 
     for ida in range(id_file_first,id_file_last):
 
@@ -1349,11 +1780,105 @@ def remove_similar_connections():
     filaments_tools.get_halo_map(filename_pairs_selected,color='r')
     pl.show()
 
+def remove_manually():
+
+    filename_pairs = config['filename_pairs']
+    pairs = tabletools.loadTable(filename_pairs)
+
+    pairs = tabletools.ensureColumn(rec=pairs,arr=np.zeros(len(pairs)),dtype='i4',name='manual_remove')
+    remove_list = [105,250]
+    remove_list2 = [46,221,37,82,127]
+    pairs['manual_remove'][remove_list]=2
+    pairs['manual_remove'][remove_list2]=1
+
+
+    print 'removed: ', remove_list , remove_list2
+    tabletools.saveTable(filename_pairs,pairs)
+
+
+
+def snr_analysis():
+
+    filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
+    filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
+    filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
+    id_pair = 2
+    shears_info = tabletools.loadPickle(filename_shears,id_pair)
+
+    import filaments_model_2hf, filament, nfw
+    fitobj = filaments_model_2hf.modelfit()
+    fitobj.get_bcc_pz(config['filename_pz'])
+
+    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+    fitobj.shear_u_mpc =  shears_info['u_mpc']
+    fitobj.shear_v_mpc =  shears_info['v_mpc']
+
+    fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
+    fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
+    fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair]
+    fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair]
+    fitobj.halo1_z =  pairs_table['z'][id_pair]
+
+    fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
+    fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
+    fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
+    fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
+    fitobj.halo2_z =  pairs_table['z'][id_pair]
+
+    fitobj.pair_z  = (fitobj.halo1_z + fitobj.halo2_z) / 2.
+
+    fitobj.filam = filament.filament()
+    fitobj.filam.pair_z =fitobj.pair_z
+    fitobj.filam.grid_z_centers = fitobj.grid_z_centers
+    fitobj.filam.prob_z = fitobj.prob_z
+    fitobj.filam.set_mean_inv_sigma_crit(fitobj.filam.grid_z_centers,fitobj.filam.prob_z,fitobj.filam.pair_z)
+
+    fitobj.nh1 = nfw.NfwHalo()
+    fitobj.nh1.z_cluster= fitobj.halo1_z
+    fitobj.nh1.theta_cx = fitobj.halo1_u_arcmin
+    fitobj.nh1.theta_cy = fitobj.halo1_v_arcmin 
+    fitobj.nh1.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+
+    fitobj.nh2 = nfw.NfwHalo()
+    fitobj.nh2.z_cluster= fitobj.halo2_z
+    fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin
+    fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin 
+    fitobj.nh2.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+
+    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+
+    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0.3, 0.5, 10., 10,])
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g1)   
+    pl.colorbar()
+    pl.figure()
+    pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g2)
+    pl.figure()
+    fitobj.plot_shears(shear_model_g1,shear_model_g2,limit_mask,quiver_scale=2)
+
+    sigma_g_add =  np.sqrt(1/ np.mean(shears_info['weight']))
+    fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(shears_info['g1']))*sigma_g_add
+    fitobj.shear_g2 =  shear_model_g2 + np.random.randn(len(shears_info['g2']))*sigma_g_add
+    fitobj.inv_sq_sigma_g = 1./sigma_g_add**2
+
+    n_datapoints = 32
+    print np.sqrt(np.sum(shear_model_g1**2)/(sigma_g_add/np.sqrt(n_datapoints))**2)
+
+
+    import pdb; pdb.set_trace()
+    pl.show()
    
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields_cfhtlens' , 'figure_fields']
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields_cfhtlens' , 'figure_fields' , 'plot_single_pairs' , 'add_model_selection' , 'mark_overlap' , 'plot_single_pairs_const' , 'remove_manually' , 'snr_analysis' ]
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
@@ -1396,5 +1921,5 @@ def main():
 
 
     
-
-main()
+if __name__=='__main__':
+    main()

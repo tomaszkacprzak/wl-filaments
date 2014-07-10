@@ -81,13 +81,20 @@ def get_ang_diam_dist(z1, z2=0.):
         new_z1 = z1
         new_z2 = z2        
 
-    DM1 = get_comoving_dist_line_of_sight(new_z1) 
-    DM2 = get_comoving_dist_line_of_sight(new_z2) 
+    # DM1 = get_comoving_dist_line_of_sight(new_z1) 
+    # DM2 = get_comoving_dist_line_of_sight(new_z2) 
+    # ang_diam_dist =  (DM1-DM2)/(1.+new_z1) 
 
-    ang_diam_dist =  (DM1-DM2)/(1.+new_z1) 
+    cosmo = {'omega_M_0' : cospars.Omega_m, 'omega_lambda_0' : cospars.Omega_Lambda, 'h' : cospars.h}
+    import cosmolopy
+    cosmo = cosmolopy.distance.set_omega_k_0(cosmo)
+    DM1 = cosmolopy.distance.comoving_distance_transverse(new_z1,**cosmo)
+    DM2 = cosmolopy.distance.comoving_distance_transverse(new_z2,**cosmo)
+    ang_diam_dist =  (DM1-DM2)/(1.+new_z1)
 
-    # if any(ang_diam_dist  < 0):
-    #     import pdb; pdb.set_trace()
+    if any(ang_diam_dist  < 0):
+        import pdb; pdb.set_trace()
+
 
     return ang_diam_dist
 
@@ -359,6 +366,8 @@ def mpc_to_arcmin(ra_mpc,de_mpc,z):
     ra_arcmin , de_arcmin  = rad_to_arcmin(ra_rad,de_rad)
 
     return ra_arcmin, de_arcmin
+
+
 
 
 

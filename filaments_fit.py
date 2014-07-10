@@ -133,6 +133,7 @@ def fit_2hf():
        
 
         fitobj = filaments_model_2hf.modelfit()
+        fitobj.kappa_is_K = config['kappa_is_K']
         fitobj.prob_z = prob_z
         fitobj.grid_z_centers = grid_z_centers
         fitobj.grid_z_edges = grid_z_edges
