@@ -30,35 +30,44 @@ def main():
     log = logging.getLogger("test_mod1h") 
     log.setLevel(logging_level)
 
-    id_pair = 7
-    filename_shears = 'shears_bcc_g.%03d.fits' % id_pair
-    filename_pairs = 'pairs_bcc.fits'
-    filename_halo1 = 'pairs_bcc.halos1.fits'
+    zclust= 0.257707923651
+    M_200=2.7779e+14 
+    concentr = 5.72/(1.+zclust)**0.71 * (M_200 / 1e14)**(-0.081)
+    theta_cx=42.6863732955 
+    zsource=1
+    Omega_m=0.271
+    concentr = 4.15184786761
+    theta_cx=15 
+    theta_cy=0
 
-    pairs_table = tabletools.loadTable(filename_pairs)
-    shears_info = tabletools.loadTable(filename_shears)
-    halo1_table = tabletools.loadTable(filename_halo1)
+    true_M200_log = np.log10(M_200)
 
-    concentr = halo1_table[id_pair]['r200']/halo1_table[id_pair]['rvir']
-
-    # true_M200 = np.log10(halo1_table[id_pair]['m200'])
-    true_M200 = halo1_table[id_pair]['m200']
+    x,y = np.meshgrid(np.linspace(-30,30,100),np.linspace(-30,30,100))
+    shear_u_arcmin , shear_v_arcmin = x.flatten() , y.flatten()
 
     fitobj = filaments_model_1h.modelfit()
-    fitobj.shear_z = 1
-    fitobj.shear_u_arcmin =  shears_info['u_arcmin']
-    fitobj.shear_v_arcmin =  shears_info['v_arcmin']
-    fitobj.halo_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
-    fitobj.halo_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
-    fitobj.halo_z =  pairs_table['z'][id_pair]
+    fitobj.shear_z = zsource
+    fitobj.shear_u_arcmin =  shear_u_arcmin
+    fitobj.shear_v_arcmin =  shear_v_arcmin
+    fitobj.halo_u_arcmin =  theta_cx
+    fitobj.halo_v_arcmin =  theta_cy
+    fitobj.halo_z =  zclust
     fitobj.sigma_g =  0.1
-    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask =  fitobj.draw_model([true_M200])  
-    fitobj.plot_model([true_M200])
+    fitobj.nh = nfw.NfwHalo()
+    fitobj.nh.concentr = concentr
+    fitobj.nh.z_cluster= fitobj.halo_z
+    fitobj.nh.z_source = fitobj.shear_z
+    fitobj.nh.theta_cx = fitobj.halo_u_arcmin
+    fitobj.nh.theta_cy = fitobj.halo_v_arcmin 
+    fitobj.nh.M_200 = M_200
+
+    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask =  fitobj.draw_model([true_M200_log])  
+    fitobj.plot_shears(fitobj.shear_g1,fitobj.shear_g2,limit_mask,unit='arcmin',quiver_scale=1)
 
 
     print 'halo_u_arcmin' ,'halo_v_arcmin' ,fitobj.halo_u_arcmin, fitobj.halo_v_arcmin
     print 'concentr', concentr
-    print 'm200', true_M200
+    print 'm200', M_200
     print 'halo_z', fitobj.halo_z
 
 
@@ -71,13 +80,11 @@ def main():
 
 
     nh = nfw.NfwHalo()
-    nh.M_200=true_M200
-    nh.concentr=4.1518478676
+    nh.M_200=M_200
+    nh.concentr=concentr
     nh.z_cluster=fitobj.halo_z
     nh.theta_cx = fitobj.halo_u_arcmin
     nh.theta_cy = fitobj.halo_v_arcmin 
-    z_source=1
-    # theta_vals = numpy.linspace(1,10,100)
     
     theta_x=fitobj.shear_u_arcmin[:,None]
     theta_y=fitobj.shear_v_arcmin[:,None]
@@ -85,7 +92,7 @@ def main():
     print 'theta_x', theta_x[0]
     print 'theta_y', theta_y[0]
 
-    [g1 , g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit]=nh.get_shears(theta_x , theta_y,z_source)
+    [g1 , g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]=nh.get_shears(theta_x , theta_y, zsource)
 
     data = np.concatenate( [g1 ,  g2 , theta_x , theta_y], axis=1 )
     np.savetxt('test_nfw_data_gravlenspy.txt',data)

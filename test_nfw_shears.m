@@ -5,11 +5,11 @@ theta_x = data(:,3);
 theta_y = data(:,4);
 M_200=2.7779e+14 
 conc=4.15184786761
-theta_cx=42.6863732955 
+theta_cx=15 
 theta_cy=0
 zclust= 0.257707923651
 zsource=1
-Omega_m=0.3
+Omega_m=0.271
 [gamma_1 gamma_2 kappa mod_gamma rho_s r_s] = nfwshears(theta_x,theta_y,M_200,conc,theta_cx,theta_cy,zclust,zsource,Omega_m);
 
 g1_py = data(:,1);
