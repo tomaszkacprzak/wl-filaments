@@ -39,15 +39,15 @@ def get_stamps():
     halos = tabletools.loadTable(filename_halos)
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='index',dtype='i4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_fit',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_sig',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errhi',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errlo',dtype='f4')
     # halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='log_like',dtype='%df4'%config['M200']['n_grid'])
     n_halos = len(halos)
     log.info('halos %d' , len(halos))
 
     id_first = args.first
-    if (args.first+args.num) < n_halos:
-        id_last = args.first + args.num
-    else:
-        id_last = n_halos
+    id_last = args.first + args.num
    
     box_size=30 # arcmin
     pixel_size=0.5
@@ -177,14 +177,20 @@ def get_stamps():
 
         log_post , grid_M200 = fitobj.run_gridsearch()
         ml_m200 = grid_M200[np.argmax(log_post)]
+        prob_post = mathstools.normalise(log_post)
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_M200,prob_post)
+        n_sig = max_par/err_lo
 
         halos['m200_fit'][ih]=ml_m200
+        halos['m200_sig'][ih]= n_sig
+        halos['m200_errhi'][ih]= err_hi
+        halos['m200_errlo'][ih]= err_lo 
         # halos['log_like'][ih]=log_post
 
         pyfits.writeto(filename_halos,halos,clobber=True)
         log.info('saved %s' , filename_halos)
 
-        log.info('%5d n_gals=%d n_eff=%2.2f m200_fit=%2.2f' % (ihalo,len(shear_g1_stamp),np.sum(shear_weight_stamp),ml_m200))
+        log.info('%5d n_gals=%d n_eff=%2.2f m200_fit=%2.2f +/- %2.2f %2.2f n_sig=%2.2f' % (ihalo,len(shear_g1_stamp),np.sum(shear_weight_stamp),ml_m200,err_hi,err_lo,n_sig))
 
 
 

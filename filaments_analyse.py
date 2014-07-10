@@ -69,10 +69,10 @@ def add_model_selection():
     pairs = tabletools.ensureColumn(rec=pairs,name='ML_kappa0_errlo',dtype='f4')
     pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius_errhi',dtype='f4')
     pairs = tabletools.ensureColumn(rec=pairs,name='ML_radius_errlo',dtype='f4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class',dtype='f4')
 
     for ic in range(n_pairs):
-        shears_info = tabletools.loadPickle(filename_shears,pos=ic)
-        n_datapoints = len(shears_info)
+
         filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, ic, ic+1, name_data)
         filename_pickle_cons = '%s/results.prob.%04d.%04d.%s.pp2'  % ('results_const', ic, ic+1, name_data)
         try:
@@ -120,6 +120,7 @@ def add_model_selection():
         prob_like_const = np.exp(log_like_const - normalisation_const)
         prob_like_const_1D = np.sum(prob_like_const,axis=(1,2))
         log_like_const_1D = np.log(prob_like_const_1D)
+        log_like_const_1D[np.isinf(log_like_const_1D)]=log_like_const_1D[~np.isinf(log_like_const_1D)].min()
         vec_kappa0_const_hires = np.linspace(vec_kappa0_const.min(),vec_kappa0_const.max(),len(vec_kappa0_const)*n_upsample)
         func_interp = scipy.interpolate.interp1d(np.linspace(0,1,len(prob_like_const_1D)),log_like_const_1D,'cubic')
         log_like_const_1D = func_interp(np.linspace(0,1,len(prob_like_const_1D)*n_upsample))
@@ -153,7 +154,6 @@ def add_model_selection():
         if np.isnan(bf1): 
             print 'bf1 is nan'
             bf1 = 0.
-            import pdb; pdb.set_trace()
 
         if np.isnan(bf2): 
             bf2 = 0.
