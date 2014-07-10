@@ -206,19 +206,12 @@ def select_halos_random(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfh
     logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
 
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLenS_BOSSDR10-LRGs.fits'
-    halocat = pyfits.getdata(filename_halos_cfhtlens)
+    halocat = tabletools.loadTable(filename_halos_cfhtlens)
 
-    filename_pairs_cfhtlens = 'pairs_cfhtlens_lrgs.fits'
-    paircat = tabletools.loadTable(filename_pairs_cfhtlens)
-
-    sample = np.random.uniform(0,len(paircat),config['n_random_pairs'])
+    sample = np.random.uniform(0,len(halocat),config['n_random_pairs'])
     sample = sample.astype('i4')
 
     halocat = halocat[sample]
-
-    dra = paircat['ra2'] - paircat['ra1']    
-    ddec = paircat['dec2'] - paircat['dec1']
-    z = paircat['dec2'] - paircat['dec1']
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
@@ -230,12 +223,12 @@ def select_halos_random(range_z=[0.1,0.6],range_M=[2,10],filename_halos='LRG_cfh
         cfhtlens_coords = np.concatenate([shearcat['ra'][:,None],shearcat['dec'][:,None]],axis=1)
 
     perm = np.random.permutation(len(shearcat))[:config['n_random_pairs']]
-    ra = shearcat['ra'][perm]
-    dec = shearcat['dec'][perm]
+    ra = shearcat['ALPHA_J2000'][perm]
+    dec = shearcat['DELTA_J2000'][perm]
 
-    import pdb; pdb.set_trace()
-
-
+    halocat['ra'] = ra+np.random.randn(len(ra))*0.001
+    halocat['dec'] = dec+np.random.randn(len(ra))*0.001
+    
     logger.info('getting BT')
     BT = BallTree(cfhtlens_coords, leaf_size=5)
     theta_add = 0
