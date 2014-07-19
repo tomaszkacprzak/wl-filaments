@@ -138,8 +138,8 @@ class modelfit():
     def get_concentr(self,M,z):
 
         # Duffy et al 2008 from King and Mead 2011
-        # concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
-        concentr = 5.72/(1.+z)**0.71 * (M / 1e14)**(-0.081)
+        concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
+        # concentr = 5.72/(1.+z)**0.71 * (M / 1e14)**(-0.081)
 
         return concentr
 

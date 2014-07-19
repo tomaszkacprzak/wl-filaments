@@ -171,8 +171,8 @@ def get_stamps():
         fitobj.set_shear_sigma()
         fitobj.save_all_models=False
 
-        fitobj.parameters[0]['box']['min'] = config['M200']['box']['min']
-        fitobj.parameters[0]['box']['max'] = config['M200']['box']['max']
+        fitobj.parameters[0]['box']['min'] = float(config['M200']['box']['min'])
+        fitobj.parameters[0]['box']['max'] = float(config['M200']['box']['max'])
         fitobj.parameters[0]['n_grid'] = config['M200']['n_grid']
 
         log_post , grid_M200 = fitobj.run_gridsearch()

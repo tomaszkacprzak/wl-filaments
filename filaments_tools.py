@@ -754,7 +754,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     for ip in range(len(pairs_table)):
         pairs_table['m200_h1_fit'][ip] = vh1[m200_col][ip]
         pairs_table['m200_h2_fit'][ip] = vh2[m200_col][ip]
-        print 'halos: % 4d % 4d mass= %2.2f %2.2f' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h2_fit'][ip])
+        print 'halos: % 4d % 4d mass= %2.2e %2.2e' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h2_fit'][ip])
 
     
     return (pairs_table, vh1, vh2)

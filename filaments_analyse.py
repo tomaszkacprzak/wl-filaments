@@ -1368,9 +1368,9 @@ def plotdata_all():
 
     # select = (classification[:,1] == 1) #| (classification[:,1] == 3) 
     # select = (pairs['bayes_factor'] > 20) & (pairs['eyeball_class'] <2)
-    # select = (pairs['BF1']>1) & (pairs['BF2']>1)
+    select = (pairs['BF1']>1) & (pairs['BF2']>1) 
     # select = pairs['BF1']>-1
-    select = (pairs['R_pair'] < 20) & (pairs['m200_h1_fit'] > 13.7) & (pairs['m200_h2_fit'] > 13.7)
+    # select = (pairs['R_pair'] < 20) & (pairs['m200_h1_fit'] > 13.7) & (pairs['m200_h2_fit'] > 13.7)
 
 
     # ids=np.arange(n_pairs)
