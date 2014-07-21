@@ -511,16 +511,17 @@ class modelfit():
 
     def get_grid_max(self,log_post,params):
 
-        imax = log_post.argmax()
-        vmax_post = log_post[imax]
-        # imax_kappa0 , imax_radius = np.unravel_index(log_post.argmax(), log_post.shape)
-        vmax_kappa0 = params[imax,0]
-        vmax_radius = params[imax,1]
-        vmax_h1M200 = params[imax,2]
-        vmax_h2M200 = params[imax,3]
-        vmax_params = params[imax,:]
+        imax_index = np.unravel_index(log_post.argmax(), log_post.shape)
+        vmax_post = log_post[imax_index]
+
+        vmax_kappa0 = params[0][imax_index[0]]
+        vmax_radius = params[1][imax_index[1]]
+        vmax_h1M200 = params[2][imax_index[2]]
+        vmax_h2M200 = params[3][imax_index[3]]
+
+        vmax_params = [vmax_kappa0,vmax_radius,vmax_h1M200,vmax_h2M200]
         
-        log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , 10.**vmax_h1M200 , 10.**vmax_h2M200 )
+        log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , vmax_h1M200 , vmax_h2M200 )
 
         best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
 

@@ -23,6 +23,7 @@ class NfwHalo:
         self.theta_cy = 0               # center of the halo in arcmin
         self.redshift_offset = 0.2
         self.mean_inv_sigma_crit = None
+        self.z_source = None
 
         self.update()
 

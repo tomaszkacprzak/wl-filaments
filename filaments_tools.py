@@ -8,8 +8,8 @@ import warnings; warnings.simplefilter('once')
 cospars = cosmology.cosmoparams()
 
 # Dxy = R_pair and drloss = Dlos
-dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff'] ,
-                'formats' : ['i8']*4 + ['f8']*23 }
+dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff','nu','nv'] ,
+                'formats' : ['i8']*4 + ['f8']*23 + ['i4']*2 }
 
 dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight','n_gals'] , 'formats' : ['f8']*10 + ['i8']*1 }
 dtype_shears_single = { 'names' : ['ra_deg','dec_deg','u_mpc','v_mpc','g1','g2', 'g1_orig','g2_orig','scinv','z'] , 'formats' : ['f4']*10 }
@@ -449,6 +449,8 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
         halos_coords['range_u_arcmin'] = range_u_arcmin
         halos_coords['range_v_arcmin'] = range_v_arcmin
         halos_coords['gal_density'] = gal_density
+        halos_coords['nu'] = len(u_mid_arcmin)
+        halos_coords['nv'] = len(v_mid_arcmin)
 
         return pairs_shear , halos_coords , pairs_shear_full
 
@@ -725,15 +727,33 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     n_gal = dz*0 
 
     ipair = np.arange(len(ih1))
-    # dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff'] ,
-    row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
-            DA[:,None],d_los[:,None],d_xy[:,None],
-            ra_mid[:,None],dec_mid[:,None],z[:,None],
-            vh1['ra'][:,None],vh1['dec'][:,None],vh2['ra'][:,None],vh2['dec'][:,None],
-            ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0, # these fields will be filled in later
-            R_pair[:,None],drloss[:,None],dz[:,None],ipair[:,None]*0,ipair[:,None]*0]
-    pairs_table = np.concatenate(row,axis=1)
-    pairs_table = tabletools.array2recarray(pairs_table,dtype_pairs)
+    # dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','area_arcmin2','n_eff','nu','nv'] ,
+
+    pairs_table = np.zeros(len(ipair),dtype=dtype_pairs)
+    pairs_table['ipair'] = ipair
+    pairs_table['ih1'] = ih1
+    pairs_table['ih2'] = ih2
+    pairs_table['n_gal'] = n_gal
+    pairs_table['DA'] = DA
+    pairs_table['Dlos'] = d_los
+    pairs_table['Dxy'] = d_xy
+    pairs_table['ra_mid'] = ra_mid
+    pairs_table['dec_mid'] = dec_mid
+    pairs_table['z'] = z
+    pairs_table['ra1'] = vh1['ra']
+    pairs_table['dec1'] = vh1['dec']
+    pairs_table['ra2'] = vh2['ra']
+    pairs_table['dec2'] = vh2['dec']
+    # rest of the fields to be filled in later
+
+    # row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
+            # DA[:,None],d_los[:,None],d_xy[:,None],
+            # ra_mid[:,None],dec_mid[:,None],z[:,None],
+            # vh1['ra'][:,None],vh1['dec'][:,None],vh2['ra'][:,None],vh2['dec'][:,None],
+            # ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0, # these fields will be filled in later
+            # R_pair[:,None],drloss[:,None],dz[:,None],ipair[:,None]*0,ipair[:,None]*0]
+    # pairs_table = np.concatenate(row,axis=1)
+    # pairs_table = tabletools.array2recarray(pairs_table,dtype_pairs)
 
     import graphstools
     select = graphstools.remove_similar_connections(pairs_table,min_angle=config['graph_min_angle'])
@@ -829,6 +849,8 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
         halo_pairs['v1_arcmin'][ipair] = halos_coords['halo1_v_rot_arcmin']
         halo_pairs['u2_arcmin'][ipair] = halos_coords['halo2_u_rot_arcmin']
         halo_pairs['v2_arcmin'][ipair] = halos_coords['halo2_v_rot_arcmin']
+        halo_pairs['nu'][ipair] = halos_coords['nu']
+        halo_pairs['nv'][ipair] = halos_coords['nv']
 
       
         if config['shear_type'] == 'stacked':

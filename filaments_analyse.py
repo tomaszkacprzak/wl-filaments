@@ -551,7 +551,7 @@ def add_stats():
             halos['m200_fit'][ih1] = ml_mass_h1
             halos['m200_fit'][ih2] = ml_mass_h2
 
-            log.info('%4d m200_h1_fit=%2.4f m200_h2_fit=%2.4f %d %d' % (nf,ml_mass_h1,ml_mass_h2,ih1,ih2) )
+            log.info('%4d m200_h1_fit=%2.4e m200_h2_fit=%2.4e %d %d' % (nf,ml_mass_h1,ml_mass_h2,ih1,ih2) )
 
             # pl.plot(grid_h1M200,prod_pdf_h1M200,'r')
             # pl.plot(grid_h2M200,prod_pdf_h2M200,'g')
@@ -1344,19 +1344,29 @@ def plotdata_all():
     # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
     # classification = np.loadtxt('classification.txt',dtype='i4')
-    # mass_prior= (halo1['m200']+halo2['m200'])/2.
+    # mass_prior= np.max(np.concatenate([pairs['m200_h1_fit'][:,None],pairs['m200_h2_fit'][:,None]],axis=1),axis=1)
     # mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    # mass= halo1['m200']
-    # select = (mass < 16.5) * (10.**mass > 0.9e13)
+    # mass= halo1['m200']   
+    # select = (mass < 1e16) * (mass > 7e13)
     # print np.nonzero(select)
-    # select = (pairs['m200_h1_fit'] > 13.7) | (pairs['m200_h2_fit'] > 13.7)
+    # select = (pairs['m200_h1_fit'] > 6e13) & (pairs['m200_h2_fit'] > 6e13)
+    ids_pairs_use = []
+    ids_halos_use = []
+    np.sort(pairs,order=['m200_h1_fit','m200_h2_fit'])
+    for idc in range(len(pairs)):
+        if (pairs['ih1'][idc] not in ids_halos_use) & (pairs['ih2'][idc] not in ids_halos_use) & (pairs['m200_h1_fit'][idc] > 4e13) & (pairs['m200_h2_fit'][idc] > 4e13):
+            ids_pairs_use.append(idc)   
+            ids_halos_use.append(pairs['ih1'][idc])
+            ids_halos_use.append(pairs['ih2'][idc])
+    select = ids_pairs_use
+
     # select = (pairs['m200_h1_fit'] > 13.) | (pairs['m200_h2_fit'] > 13.)
     # select = (halo1['m200'] > 14.2) | (halo2['m200'] > 13.5) # 011 nice shape 2+ sigma
     # select = mass_prior > 14 # 011 
-    # sorting=np.argsort(mass)[::-1]
+    # sorting=np.argsort(mass_prior)[::-1]
     # sorting=np.argsort(mass_prior)[::-1]
     # sorting=np.argsort(mass)[::-1]
-    # select = sorting[:10]
+    # select = sorting[:80]
     # print 'min(mass[select])', min(mass[select])
     # print select
     # print mass_prior[select]
@@ -1368,7 +1378,7 @@ def plotdata_all():
 
     # select = (classification[:,1] == 1) #| (classification[:,1] == 3) 
     # select = (pairs['bayes_factor'] > 20) & (pairs['eyeball_class'] <2)
-    select = (pairs['BF1']>1) & (pairs['BF2']>1) 
+    # select = (pairs['BF1']>1) & (pairs['BF2']>1) 
     # select = pairs['BF1']>-1
     # select = (pairs['R_pair'] < 20) & (pairs['m200_h1_fit'] > 13.7) & (pairs['m200_h2_fit'] > 13.7)
 
@@ -1381,7 +1391,7 @@ def plotdata_all():
     print 'used %d pairs' % n_pairs_used
 
     for ic in list_ids_used:
-        print 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f' % (pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'])
+        print 'ih1=%d ih2=%d m200_h1=%2.2e m200_h2=%2.2e' % (pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'])
         
 
 
@@ -1414,17 +1424,16 @@ def plotdata_all():
 
     # paper plots in ugly colormap
     pl.figure()
-    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels[::2],colors='b')
-    fmt = {}; strs = [ r'$1\sigma$', r'$3\sigma$', r'$5\sigma$'] ; 
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='b')
+    fmt = {}; strs = [ r'$1\sigma$', r'$2\sigma$', r'$3\sigma$', r'$4\sigma$', r'$5\sigma$'] ; 
     for l,s in zip( cp.levels, strs ): 
         fmt[l] = s
     pl.clabel(cp, cp.levels, fmt=fmt)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
-    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'] )
-
-    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
-    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
