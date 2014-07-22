@@ -181,7 +181,7 @@ class modelfit():
             n_progress = 1000
         if self.n_model_evals % n_progress == 0:
 
-            log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e M200=% 6.3f ' % (self.n_model_evals,posterior,likelihood,prior,theta[0]))
+            log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e M200=% 6.3e ' % (self.n_model_evals,posterior,likelihood,prior,theta[0]))
 
         if np.isnan(posterior):
             import pdb; pdb.set_trace()

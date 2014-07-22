@@ -18,7 +18,6 @@ log.propagate = False
 def stack_halos():
     
     filename_pairs = config['filename_pairs']
-    filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
     filename_halos = config['filename_halos']

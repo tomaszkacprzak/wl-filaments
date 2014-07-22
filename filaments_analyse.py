@@ -1916,13 +1916,12 @@ def main():
     global config 
     config = yaml.load(open(args.filename_config))
 
-    try:
-        args.actions[0]
-    except:
-        raise Exception('choose one or more actions: %s' % str(valid_actions))
-
+    if args.actions==None:
+        logger.error('no action specified, choose from %s' % valid_actions)
+        return
     for action in valid_actions:
         if action in args.actions:
+            logger.info('executing %s' % action)
             exec action+'()'
     for ac in args.actions:
         if ac not in valid_actions:

@@ -491,8 +491,6 @@ class modelfit():
                 self.prob_z =  pickle['prob_z']
                 self.grid_z_centers = pickle['bins_z']
                 self.grid_z_edges = plotstools.get_bins_edges(self.grid_z_centers)
-                self.sigma_ell = pickle['sigma_ell']
-                log.info('loaded sigma_ell=%2.2f', self.sigma_ell)
                 
 
     def set_shear_sigma(self):
