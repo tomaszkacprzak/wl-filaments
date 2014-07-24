@@ -24,13 +24,13 @@ except:
 
 
 
-log = logging.getLogger("filam..fit") 
-log.setLevel(logging.INFO)  
+logger = logging.getLogger("filam..fit") 
+logger.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
-log.addHandler(stream_handler)
-log.propagate = False
+logger.addHandler(stream_handler)
+logger.propagate = False
 
 cospars = cosmology.cosmoparams()
 
@@ -69,7 +69,7 @@ def fit_2hf():
         id_pair_last = args.first + args.num 
 
 
-    log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
+    logger.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
 
     filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
     filename_results_grid = 'results.grid.' +   os.path.basename(filename_shears).replace('.fits','.pp2')
@@ -77,16 +77,16 @@ def fit_2hf():
     filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.cat')
     if os.path.isfile(filename_results_prob):
         os.remove(filename_results_prob)
-        log.warning('overwriting file %s ' , filename_results_prob)
+        logger.warning('overwriting file %s ' , filename_results_prob)
     if os.path.isfile(filename_results_pairs):
         os.remove(filename_results_pairs)
-        log.warning('overwriting file %s ' , filename_results_pairs)
+        logger.warning('overwriting file %s ' , filename_results_pairs)
     if os.path.isfile(filename_results_grid):
         os.remove(filename_results_grid)
-        log.warning('overwriting file %s ' , filename_results_grid)
+        logger.warning('overwriting file %s ' , filename_results_grid)
     if os.path.isfile(filename_results_chain):
         os.remove(filename_results_chain)
-        log.warning('overwriting file %s ' , filename_results_chain)
+        logger.warning('overwriting file %s ' , filename_results_chain)
 
 
     if config['get_confidence_intervals']:
@@ -97,7 +97,6 @@ def fit_2hf():
     fitobj = filaments_model_2hf.modelfit()
     fitobj.get_bcc_pz(config['filename_pz'])
     prob_z = fitobj.prob_z
-    sigma_ell = fitobj.sigma_ell
     grid_z_centers = fitobj.grid_z_centers
     grid_z_edges = fitobj.grid_z_edges
 
@@ -107,7 +106,7 @@ def fit_2hf():
     for id_pair in range(id_pair_first,id_pair_last):
 
     	id_shear = pairs_table[id_pair]['ipair']
-        log.info('--------- pair %d shear %d --------' , id_pair, id_shear) 
+        logger.info('--------- pair %d shear %d --------' , id_pair, id_shear) 
         # now we use that
         if config['mode']=='selftest':
             id_pair_in_catalog = 0
@@ -115,7 +114,7 @@ def fit_2hf():
                 shears_info = tabletools.loadTable(filename_shears,hdu=1)
             elif '.pp2' in filename_shears:
                 shears_info = tabletools.loadPickle(filename_shears,pos=0)
-            log.info('selftest mode - using HDU=1 and adding noise')
+            logger.info('selftest mode - using HDU=1 and adding noise')
         else:
             id_pair_in_catalog = id_pair
             if '.fits' in filename_shears:
@@ -123,10 +122,10 @@ def fit_2hf():
             elif '.pp2' in filename_shears:
                 shears_info = tabletools.loadPickle(filename_shears,pos=id_shear)
 
-        log.info('using %d shears' , len(shears_info) )
+        logger.info('using %d shears' , len(shears_info) )
 
         if len(shears_info) > 500000:
-            log.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
+            logger.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
             result_dict = {'id' : id_pair}
             tabletools.savePickle(filename_results_prob,prob_result,append=True)
             continue
@@ -137,7 +136,6 @@ def fit_2hf():
         fitobj.prob_z = prob_z
         fitobj.grid_z_centers = grid_z_centers
         fitobj.grid_z_edges = grid_z_edges
-        fitobj.sigma_ell = sigma_ell
         fitobj.shear_u_arcmin =  shears_info['u_arcmin']
         fitobj.shear_v_arcmin =  shears_info['v_arcmin']
         fitobj.shear_u_mpc =  shears_info['u_mpc']
@@ -154,11 +152,11 @@ def fit_2hf():
             fitobj.sigma_g =  np.std(fitobj.shear_g2,ddof=1)
             fitobj.sigma_ell = fitobj.sigma_g
             fitobj.inv_sq_sigma_g = 1./fitobj.sigma_g**2
-            log.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
+            logger.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
         elif config['sigma_method'] == 'orig':
             fitobj.shear_n_gals = shears_info['n_gals']
             fitobj.inv_sq_sigma_g = fitobj.shear_w
-            log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
+            logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
                     
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
@@ -197,7 +195,7 @@ def fit_2hf():
         # fitobj.save_all_models=False
 
         if config['optimization_mode'] == 'mcmc':
-            log.info('running sampling')
+            logger.info('running sampling')
             fitobj.n_walkers = config['n_walkers']
             fitobj.n_samples = config['n_samples']
             fitobj.n_grid = config['n_grid']
@@ -230,7 +228,7 @@ def fit_2hf():
                 marg_prob = yys
                 list_params_marg.append(xxs)
                 list_prob_marg.append(yys)
-                log.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.factor , np.sum(marg_prob))
+                logger.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.factor , np.sum(marg_prob))
 
                 # from sklearn import mixture
                 # gmm=mixture.GMM(n_components=40)
@@ -259,7 +257,7 @@ def fit_2hf():
             xx,yy=np.meshgrid(grid1,grid2); 
             grid12=np.concatenate([xx.flatten()[:,None],yy.flatten()[:,None]],axis=1)
             marg_prob = kde_est(grid12.T)   
-            log.info('params kappa0 radius KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(marg_prob))
+            logger.info('params kappa0 radius KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(marg_prob))
 
 
 
@@ -280,7 +278,7 @@ def fit_2hf():
 
 
         elif config['optimization_mode'] == 'gridsearch':
-            log.info('running grid search')
+            logger.info('running grid search')
 
             log_post , params, grids = fitobj.run_gridsearch()
             tabletools.savePickle(filename_results_prob,log_post.astype(np.float32),append=True)
@@ -374,9 +372,9 @@ def fit_2hf():
 
             tabletools.saveTable(filename_results_pairs, table_stats, append=True)
         
-            # log.info('ML-ratio test: chi2_red_max=% 10.3f chi2_red_null=% 10.3f D_red=% 8.4e p-val_red=%1.5f' , chi2_red_max, chi2_red_null , chi2_D_red, chi2_LRT_red )
-            log.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
-            log.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
+            # logger.info('ML-ratio test: chi2_red_max=% 10.3f chi2_red_null=% 10.3f D_red=% 8.4e p-val_red=%1.5f' , chi2_red_max, chi2_red_null , chi2_D_red, chi2_LRT_red )
+            logger.info('ML-ratio test: chi2_max    =% 10.3f chi2_null    =% 10.3f D    =% 8.4e p-val    =%1.5f' , chi2_max, chi2_null , chi2_D, chi2_LRT )
+            logger.info('max %5.5f +%5.5f -%5.5f detection_significance=%5.2f', max_kappa0, kappa0_err_hi , kappa0_err_lo , kappa0_significance)
 
         if config['save_dist_plots']:
             
@@ -416,12 +414,36 @@ def fit_2hf():
             filename_fig = 'figs/result.%04d.%s.dist.pdf' % (id_pair,os.path.basename(filename_shears).replace('.fits',''))
             try:
                 pl.savefig(filename_fig, dpi=300)
-                log.info('saved %s' , filename_fig)
+                logger.info('saved %s' , filename_fig)
             except Exception , errmsg: 
-                log.error('saving figure %s failed: %s' , filename_fig , errmsg)
+                logger.error('saving figure %s failed: %s' , filename_fig , errmsg)
 
             pl.clf()
             pl.close('all')
+
+        # save best fit plots for first 100 objects
+        if id_pair < 100:
+
+            nuv = [pairs_table[id_pair]['nu'],pairs_table[id_pair]['nv']]
+            u = np.reshape(shears_info['u_arcmin'],nuv,order='F')
+            v = np.reshape(shears_info['v_arcmin'],nuv,order='F')
+            g1 = np.reshape(best_model_g1,nuv,order='F')
+            g2 = np.reshape(best_model_g2,nuv,order='F')
+            pl.figure()
+            pl.subplot(2,1,1)
+            pl.pcolormesh(u,v,g1); 
+            pl.axis('tight')
+            pl.colorbar();
+            pl.subplot(2,1,2)
+            pl.pcolormesh(u,v,g2); 
+            pl.axis('tight')
+            pl.colorbar();
+            pl.suptitle('%d kappa0=%1.3f radius=%2.2f m200_h1=%1.2e m200_h2=%1.2e' % (id_pair,vmax_params[0],vmax_params[1],vmax_params[2],vmax_params[3]))
+            filename_fig = 'bestfit.shear.%04d.png' % id_pair
+            pl.savefig(filename_fig)
+            pl.close()
+            logger.info('saved %s',filename_fig)
+
 
         if config['save_model_plots']:
 
@@ -525,9 +547,9 @@ def fit_2hf():
             # filename_fig = filename_fig = 'figs/result.%04d.%s.model.pdf' % (id_pair,os.path.basename(filename_shears).replace('.fits',''))
             # try:
             #     pl.savefig(filename_fig, dpi=300)
-            #     log.info('saved %s' , filename_fig)
+            #     logger.info('saved %s' , filename_fig)
             # except Exception , errmsg: 
-            #     log.error('saving figure %s failed: %s' , filename_fig , errmsg)
+            #     logger.error('saving figure %s failed: %s' , filename_fig , errmsg)
 
             # pl.clf()
             # pl.close('all')
@@ -557,17 +579,13 @@ def main():
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[args.verbosity]
-    log.setLevel(logging_level)
+    logger.setLevel(logging_level)
 
     global config 
     config = yaml.load(open(args.filename_config))
     filaments_tools.config = config
 
-
-    filaments_model_1f.log = log
-    # plotstools.log = log
-
-    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+    logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
     # grid_search(pair_info,shears_info)
     # test_model(shears_info,pair_info)
@@ -579,7 +597,7 @@ def main():
     # analyse_results()
     # analyse_stats()
 
-    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+    logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 
 main()

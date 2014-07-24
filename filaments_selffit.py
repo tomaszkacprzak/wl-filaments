@@ -6,13 +6,13 @@ import filaments_model_2hf
 
 warnings.simplefilter('once')
 
-log = logging.getLogger("fil_selffit") 
-log.setLevel(logging.INFO)  
+logger = logging.getLogger("fil_selffit") 
+logger.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
-log.addHandler(stream_handler)
-log.propagate = False
+logger.addHandler(stream_handler)
+logger.propagate = False
 
 def get_clone():
 
@@ -23,70 +23,43 @@ def get_clone():
     filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
     filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
     filename_shears = config['filename_shears']                                  # args.filename_shears 
-    filename_shears_mock = config['filename_shears'].replace('.pp2','.mock.pp2')                                  # args.filename_shears 
+    filename_shears_mock = config['filename_shears'].replace('.pp2','.clone.pp2')                                  # args.filename_shears 
+    if os.path.isfile(filename_shears_mock): 
+        os.remove(filename_shears_mock)
+        logger.warning('overwriting file %s' , filename_shears_mock)
+
 
     pairs_table = tabletools.loadTable(filename_pairs)
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
 
-    id_pair_first = 0
-    id_pair_last = len(pairs_table)
-    log.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
-
-    filename_results_prob = 'results.prob.%04d.%04d.' % (id_pair_first, id_pair_last) +   os.path.basename(filename_shears).replace('.fits','.pp2')
-    filename_results_grid = 'results.grid.' +   os.path.basename(filename_shears).replace('.fits','.pp2')
-    filename_results_chain = 'results.chain.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.pp2')
-    filename_results_pairs = 'results.stats.%04d.%04d.' % (id_pair_first, id_pair_last) + os.path.basename(filename_shears).replace('.fits','.cat')
-    if os.path.isfile(filename_results_prob):
-        os.remove(filename_results_prob)
-        log.warning('overwriting file %s ' , filename_results_prob)
-    if os.path.isfile(filename_results_pairs):
-        os.remove(filename_results_pairs)
-        log.warning('overwriting file %s ' , filename_results_pairs)
-    if os.path.isfile(filename_results_grid):
-        os.remove(filename_results_grid)
-        log.warning('overwriting file %s ' , filename_results_grid)
-    if os.path.isfile(filename_results_chain):
-        os.remove(filename_results_chain)
-        log.warning('overwriting file %s ' , filename_results_chain)
-
-
-    if config['get_confidence_intervals']:
-        tabletools.writeHeader(filename_results_pairs,filaments_model_2hf.dtype_stats)
-    
+    id_pair_first = args.first
+    id_pair_last = len(pairs_table) if args.num==-1 else args.first + args.num
+    if id_pair_first >= id_pair_last: raise Exception('first pair greater than len(halo_pairs) %d > %d' % (id_pair_first,id_pair_last))
+    logger.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
+  
     fitobj = filaments_model_2hf.modelfit()
     fitobj.get_bcc_pz(config['filename_pz'])
     prob_z = fitobj.prob_z
-    sigma_ell = fitobj.sigma_ell
     grid_z_centers = fitobj.grid_z_centers
     grid_z_edges = fitobj.grid_z_edges
 
     for id_pair in range(id_pair_first,id_pair_last):
 
         id_shear = pairs_table[id_pair]['ipair']
-        log.info('--------- pair %d shear %d --------' , id_pair, id_shear) 
+        logger.info('--------- pair %d shear %d --------' , id_pair, id_shear) 
         # now we use that
         id_pair_in_catalog = id_pair
         if '.fits' in filename_shears:
             shears_info = tabletools.loadTable(filename_shears,hdu=id_shear+1)
         elif '.pp2' in filename_shears:
             shears_info = tabletools.loadPickle(filename_shears,pos=id_shear)
-
-        log.info('using %d shears' , len(shears_info) )
-
-        if len(shears_info) > 500000:
-            log.warning('buggy pair, n_shears=%d , skipping' , len(shears_info))
-            result_dict = {'id' : id_pair}
-            tabletools.savePickle(filename_results_prob,prob_result,append=True)
-            continue
-       
-
+    
         fitobj = filaments_model_2hf.modelfit()
         fitobj.kappa_is_K = config['kappa_is_K']
         fitobj.prob_z = prob_z
         fitobj.grid_z_centers = grid_z_centers
         fitobj.grid_z_edges = grid_z_edges
-        fitobj.sigma_ell = sigma_ell
         fitobj.shear_u_arcmin =  shears_info['u_arcmin']
         fitobj.shear_v_arcmin =  shears_info['v_arcmin']
         fitobj.shear_u_mpc =  shears_info['u_mpc']
@@ -103,11 +76,11 @@ def get_clone():
             fitobj.sigma_g =  np.std(fitobj.shear_g2,ddof=1)
             fitobj.sigma_ell = fitobj.sigma_g
             fitobj.inv_sq_sigma_g = 1./fitobj.sigma_g**2
-            log.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
+            logger.info('added noise with level %f , using sigma_g=%2.5f' , sigma_g_add, fitobj.sigma_g)
         elif config['sigma_method'] == 'orig':
             fitobj.shear_n_gals = shears_info['n_gals']
             fitobj.inv_sq_sigma_g = fitobj.shear_w
-            log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
+            logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
                     
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
@@ -149,29 +122,49 @@ def get_clone():
 
         shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([mock_kappa0, mock_radius, mock_m200_h1, mock_m200_h2])
 
-        noise_g1 = np.random.randn(len(shears_info['g1']))*np.sqrt(1./shears_info['weight'])
-        noise_g2 = np.random.randn(len(shears_info['g2']))*np.sqrt(1./shears_info['weight'])
+        if id_pair < 100:
+            nuv = [pairs_table[id_pair]['nu'],pairs_table[id_pair]['nv']]
+            u = np.reshape(shears_info['u_arcmin'],nuv,order='F')
+            v = np.reshape(shears_info['v_arcmin'],nuv,order='F')
+            g1 = np.reshape(shear_model_g1,nuv,order='F')
+            g2 = np.reshape(shear_model_g2,nuv,order='F')
+            pl.figure()
+            pl.subplot(2,1,1)
+            pl.pcolormesh(u,v,g1); 
+            pl.axis('tight')
+            pl.colorbar();
+            pl.subplot(2,1,2)
+            pl.pcolormesh(u,v,g2); 
+            pl.axis('tight')
+            pl.colorbar();
+            pl.suptitle('%d m200_h1=%1.2e m200_h2=%1.2e' % (id_pair,mock_m200_h1,mock_m200_h2))
+            filename_fig = 'figs/clone.shear.%05d.png' % id_pair
+            pl.savefig(filename_fig)
+            pl.close()
+            logger.info('saved %s',filename_fig)
 
-        fitobj.shear_g1 =  shear_model_g1 #+ noise_g1
-        fitobj.shear_g2 =  shear_model_g2 #+ noise_g2
+        sig = np.sqrt(1./shears_info['weight'])
+        select = np.isnan(sig) | np.isinf(sig)
+        sig[select] = 0.
+        noise_g1 = np.random.randn(len(shears_info['g1']))*sig
+        noise_g2 = np.random.randn(len(shears_info['g2']))*sig
+
+        fitobj.shear_g1 =  shear_model_g1 + noise_g1
+        fitobj.shear_g2 =  shear_model_g2 + noise_g2
 
         shears_info['g1'] = fitobj.shear_g1
         shears_info['g2'] = fitobj.shear_g2
 
         tabletools.savePickle(filename_shears_mock,shears_info,append=True)
 
-        print np.std(noise_g1), np.std(noise_g2)
+        logger.info('noise sig=%2.2f std_g1=%2.2f std_g2=%2.2f',np.mean(sig[~select]),np.std(noise_g1[~select]), np.std(noise_g2[~select]))
 
-        pl.figure()
-        pl.subplot(2,1,1)
-        pl.scatter(shears_info['u_arcmin'],shears_info['v_arcmin'],c=shears_info['g1']); 
-        pl.colorbar();
-        pl.subplot(2,1,2)
-        pl.scatter(shears_info['u_arcmin'],shears_info['v_arcmin'],c=shears_info['g2']); 
-        pl.show()
-
-        import pdb; pdb.set_trace()
-
+    logger.warning('========================================\n \
+                    now you have to change the config entry\n \
+                    filename_cfhtlens_shears to use clone file:\n \
+                    filename_cfhtlens_shears :shears_cfhtlens_lrgs.clone.pp2\n \
+                    ==========================================\
+                    ')
 
 def self_fit():
 
@@ -253,7 +246,7 @@ def self_fit():
     fitobj.shear_g2 =  shear_model_g2 + np.random.randn(len(shears_info['g2']))*sigma_g_add
     fitobj.sigma_g =  np.std(shear_model_g2,ddof=1)
     # fitobj.inv_sq_sigma_g = 1./sigma_g_add**2
-    # log.info('using sigma_g=%2.5f' , fitobj.sigma_g)
+    # logger.info('using sigma_g=%2.5f' , fitobj.sigma_g)
 
     fitobj.parameters[0]['box']['min'] = 0
     fitobj.parameters[0]['box']['max'] = 1
@@ -281,7 +274,7 @@ def self_fit():
         # # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # # pl.show()
         # fitobj.save_all_models=False
-        # log.info('running mcmc search')
+        # logger.info('running mcmc search')
         # fitobj.n_walkers=10
         # fitobj.n_samples=2000
         # fitobj.run_mcmc()
@@ -303,6 +296,8 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
+    parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
+    parser.add_argument('-n', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data'), len(remove_list), len(set(remove_list)
 
@@ -315,7 +310,7 @@ def main():
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[args.verbosity]
-    log.setLevel(logging_level)
+    logger.setLevel(logging_level)
 
     global config 
     config = yaml.load(open(args.filename_config))

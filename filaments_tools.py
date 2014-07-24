@@ -516,8 +516,6 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
         if 'snr' in halo1.dtype.names: mass1=halo1['snr']
         if 'snr' in halo1.dtype.names: mass2=halo2['snr']
         pl.title('%s r_pair=%2.2fMpc n_gals=%d M1=%2.2e M2=%2.2e' % (idp,r_pair,len(shear_g1),mass1,mass2))
-    else:
-        pl.title('%s r_pair=%2.2fMpc n_gals=%d' % (idp,r_pair,len(shear_g1)))
     
     pl.axis('image') 
     # pl.xlim([min(shear_x),max(shear_x)])
@@ -534,14 +532,13 @@ def plot_pair(halo1_x,halo1_y,halo2_x,halo2_y,shear_x,shear_y,shear_g1,shear_g2,
 
 
 
-def stats_pairs(filename_pairs):
+def stats_pairs():
 
     import pylab as pl
-
-    pairs_table = tabletools.loadTable(filename_pairs)
+    pairs_table = tabletools.loadTable(config['filename_pairs'])
 
     logger.info('getting stats')
-    
+   
     pl.figure()
     logger.info('distribution of los distance between halos Mpc')
     pl.hist(pairs_table['Dlos'],bins=range(2,20))
@@ -644,12 +641,26 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pair
 
     
 
-def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
+def get_pairs():
 
-    logger.info('%s' % str(cospars))
-    
-    halocat = tabletools.loadTable(filename_halos)
+    range_Dxy = map(float,config['range_Dxy'])
+    range_M = map(float,config['range_M'])
+    Dlos = config['max_dlos']
+    range_z = map(float,config['range_z'])
+  
+    halocat = tabletools.loadTable(config['filename_halos'])
     logger.info('number of halos: %d' % len(halocat))  
+
+    # select on M
+    select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on SNR number of halos: %d' % len(halocat))
+
+    import graphstools
+    X = np.concatenate( [ np.arange(len(halocat))[:,None] , halocat['ra'][:,None] , halocat['dec'][:,None] , halocat['z'][:,None], halocat['m200_fit'][:,None], np.zeros(len(halocat))[:,None] ],axis=1 )
+    select = graphstools.get_graph(X,min_dist=config['graph_min_dist_deg'],min_z=config['graph_min_dist_z'])
+    halocat = halocat[select]
+    logger.info('number of halos after graph selection %d', len(halocat))
 
     logger.info('getting euclidian coords')
     x=halocat['xphys'][:,None]
@@ -737,6 +748,7 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
     pairs_table['DA'] = DA
     pairs_table['Dlos'] = d_los
     pairs_table['Dxy'] = d_xy
+    pairs_table['R_pair'] = d_xy
     pairs_table['ra_mid'] = ra_mid
     pairs_table['dec_mid'] = dec_mid
     pairs_table['z'] = z
@@ -776,10 +788,14 @@ def get_pairs(range_Dxy=[6,18],Dlos=6,filename_halos='big_halos.fits'):
         pairs_table['m200_h2_fit'][ip] = vh2[m200_col][ip]
         print 'halos: % 4d % 4d mass= %2.2e %2.2e' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h2_fit'][ip])
 
+    tabletools.saveTable(config['filename_pairs'],pairs_table)   
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos1.fits'), vh1)    
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos2.fits'), vh2)    
     
-    return (pairs_table, vh1, vh2)
 
-def add_phys_dist(filename_halos):
+def add_phys_dist():
+
+    filename_halos = config['filename_halos']
 
     big_catalog = tabletools.loadTable(filename_halos,log=logger)
 
@@ -797,8 +813,11 @@ def add_phys_dist(filename_halos):
     tabletools.saveTable(filename_halos,big_catalog)
     logger.info('wrote %s' % filename_halos)
 
-def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_single_pair, filename_full_halocat = None , id_first=0, id_last=-1):
-
+def get_shears_for_pairs(function_shears_for_single_pair,id_first=0, num=-1):
+    
+    filename_pairs = config['filename_pairs']
+    filename_shears = config['filename_shears']
+    
     if os.path.isfile(filename_shears): 
         os.remove(filename_shears)
         logger.warning('overwriting file %s' , filename_shears)
@@ -806,16 +825,11 @@ def get_shears_for_pairs(filename_pairs, filename_shears, function_shears_for_si
     halo_pairs = tabletools.loadTable(filename_pairs)
     halo_pairs1 = tabletools.loadTable(filename_pairs.replace('fits','halos1.fits'))    
     halo_pairs2 = tabletools.loadTable(filename_pairs.replace('fits','halos2.fits'))    
-    if filename_full_halocat != None:
-        full_halocat = tabletools.loadTable(filename_full_halocat)    
 
-    list_fitstb = []
-
-    if id_last == -1:
-        id_last = len(halo_pairs) 
-    if id_last > len(halo_pairs):
-        id_last = len(halo_pairs)
-
+    id_last = len(halo_pairs) if num == -1 else id_first + num
+    if id_first > len(halo_pairs):
+        raise Exception('first pair greater than len(halo_pairs) %d > %d' % (first,len(halo_pairs)))
+        
     n_pairs = len(range(id_first,id_last))
 
     logger.info('getting shears for %d pairs from %d to %d' % (n_pairs , id_first, id_last))

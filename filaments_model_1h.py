@@ -5,13 +5,13 @@ import warnings
 
 warnings.simplefilter('once')
 
-log = logging.getLogger("fil_model_1h") 
-log.setLevel(logging.INFO)  
+logger = logging.getLogger("fil_model_1h") 
+logger.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
-log.addHandler(stream_handler)
-log.propagate = False
+logger.addHandler(stream_handler)
+logger.propagate = False
 
 redshift_offset = 0.2
 weak_limit = 0.2
@@ -175,13 +175,13 @@ class modelfit():
             # use no info from prior for now
             posterior = likelihood 
 
-        if log.level == logging.DEBUG:
+        if logger.level == logging.DEBUG:
             n_progress = 10
-        elif log.level == logging.INFO:
+        elif logger.level == logging.INFO:
             n_progress = 1000
         if self.n_model_evals % n_progress == 0:
 
-            log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e M200=% 6.3e ' % (self.n_model_evals,posterior,likelihood,prior,theta[0]))
+            logger.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e M200=% 6.3e ' % (self.n_model_evals,posterior,likelihood,prior,theta[0]))
 
         if np.isnan(posterior):
             import pdb; pdb.set_trace()
@@ -193,7 +193,7 @@ class modelfit():
             pl.suptitle('model post=% 10.8e M200=%5.2e' % (posterior,theta[0]) )
             filename_fig = 'models/res2.%04d.png' % self.n_model_evals
             pl.savefig(filename_fig)
-            log.debug('saved %s' % filename_fig)
+            logger.debug('saved %s' % filename_fig)
             pl.close()
 
 
@@ -252,7 +252,7 @@ class modelfit():
         n_total = len(grid_M200)
         log_post = np.zeros([len(grid_M200)])
         
-        log.info('running gridsearch total %d grid points' % n_total)
+        logger.info('running gridsearch total %d grid points' % n_total)
 
         ia = 0
         for ik,vk in enumerate(grid_M200):
@@ -306,7 +306,7 @@ class modelfit():
         self.shear_g1[select] = 0
         self.shear_g2[select] = 0
         n_nans = sum(np.isnan(self.shear_g1))
-        log.info('found %d nan pixels' % n_nans)
+        logger.info('found %d nan pixels' % n_nans)
 
 
  

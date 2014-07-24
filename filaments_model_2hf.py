@@ -241,8 +241,8 @@ class modelfit():
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
         if self.kappa_is_K: # model where kappa is dependent on halo mass
-            halo2_M200 = 10.**params[3]
-            halo1_M200 = 10.**params[2]
+            halo2_M200 = params[3]
+            halo1_M200 = params[2]
             filament_kappa0 = params[0]*(halo2_M200+halo1_M200)/1e14
             filament_radius = params[1]
         else:   # standard model
@@ -296,7 +296,7 @@ class modelfit():
             n_progress = 1000
         if self.n_model_evals % n_progress == 0:
 
-            log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e kappa0=% 6.3f radius=% 6.3f h1M200=% 5.2e h1M200=% 5.2e' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1],10.**theta[2],10.**theta[3]))
+            log.info('%7d post=% 2.8e like=% 2.8e prior=% 2.4e kappa0=% 6.3f radius=% 6.3f h1M200=% 5.2e h1M200=% 5.2e' % (self.n_model_evals,posterior,likelihood,prior,theta[0],theta[1],theta[2],theta[3]))
 
         if np.isnan(posterior):
             import pdb; pdb.set_trace()

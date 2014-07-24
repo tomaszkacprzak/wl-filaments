@@ -578,11 +578,14 @@ def fit_halos():
     logger.info('fitting stack')
     stacked_halo_shear = np.concatenate(stacked_halo_shear,axis=0)
     print stacked_halo_shear.shape
+    n_stacked_gals = stacked_halo_shear.shape[0]
+
     u=stacked_halo_shear[:,0]
     v=stacked_halo_shear[:,1]
     g1=stacked_halo_shear[:,2]
     g2=stacked_halo_shear[:,3]
     w=stacked_halo_shear[:,4]
+
     hist_g1, _, _    = np.histogram2d( x=u, y=v , bins=(vec_u_rad,vec_v_rad) , weights=g1 * w)
     hist_g2, _, _    = np.histogram2d( x=u, y=v , bins=(vec_u_rad,vec_v_rad) , weights=g2 * w)
     hist_n,  _, _    = np.histogram2d( x=u, y=v , bins=(vec_u_rad,vec_v_rad) )
@@ -654,7 +657,7 @@ def fit_halos():
     halos['m200_errhi'][ih]= err_hi
     halos['m200_errlo'][ih]= err_lo 
 
-    logger.info('%5d n_gals=%d n_eff=%2.2f m200_fit=%2.2e +/- %2.2ef %2.2e n_sig=%2.2f' % (ihalo,len(shear_g1_stamp),len(shear_weight_stamp)/float((box_size**2)),ml_m200,err_hi,err_lo,n_sig))
+    logger.info('%5d n_gals=%d n_eff=%2.2f m200_fit=%2.2e +/- %2.2e %2.2e n_sig=%2.2f' % (ihalo,n_stacked_gals,n_stacked_gals/float((box_size**2)),ml_m200,err_hi,err_lo,n_sig))
 
     pl.figure()
     pl.plot(grid_M200,prob_post)

@@ -7,13 +7,13 @@ import filaments_model_2hf
 import filaments_model_1h
 
 logging_level = logging.INFO
-log = logging.getLogger("my_script") 
-log.setLevel(logging_level)  
+logger = logging.getLogger("my_script") 
+logger.setLevel(logging_level)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s", "%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
-log.addHandler(stream_handler)
-log.propagate = False
+logger.addHandler(stream_handler)
+logger.propagate = False
 
 def stack_halos():
     
@@ -65,16 +65,16 @@ def stack_halos():
         if cfhtlens_shear_catalog == None:
             filename_chftlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
             cfhtlens_shear_catalog = tabletools.loadTable(filename_chftlens_shears)
-            if 'star_flag' in cfhtlens_shear_catalog.dtype.names:
+            if 'star_flag' in cfhtlens_shear_catalogger.dtype.names:
                 select = cfhtlens_shear_catalog['star_flag'] == 0
                 cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
                 select = cfhtlens_shear_catalog['fitclass'] == 0
                 cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
-                log.info('removed stars, remaining %d' , len(cfhtlens_shear_catalog))
+                logger.info('removed stars, remaining %d' , len(cfhtlens_shear_cahalos))
 
                 select = (cfhtlens_shear_catalog['e1'] != 0.0) * (cfhtlens_shear_catalog['e2'] != 0.0)
                 cfhtlens_shear_catalog = cfhtlens_shear_catalog[select]
-                log.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
+                logger.info('removed zeroed shapes, remaining %d' , len(cfhtlens_shear_catalog))
 
 
         halo_z = vhalo['z']
@@ -135,7 +135,7 @@ def stack_halos():
         binned_shear_w += hist_w
         binned_shear_m += hist_m
 
-        log.info(ihalo)
+        logger.info(ihalo)
 
 
     binned_shear_g1 /= binned_shear_m
@@ -152,7 +152,7 @@ def stack_halos():
     pl.colorbar()
 
     pl.savefig('stacked_halos.png')
-    log.info('saved stacked_halos.png')
+    logger.info('saved stacked_halos.png')
     pl.close()
 
     # pl.show()
@@ -184,10 +184,10 @@ def fit_stacked_halos():
     fitobj.shear_n_gals = pickle_dict['binned_shear_n'].flatten('F')
     fitobj.shear_w = pickle_dict['binned_shear_w'].flatten('F')
     fitobj.set_shear_sigma()
-    log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
+    logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
 
 
-    log.info('running grid search')
+    logger.info('running grid search')
     log_post , grid_M200, best_g1, best_g2, best_limit_mask = fitobj.run_gridsearch(M200_min=12.5,M200_max=16,M200_n=100)
     prob_post = mathstools.normalise(log_post)
     pl.figure()
@@ -205,7 +205,7 @@ def fit_stacked_halos():
 def stack_pairs():
 
     filename_pairs = config['filename_pairs']
-    filename_halos = config['filename_pairs']
+    filename_halos = config['filename_halos']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
 
@@ -214,17 +214,15 @@ def stack_pairs():
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
-    scaling = np.mean(pairs['R_pair'])/2.
+    scaling = np.mean(pairs['Dxy'])/2.
     print scaling
-
-    id_pair_first = args.first
-    id_pair_last = args.first + args.num 
 
     vec_u_mpc, vec_v_mpc = np.arange(-2,2,0.05)*scaling, np.arange(-2,2,0.05)*scaling
     grid_u_mpc, grid_v_mpc = np.meshgrid(plotstools.get_bins_centers(vec_u_mpc) , plotstools.get_bins_centers(vec_v_mpc),indexing='ij')
     shear_g1 = np.zeros_like(grid_u_mpc)
     shear_g2 = np.zeros_like(grid_u_mpc) 
     shear_n  = np.zeros_like(grid_u_mpc) 
+    shear_w  = np.zeros_like(grid_u_mpc) 
 
     halo1_u = scaling
     halo1_v = 0
@@ -236,31 +234,25 @@ def stack_pairs():
 
     # pairs = tabletools.appendColumn(rec=pairs,arr=np.zeros(len(pairs)),name='area_arcmin2',dtype='f4')
     # pairs = tabletools.appendColumn(rec=pairs,arr=np.zeros(len(pairs)),name='n_eff',dtype='f4')
+
+    id_pair_first = args.first
+    id_pair_last = len(pairs) if args.num==-1 else args.first+args.num
+    if id_pair_first>=id_pair_last: raise Exception('check -f and -n')
+
     for id_pair in range(id_pair_first,id_pair_last):
         
-        if '.fits' in config['filename_shears']:
-            shears_info = tabletools.loadTable(config['filename_shears'],hdu=id_pair+1)
-        elif '.pp2' in config['filename_shears']:
-            shears_info = tabletools.loadPickle(config['filename_shears'],pos=id_pair)
-
-        n_gals_total=np.sum(shears_info['n_gals'])
-        area=(shears_info['v_arcmin'].max() - shears_info['v_arcmin'].min())*(shears_info['u_arcmin'].max() - shears_info['u_arcmin'].min())
-        pairs['n_gal'][id_pair] = n_gals_total
-        pairs['area_arcmin2'][id_pair] = area
-        pairs['n_eff'][id_pair] = float(n_gals_total)/area
-
-      
+        shears_info = tabletools.loadPickle(config['filename_shears'],pos=id_pair)     
         mean_mass=(halo1['m200'][id_pair] + halo2['m200'][id_pair])/2
-        if mean_mass<13.5:
-            continue
+
         print "==============================="
         print 'id_pair' , id_pair
-        print 'pairs[ih1]'  , pairs['ih1'][id_pair]
-        print 'pairs[ih2]'  , pairs['ih2'][id_pair]
-        print 'halo1[m200]' , halo1['m200'][id_pair]
-        print 'halo2[m200]' , halo2['m200'][id_pair]
+        print 'halo1[m200]' , halo1['m200_fit'][id_pair]
+        print 'halo2[m200]' , halo2['m200_fit'][id_pair]
         print 'total n_gals' , np.sum(shears_info['n_gals'])
         print "==============================="
+
+        if (halo1['m200_fit'][id_pair] < 5e13) | (halo2['m200_fit'][id_pair] < 5e13):
+            continue
 
         shears_info['u_mpc'] = shears_info['u_mpc'] / pairs['u1_mpc'][id_pair] * scaling
         shears_info['v_mpc'] = shears_info['v_mpc'] / pairs['u1_mpc'][id_pair] * scaling
@@ -270,8 +262,9 @@ def stack_pairs():
         pairs_current['u2_mpc'] = pairs['u2_mpc'][id_pair] / pairs['u1_mpc'][id_pair] * scaling
         pairs_current['v2_mpc'] = pairs['v2_mpc'][id_pair] / pairs['u1_mpc'][id_pair] * scaling
 
-        hist_g1, _, _    = np.histogram2d( x=shears_info['u_mpc'], y=shears_info['v_mpc'] , bins=(vec_u_mpc,vec_v_mpc) , weights=shears_info['g1']*shears_info['n_gals'])
-        hist_g2, _, _    = np.histogram2d( x=shears_info['u_mpc'], y=shears_info['v_mpc'] , bins=(vec_u_mpc,vec_v_mpc) , weights=shears_info['g2']*shears_info['n_gals'])
+        hist_g1, _, _    = np.histogram2d( x=shears_info['u_mpc'], y=shears_info['v_mpc'] , bins=(vec_u_mpc,vec_v_mpc) , weights=shears_info['g1']*shears_info['weight'])
+        hist_g2, _, _    = np.histogram2d( x=shears_info['u_mpc'], y=shears_info['v_mpc'] , bins=(vec_u_mpc,vec_v_mpc) , weights=shears_info['g2']*shears_info['weight'])
+        hist_w,  _, _    = np.histogram2d( x=shears_info['u_mpc'], y=shears_info['v_mpc'] , bins=(vec_u_mpc,vec_v_mpc) , weights=shears_info['weight'])
         hist_n,  _, _    = np.histogram2d( x=shears_info['u_mpc'], y=shears_info['v_mpc'] , bins=(vec_u_mpc,vec_v_mpc) , weights=shears_info['n_gals'])
 
         hist_g1[np.isnan(hist_g1)]=0
@@ -279,16 +272,15 @@ def stack_pairs():
         shear_g1 += hist_g1
         shear_g2 += hist_g2
         shear_n += hist_n
+        shear_w += hist_w
 
 
         list_z.append(pairs[id_pair]['z'])
         n_used +=1
-        log.info('stacked pair %d n_used %d' , id_pair , n_used)
+        logger.info('stacked pair %d n_used %d' , id_pair , n_used)
 
-    tabletools.saveTable(filename_pairs.replace('.fits','.fix.fits') ,pairs)
-
-    mean_g1 = shear_g1  / shear_n
-    mean_g2 = shear_g2  / shear_n
+    mean_g1 = shear_g1  / shear_w
+    mean_g2 = shear_g2  / shear_w
     mean_z = np.mean(list_z)
         
     filaments_tools.plot_pair(halo1_u,halo1_v,halo2_u,halo2_v,grid_u_mpc.flatten(),grid_v_mpc.flatten(),mean_g1.flatten(),mean_g2.flatten(),idp=0,nuse=10000,filename_fig=None,show=False,close=False,halo1=None,halo2=None,pair_info=None,quiver_scale=1,plot_type='quiver')
@@ -307,9 +299,9 @@ def stack_pairs():
     fitobj.shear_g2 =  mean_g2.flatten()
 
     fitobj.shear_n_gals = shear_n.flatten()
-    fitobj.shear_w =  shears_info['weight']
+    fitobj.shear_w =  shear_w.flatten()
     fitobj.set_shear_sigma()
-    log.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
+    logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
 
     
     fitobj.halo1_u_arcmin =  halo1_u
@@ -332,22 +324,22 @@ def stack_pairs():
     fitobj.parameters[1]['box']['max'] = config['radius']['box']['max']
     fitobj.parameters[1]['n_grid'] = config['radius']['n_grid']
     
-    fitobj.parameters[2]['box']['min'] = 11
-    fitobj.parameters[2]['box']['max'] = 15
+    fitobj.parameters[2]['box']['min'] = float(config['h1M200']['box']['min'])
+    fitobj.parameters[2]['box']['max'] = float(config['h1M200']['box']['max'])
     fitobj.parameters[2]['n_grid'] = config['h1M200']['n_grid']
     
-    fitobj.parameters[3]['box']['min'] = 11
-    fitobj.parameters[3]['box']['max'] = 15
+    fitobj.parameters[3]['box']['min'] = float(config['h2M200']['box']['min'])
+    fitobj.parameters[3]['box']['max'] = float(config['h2M200']['box']['max'])
     fitobj.parameters[3]['n_grid'] = config['h2M200']['n_grid']
 
     filename_results_grid = 'stack.grid.pp2'
     filename_results_prob = 'stack.prob.pp2'
 
     if config['optimization_mode'] == 'gridsearch':
-            log.info('running grid search')
+            logger.info('running grid search')
 
             log_post , params, grids = fitobj.run_gridsearch()
-            tabletools.savePickle(filename_results_prob,log_post.astype(np.float32),append=True)
+            tabletools.savePickle(filename_results_prob,log_post.astype(np.float32))
             prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)
             
             grid_info = {}
@@ -365,8 +357,35 @@ def stack_pairs():
             plotstools.plot_dist_meshgrid(X,prob_post)
             
 
-    
+def plot_stack_fit():
 
+    filename_results_grid = 'stack.grid.pp2'
+    filename_results_prob = 'stack.prob.pp2'
+
+    log_prob=tabletools.loadPickle(filename_results_prob)
+    grid=tabletools.loadPickle(filename_results_grid)
+
+    grid['grid_h1M200'] = grid['grid_h1M200'][:,:,12:25,1:10]
+    grid['grid_h2M200'] = grid['grid_h2M200'][:,:,12:25,1:10]
+    grid['grid_kappa0'] = grid['grid_kappa0'][:,:,12:25,1:10]
+    grid['grid_radius'] = grid['grid_radius'][:,:,12:25,1:10]
+    log_prob = log_prob[:,:,12:25,1:10]
+
+    X=[grid['grid_kappa0'],grid['grid_radius'],grid['grid_h1M200'],grid['grid_h2M200']]
+    prob = np.exp(log_prob-log_prob.max())
+    mdd = plotstools.multi_dim_dist()
+    mdd.plot_dist_meshgrid(X,prob)
+
+    filename_fig = 'figs/stack_triangle.png'
+    pl.savefig(filename_fig)
+    pl.show()
+    pl.close()
+    logger.info('saved %s',filename_fig)
+
+
+
+
+    import pdb; pdb.set_trace()
 
 def main():
 
@@ -377,7 +396,7 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     parser.add_argument('-c', '--filename_config', type=str, action='store', help='filename of config file')
     parser.add_argument('-f', '--first', type=int, action='store', default=0, help='first item to process')
-    parser.add_argument('-n', '--num', type=int, action='store', default=1, help='number of items to process')
+    parser.add_argument('-n', '--num', type=int, action='store', default=-1, help='number of items to process')
     parser.add_argument('-d', '--dir', type=str, action='store', default='./', help='directory to use')
 
     args = parser.parse_args()
@@ -386,15 +405,16 @@ def main():
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[args.verbosity]
-    log.setLevel(logging_level)  
+    logger.setLevel(logging_level)  
     config=yaml.load(open(args.filename_config))
     
-    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+    logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
+    # stack_halos() ; 
+    # fit_stacked_halos()
+    # plot_stack_fit()
     stack_pairs()
-    # stack_halos() ; fit_stacked_halos()
-    pl.show()
 
-    log.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
+    logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 
 main()
