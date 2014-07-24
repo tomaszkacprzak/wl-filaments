@@ -198,83 +198,32 @@ def fit_2hf():
             logger.info('running sampling')
             fitobj.n_walkers = config['n_walkers']
             fitobj.n_samples = config['n_samples']
-            fitobj.n_grid = config['n_grid']
-            fitobj.run_mcmc()
-            log_post = fitobj.sampler.flatlnprobability
-            params = fitobj.sampler.flatchain
+            log_post , params , grids , chain, chain_lnprob = fitobj.run_mcmc()
+            tabletools.savePickle(filename_results_prob,log_post.astype(np.float32))
 
-            n_grid = fitobj.n_grid                      
+            chain_info = {}
+            chain_info['chain'] =  chain
+            chain_info['chain_lnprob'] =  chain_lnprob
+            tabletools.savePickle(filename_results_chain,chain_info)        
 
-            list_prob_marg = []
-            list_params_marg = []
-
-            for di in config['get_marginals_for_params']:
-
-                # list_params_marg.append()
-                
-                if N_BURNIN < len(fitobj.sampler.flatchain):
-                    chain = fitobj.sampler.flatchain[N_BURNIN:,di]
-                else:
-                    chain = fitobj.sampler.flatchain[:,di]
-                
-                # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='linear_combination')                          
-                # kde_est = kde.KDE1D(chain, lower=fitobj.parameters[di]['box']['min'] , upper=fitobj.parameters[di]['box']['max'] , method='reflexion')                          
-                # marg_prob =mathstools.get_func_split(grid=list_params_marg[di],func=kde_est)
-                               
-                from scipy.stats.kde import gaussian_kde
-                kde_est = gaussian_kde(chain)
-                xxs = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
-                yys = kde_est(xxs)
-                marg_prob = yys
-                list_params_marg.append(xxs)
-                list_prob_marg.append(yys)
-                logger.info('param %d KDE bandwidth=%2.3f normalisation=%f', di, kde_est.factor , np.sum(marg_prob))
-
-                # from sklearn import mixture
-                # gmm=mixture.GMM(n_components=40)
-                # gmm.fit(chain)
-                # xxs = np.linspace(fitobj.parameters[di]['box']['min'],fitobj.parameters[di]['box']['max'],n_grid)
-                # yys = np.exp(gmm.score(xxs))
-                # list_params_marg.append(xxs)
-                # list_prob_marg.append(yys)
-
-                # pl.figure()
-                # pl.plot(list_params_marg[di] , list_prob_marg[di], 'x')
-                # pl.hist(chain,bins=list_params_marg[di], normed=True)
-                # pl.xlabel(str(di))
-                # pl.show()
-
-            # get kappa - radius distribution
-            if N_BURNIN < len(fitobj.sampler.flatchain):
-                    chain = fitobj.sampler.flatchain[N_BURNIN:,:2]
-            else:
-                chain = fitobj.sampler.flatchain[:,:2]
-            from scipy.stats.kde import gaussian_kde
-            kde_est = gaussian_kde(chain.T)
-
-            grid1 = np.linspace(fitobj.parameters[0]['box']['min'],fitobj.parameters[0]['box']['max'],config['n_grid_2D'])
-            grid2 = np.linspace(fitobj.parameters[1]['box']['min'],fitobj.parameters[1]['box']['max'],config['n_grid_2D'])
-            xx,yy=np.meshgrid(grid1,grid2); 
-            grid12=np.concatenate([xx.flatten()[:,None],yy.flatten()[:,None]],axis=1)
-            marg_prob = kde_est(grid12.T)   
-            logger.info('params kappa0 radius KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(marg_prob))
-
-
-
-            grids = list_params_marg
-
-            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_samples_max(log_post,params)
-            chain_result = {}
-            chain_result['flatlnprobability'] = fitobj.sampler.flatlnprobability.astype(np.float32),
-            chain_result['flatchain'] = fitobj.sampler.flatchain.astype(np.float32),
-            chain_result['list_prob_marg'] = list_prob_marg
-            chain_result['prob_kappa0_radius'] = marg_prob
-            chain_result['id'] = id_pair
-            chain_params = {}
-            chain_params['list_params_marg'] = list_params_marg
-            chain_params['kappa0_radius_grid'] = grid12
-            tabletools.savePickle(filename_results_chain, chain_result ,append=True)
-            tabletools.savePickle(filename_results_grid, chain_params)
+            # get the normalised PDF and use the same normalisation on the log
+            prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)
+            # # get the maximum likelihood solution
+            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post,params)
+            # # get the marginals
+            # list_prob_marg, list_params_marg = mathstools.get_marginals(params,prob_post)
+           
+            if id_pair == id_pair_first:
+                grid_info = {}
+                grid_info['grid_kappa0'] = grids[0]
+                grid_info['grid_radius'] = grids[1]
+                grid_info['grid_h1M200'] = grids[2]
+                grid_info['grid_h2M200'] = grids[3]
+                grid_info['post_kappa0'] = params[0]
+                grid_info['post_radius'] = params[1]
+                grid_info['post_h1M200'] = params[2]
+                grid_info['post_h2M200'] = params[3]
+                tabletools.savePickle(filename_results_grid,grid_info)
 
 
         elif config['optimization_mode'] == 'gridsearch':

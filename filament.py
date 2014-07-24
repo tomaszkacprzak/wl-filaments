@@ -25,7 +25,7 @@ class filament:
         self.mean_inv_sigma_crit = None
         self.scale_dens = 1e14
         self.shear_interp = None
-        self.min_radius = 0.
+        self.min_radius = 0.001
 
     def proj_mass_density(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,truncation=10):
 
@@ -190,8 +190,12 @@ class filament:
         abs_radius = np.abs(radius_mpc) + self.min_radius
         dens = self.proj_mass_density(shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,abs_kappa0,abs_radius)
         kappa = dens * self.mean_inv_sigma_crit * np.sign(kappa0)
-        g1 = -kappa
-        g2 = np.zeros_like(kappa)
+        if np.sign(radius_mpc) >= 0:
+            g1 = -kappa
+            g2 = np.zeros_like(kappa)
+        elif np.sign(radius_mpc) < 0:
+            g1 = np.zeros_like(kappa)
+            g2 = -kappa
 
         return g1 , g2
 

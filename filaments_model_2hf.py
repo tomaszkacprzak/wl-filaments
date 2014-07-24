@@ -248,8 +248,8 @@ class modelfit():
         else:   # standard model
             filament_kappa0 = params[0]
             filament_radius = params[1]
-            halo2_M200 = params[3]
-            halo1_M200 = params[2]
+            halo2_M200 = params[3] * 1e14
+            halo1_M200 = params[2] * 1e14
 
 
         self.nh1.M_200= halo1_M200
@@ -389,7 +389,16 @@ class modelfit():
         self.nh2.set_mean_inv_sigma_crit(self.grid_z_centers,self.prob_z,self.pair_z)
 
         self.sampler = emcee.EnsembleSampler(nwalkers=self.n_walkers, dim=self.n_dim , lnpostfn=self.log_posterior)
+
+        grid_kappa0 = np.linspace(self.parameters[0]['box']['min'],self.parameters[0]['box']['max'], self.parameters[0]['n_grid'])
+        grid_radius = np.linspace(self.parameters[1]['box']['min'],self.parameters[1]['box']['max'], self.parameters[1]['n_grid'])
+        grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'], self.parameters[2]['n_grid'])
+        grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'], self.parameters[3]['n_grid'])
+        n_total = len(grid_kappa0)* len(grid_radius)* len(grid_h1M200)* len(grid_h2M200)
+        log_post = np.zeros([len(grid_kappa0), len(grid_radius) , len(grid_h1M200) , len(grid_h2M200)] )
+        X1,X2,X3,X4 = np.meshgrid(grid_kappa0,grid_radius,grid_h1M200,grid_h2M200,indexing='ij')
         
+        # get walkers
         theta0 = []
         for iw in range(self.n_walkers):
             start = [None]*self.n_dim
@@ -398,9 +407,36 @@ class modelfit():
 
             start = np.array(start)
             theta0.append( start )
+        theta0 = np.array(theta0)
                  
-        
+        # run mcmc
         self.sampler.run_mcmc(theta0, self.n_samples)
+
+        # cut burnin
+        N_BURNIN = 2000
+        if N_BURNIN < len(self.sampler.flatchain):
+            chain = self.sampler.chain[:, N_BURNIN:, :].reshape((-1, self.n_dim))
+        else:
+            chain = self.sampler.flatchain
+
+        # numerical stability
+        import pdb; pdb.set_trace()
+
+        # from samples to grid
+        from scipy.stats.kde import gaussian_kde
+        kde_est = gaussian_kde(chain)
+        grid_flat=np.concatenate([grid_kappa0.flatten()[:,None],grid_radius.flatten()[:,None],grid_h1M200.flatten()[:,None],grid_h2M200.flatten()[:,None]],axis=1)
+        kde_prob = kde_est(grid_flat.T)
+        logger.info('params KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(kde_prob))
+        log_post = np.log(kde_prob)
+        select = np.isnan(log_post) | np.isinf(log_post)
+        log_post[select] = log_post[~select].min()
+
+        # save
+        grids = [X1,X2,X3,X4]
+        chain_lnprob = self.sampler.flatlnprobability.astype(np.float32)
+        params =  [grid_kappa0, grid_radius , grid_h1M200 , grid_h2M200]
+        return log_post , params , grids , chain, chain_lnprob
 
     def run_gridsearch(self):
         
