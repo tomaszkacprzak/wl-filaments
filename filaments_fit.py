@@ -187,7 +187,7 @@ def fit_2hf():
         fitobj.parameters[3]['box']['max'] = float(config['h2M200']['box']['max'])
         fitobj.parameters[3]['n_grid'] = config['h2M200']['n_grid']
 
-        fitobj.n_mcmc_grid = config['n_grid']
+        # fitobj.n_mcmc_grid = config['n_grid']
 
         # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # pl.show()

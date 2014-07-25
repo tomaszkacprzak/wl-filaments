@@ -370,7 +370,6 @@ def select_halos_random():
 def fit_halos():
     
     filename_halos = config['filename_halos']
-    filename_shear = config['filename_shears']
     halos = tabletools.loadTable(filename_halos)
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='index',dtype='i4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_fit',dtype='f4')
@@ -504,8 +503,6 @@ def fit_halos():
         halo_shear['hist_g2'] = hist_g2.flatten('F')
         halo_shear['hist_m'] = hist_m.flatten('F')
 
-
-        tabletools.savePickle(filename_shear,halo_shear,append=True,log=0)  
         import filaments_model_1h
         fitobj = filaments_model_1h.modelfit()
         fitobj.shear_u_arcmin =  halo_shear['u_arcmin']
@@ -753,7 +750,16 @@ def merge_legion():
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errlo',dtype='f4')
 
     for ih in range(len(halos)):
-        filename_halos
+            filename_halos_part = 'results_halos/'+os.path.basename(config['filename_halos']).replace('.fits','.%04d.cat' % ih)
+            res=np.loadtxt(filename_halos_part)
+            halos[ih]['m200_fit'] = res[4]
+            halos[ih]['m200_sig'] = res[5]
+            halos[ih]['m200_errhi'] = res[6]
+            halos[ih]['m200_errlo'] = res[7]
+            # ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]]
+    
+    pyfits.writeto(config['filename_halos'],halos,clobber=True)
+    logger.info('saved %s' , config['filename_halos'])
 
 
 def main():

@@ -555,7 +555,6 @@ class modelfit():
                 log_prob_2D[i1,i2] = np.log(np.sum(m200_2D_hires_prob))
 
                 import mathstools
-                import pdb; pdb.set_trace()
                 print grid_kappa0[i1], grid_radius[i2] , np.sum(np.exp(m200_2D-normalisation_const)) / float(len(m200_2D.flatten())) , np.sum(np.exp(m200_2D_hires-normalisation_const))/float(len(m200_2D_hires.flatten()))
                 # pl.figure()
                 # pl.subplot(1,2,1)
