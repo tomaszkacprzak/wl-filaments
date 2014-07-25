@@ -157,7 +157,7 @@ class modelfit():
         self.nh.concentr = self.get_concentr(halo_M200,self.halo_z)
         self.nh.R_200 = self.nh.r_s*self.nh.concentr
 
-        model_g1 , model_g2  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        model_g1 , model_g2 , _ , _  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
 

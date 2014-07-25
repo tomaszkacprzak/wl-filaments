@@ -50,7 +50,7 @@ class NfwHalo:
 
         # calculate the radius of the n00
         # r_n00 = ( M_200 / (n00 * rho * 4/3 * pi ) ).^(1/3);
-        self.r_n00 = ( self.M_200 / (self.n00 * self.rho * 4./3. * np.pi ) )**(1./3.) 
+        self.r_n00 = ( np.abs(self.M_200) / (self.n00 * self.rho * 4./3. * np.pi ) )**(1./3.) 
 
         self.r_s = self.r_n00 / self.concentr 
 
@@ -129,8 +129,8 @@ class NfwHalo:
         mod_gamma , kappa , Sigma_crit = self.get_shear(mod_theta,z_source);
 
         # convert to gamma_1 and gamma_2
-        gamma_1=-mod_gamma*np.cos(2*theta); # not sure how to justify minus sign..
-        gamma_2=-mod_gamma*np.sin(2*theta);
+        # gamma_1=-mod_gamma*np.cos(2*theta); # not sure how to justify minus sign..
+        # gamma_2=-mod_gamma*np.sin(2*theta);
         # check
         #imagesc(theta_x,theta_y,gamma_1); set(gca,'ydir','normal'); colorbar
         #imagesc(theta_x,theta_y,gamma_2); set(gca,'ydir','normal'); colorbar
@@ -143,9 +143,17 @@ class NfwHalo:
         # kappa(find(isnan(kappa)))=0;
 
         # get the density contrast
-        Delta_Sigma_1 = gamma_1*Sigma_crit
-        Delta_Sigma_2 = gamma_2*Sigma_crit
-
+        if self.M_200 >= 0:
+            gamma_1=-mod_gamma*np.cos(2*theta); # not sure how to justify minus sign..
+            gamma_2=-mod_gamma*np.sin(2*theta);
+            Delta_Sigma_1 = gamma_1*Sigma_crit
+            Delta_Sigma_2 = gamma_2*Sigma_crit
+        else:
+            gamma_2=-mod_gamma*np.cos(2*theta); # not sure how to justify minus sign..
+            gamma_1=-mod_gamma*np.sin(2*theta);
+            Delta_Sigma_2 = gamma_1*Sigma_crit
+            Delta_Sigma_1 = gamma_2*Sigma_crit
+            
         return gamma_1 , gamma_2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit , kappa
 
     def get_shears_with_pz(self,theta_x,theta_y , grid_z_centers , prob_z,  redshift_offset=0.2):
@@ -178,7 +186,7 @@ class NfwHalo:
             [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,None)
 
 
-        return h1g1, h1g2
+        return h1g1, h1g2 , Delta_Sigma_1 , Delta_Sigma_2
 
     def set_mean_inv_sigma_crit(self,grid_z_centers,prob_z,pair_z):
 

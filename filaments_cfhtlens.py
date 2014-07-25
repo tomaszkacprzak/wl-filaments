@@ -42,8 +42,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
 
     global cfhtlens_shear_catalog
     if cfhtlens_shear_catalog == None:
-        # filename_cfhtlens_shears = os.environ['HOME']+ '/data/CFHTLens/CFHTLens_2014-04-07.fits'
-        filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_ecorr_pass2.fits'
+        filename_cfhtlens_shears =  config['filename_cfhtlens_shears']
 
         cfhtlens_shear_catalog = tabletools.loadTable(filename_cfhtlens_shears)
         if 'star_flag' in cfhtlens_shear_catalog.dtype.names:

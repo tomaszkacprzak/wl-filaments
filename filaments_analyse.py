@@ -20,13 +20,13 @@ import warnings
 warnings.simplefilter("once")
 
 
-log = logging.getLogger("filam..fit") 
-log.setLevel(logging.INFO)  
+logger = logging.getLogger("filam..fit") 
+logger.setLevel(logging.INFO)  
 log_formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s   %(message)s ","%Y-%m-%d %H:%M:%S")
 stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
-log.addHandler(stream_handler)
-log.propagate = False
+logger.addHandler(stream_handler)
+logger.propagate = False
 
 cospars = cosmology.cosmoparams()
 
@@ -79,7 +79,7 @@ def add_model_selection():
             log_like = tabletools.loadPickle(filename_pickle,log=0)
             log_like_const = tabletools.loadPickle(filename_pickle_cons,log=0)
         except:
-            log.debug('missing %s' % filename_pickle)
+            logger.debug('missing %s' % filename_pickle)
             continue
 
         normalisation_const = log_like.max()
@@ -292,7 +292,7 @@ def figure_fields():
 
     filename_fig = 'filament_map.png'
     pl.savefig(filename_fig)
-    log.info('saved %s' , filename_fig)
+    logger.info('saved %s' , filename_fig)
     pl.show()
     import pdb; pdb.set_trace()
 
@@ -308,7 +308,7 @@ def figure_fields_cfhtlens():
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
     filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
-    filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'
+    filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalogger.fits'
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
     halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
@@ -338,7 +338,7 @@ def figure_fields_cfhtlens():
         import matplotlib
         import matplotlib.gridspec as gridspec
     except:
-        log.error('gridspec not found - no plot today')
+        logger.error('gridspec not found - no plot today')
         return None
 
     import matplotlib.gridspec as gridspec
@@ -481,7 +481,7 @@ def figure_fields_cfhtlens():
     # fig.suptitle('%d pairs - class %d' % (n_pairs_used, classif))
     filename_fig = 'filament_map.png'
     # pl.savefig(filename_fig)
-    # log.info('saved %s' , filename_fig)
+    # logger.info('saved %s' , filename_fig)
     fig.show()
     # fig.close()
     import pdb; pdb.set_trace()
@@ -523,11 +523,11 @@ def add_stats():
             try:
                 res = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.debug('missing %s' % filename_pickle)
+                logger.debug('missing %s' % filename_pickle)
                 n_missing +=1
                 continue
             if len(res) == 0:
-                log.debug('empty %s' % filename_pickle)
+                logger.debug('empty %s' % filename_pickle)
                 n_missing +=1
                 continue
 
@@ -551,7 +551,7 @@ def add_stats():
             halos['m200_fit'][ih1] = ml_mass_h1
             halos['m200_fit'][ih2] = ml_mass_h2
 
-            log.info('%4d m200_h1_fit=%2.4e m200_h2_fit=%2.4e %d %d' % (nf,ml_mass_h1,ml_mass_h2,ih1,ih2) )
+            logger.info('%4d m200_h1_fit=%2.4e m200_h2_fit=%2.4e %d %d' % (nf,ml_mass_h1,ml_mass_h2,ih1,ih2) )
 
             # pl.plot(grid_h1M200,prod_pdf_h1M200,'r')
             # pl.plot(grid_h2M200,prod_pdf_h2M200,'g')
@@ -602,7 +602,7 @@ def get_prob_prod_mcmc(ids):
         if len(list(set(ids) & set(current_ids))) < 1:
 
             ia+=n_per_file
-            log.debug('no requested results between %d and %d' , id_start, id_end)
+            logger.debug('no requested results between %d and %d' , id_start, id_end)
             continue
 
         else:
@@ -611,7 +611,7 @@ def get_prob_prod_mcmc(ids):
             try:
                 results_pickle = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.info('missing %s' % filename_pickle)
+                logger.info('missing %s' % filename_pickle)
                 n_missing +=1
                 ia+=n_per_file
                 continue
@@ -629,7 +629,7 @@ def get_prob_prod_mcmc(ids):
                         prob = results_pickle[ni]['list_prob_marg'][ip]
                         nans = np.nonzero(np.isnan(prob))[0]
                         if len(nans) > 0:
-                            log.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
+                            logger.info('%d %s param=%d n_nans=%d', ni, filename_pickle , ip, len(np.nonzero(np.isnan(prob))[0]) )
                         prob[prob<1e-20]=1e-20
                         logprob = prob
                         # nans = np.nonzero(np.isnan( logprob))[0]
@@ -650,7 +650,7 @@ def get_prob_prod_mcmc(ids):
                     # prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob2D)  
                     # nans = np.nonzero(np.isnan(prod2D_pdf))[0]
                     # n_nans=len(nans)
-                    # if n_nans > 0: log.info('n_nans=%d',n_nans)
+                    # if n_nans > 0: logger.info('n_nans=%d',n_nans)
                     # prod2D_log_pdf = np.reshape(prod2D_log_pdf,[config['n_grid_2D'],config['n_grid_2D']])
                     
                     prod2D_log_pdf = np.reshape(logprob2D,[config['n_grid_2D'],config['n_grid_2D']])
@@ -672,7 +672,7 @@ def get_prob_prod_mcmc(ids):
                     n_usable_results+=1
                 ia+=1
                 
-            log.info('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+            logger.info('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
 
     for ip in range(n_params):
         prob1D_pdf , prod1D_log_pdf , _ , _ = mathstools.get_normalisation(prob_prod[ip])  
@@ -733,11 +733,11 @@ def get_prob_prod_gridsearch(ids):
             try:
                 res = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.debug('missing %s' % filename_pickle)
+                logger.debug('missing %s' % filename_pickle)
                 n_missing +=1
                 continue
             if len(res) == 0:
-                log.debug('empty %s' % filename_pickle)
+                logger.debug('empty %s' % filename_pickle)
                 n_missing +=1
                 continue
 
@@ -752,8 +752,8 @@ def get_prob_prod_gridsearch(ids):
             res_all = res if res_all == None else res_all+res
 
             n_usable_results+=1
-            log.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
-            if nf % 100 == 0 : log.info('%4d n_usable_results=%d' , nf , n_usable_results)
+            logger.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+            if nf % 100 == 0 : logger.info('%4d n_usable_results=%d' , nf , n_usable_results)
 
 
     prod_pdf = mathstools.normalise(res_all)   
@@ -763,6 +763,15 @@ def get_prob_prod_gridsearch(ids):
 
 
 def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,normalisation_const=None):
+
+    filename_pairs = config['filename_pairs']
+    filename_halos = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+
     
     import scipy.interpolate
     n_per_file = 1
@@ -794,9 +803,10 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     if hires:    
         n_upsample = 50
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
+        # vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
-        logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])+66
+        logprob_kappa0_radius_hires = np.zeros([ len(vec_kappa0_hires) , len(vec_radius_hires) ])+66
 
     for nf in range(id_file_first,id_file_last):
 
@@ -808,26 +818,30 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             try:
                 results_pickle = tabletools.loadPickle(filename_pickle,log=1)
             except:
-                log.info('missing %s' % filename_pickle)
+                logger.info('missing %s' % filename_pickle)
                 n_missing +=1
                 continue
             if len(results_pickle) == 0:
-                log.info('empty %s' % filename_pickle)
+                logger.info('empty %s' % filename_pickle)
                 n_missing +=1
                 continue
-            if len(results_pickle) == 3:
-                results_pickle = results_pickle[0]
+                
+            # log_prob = results_pickle['log_post']
+            # log_prob_2D = results_pickle['log_post_2D']
+            log_prob = results_pickle
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            log_prob = results_pickle
+            log_prob = log_prob[:,:,:20,:20]
+
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-            grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
-            grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
-
+            print grid_h1M200[:20].min() , grid_h1M200[:20].max() 
+            print grid_h2M200[:20].min() , grid_h2M200[:20].max()
             if hires_marg:
 
+                grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
+                grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
                 log_prob_2D = np.zeros_like(log_prob[:,:,0,0])
 
                 for i1 in range(len(log_prob[:,0,0,0])):
@@ -849,21 +863,40 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                             pl.show()
 
             else:
-                # log_prob *= 0.2
-                pdf_prob = np.exp(log_prob-log_prob.max()) 
+                
+                # the prior trick
+                # select1 = grid_pickle['grid_h1M200'] > (halo1[nf]['m200_fit'] - 2*halo1['m200_errlo'][nf]) 
+                # select2 = grid_pickle['grid_h1M200'] < (halo1[nf]['m200_fit'] + 2*halo1['m200_errhi'][nf])
+                # select3 = grid_pickle['grid_h2M200'] > (halo2[nf]['m200_fit'] - 2*halo2['m200_errlo'][nf]) 
+                # select4 = grid_pickle['grid_h2M200'] < (halo2[nf]['m200_fit'] + 2*halo2['m200_errhi'][nf])
+                # selectp = select1 & select2 & select3 & select4
+
+                # log_prob_2D = np.zeros([log_prob.shape[0],log_prob.shape[1]])
+                # normalisation=log_prob.max()
+                # for i1 in range(log_prob.shape[0]):
+                #     for i2 in range(log_prob.shape[1]):
+                #         selecti = np.zeros(log_prob.shape,dtype=np.bool)
+                #         selecti[i1,i2,:,:] = True
+                #         select = selectp & selecti
+                #         n_points = len(np.nonzero(select.flatten())[0])
+                #         all_prob = log_prob[select]  
+                #         log_prob_2D[i1,i2] = np.log(np.sum(np.exp(all_prob-normalisation))/n_points)
+                # pdf_prob = np.exp(log_prob[select] - log_prob[select].max()) 
+
+                pdf_prob = np.exp(log_prob - log_prob.max()) 
                 pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                 log_prob_2D = np.log(pdf_prob_2D)
                 if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
-                    log.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
-                    log.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                    logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                    logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
                     min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
                     log_prob_2D[np.isinf(log_prob_2D)] = min_element
                     log_prob_2D[np.isnan(log_prob_2D)] = min_element
 
 
 
-            logprob_kappa0_radius += log_prob_2D + log_prob.max()
-            # logprob_kappa0_radius += log_prob_2D
+            # logprob_kappa0_radius += log_prob_2D + log_prob.max()
+            logprob_kappa0_radius += log_prob_2D
             plot_prob_all, _, _, _ = mathstools.get_normalisation(logprob_kappa0_radius)  
             plot_prob_this, _, _, _ = mathstools.get_normalisation(log_prob_2D)   
 
@@ -871,8 +904,8 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 # from scipy import interpolate
                 # spline = interpolate.bisplrep(grid_kappa0,grid_radius,log_prob_2D,s=0)
                 # log_prob_2D_hires = interpolate.bisplev(vec_kappa0_hires,vec_radius_hires,spline)
-                func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
-                log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D.T, kind='cubic')
+                log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires).T
                 if np.any(np.isnan(log_prob_2D_hires)):
                     print 'nans in log_prob_2D_hires'
                     import pdb; pdb.set_trace()
@@ -904,8 +937,8 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
           
             n_usable_results+=1
             list_ids_used.append(nf)
-            log.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
-            if nf % 100 == 0 : log.info('%4d n_usable_results=%d' , nf , n_usable_results)
+            logger.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+            if nf % 100 == 0 : logger.info('%4d n_usable_results=%d' , nf , n_usable_results)
 
 
     if hires:
@@ -918,6 +951,112 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     
     # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
+def get_prob_prod_sampling_2D(ids,plots=False,hires=True,hires_marg=False,normalisation_const=None):
+    
+    import scipy.interpolate
+    n_per_file = 1
+    id_file_first = 0
+    id_file_last = max(ids)+1
+    n_params = 4
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+
+    # initialise lists for 1D marginals
+    list_pdf_prod_1D = []
+    list_pdf_grid_1D = []
+   
+    n_missing=0
+    n_usable_results=0
+
+    vec_kappa0=np.linspace(config['kappa0']['box']['min'],config['kappa0']['box']['max'], config['n_grid'])
+    vec_radius=np.linspace(config['radius']['box']['min'],config['radius']['box']['max'], config['n_grid'])
+    grid_kappa0,grid_radius=np.meshgrid(vec_kappa0,vec_radius,indexing='ij')
+
+    logprob_kappa0_radius = np.zeros([ len(grid_kappa0[:,0]) , len(grid_radius[0,:]) ])+66
+    grid2D_dict = { 'grid_kappa0'  : grid_kappa0 , 'grid_radius' : grid_radius}  
+    list_ids_used = []
+
+    normalisation_factor=-10000
+
+    if hires:    
+        n_upsample = 10
+        vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
+        vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
+        grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
+        logprob_kappa0_radius_hires = np.zeros([ len(grid_kappa0_hires) , len(grid_radius_hires) ])+66
+
+    for nf in range(id_file_first,id_file_last):
+
+        if nf in ids:
+
+
+            # filename_pickle = 'results_local2scratch/results.prob.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
+            filename_pickle = '%s/results.chain.%04d.%04d.%s.pp2'  % (args.results_dir,nf*n_per_file, (nf+1)*n_per_file , name_data)
+            try:
+                results_pickle = tabletools.loadPickle(filename_pickle,log=1)
+            except:
+                logger.info('missing %s' % filename_pickle)
+                n_missing +=1
+                continue
+            if len(results_pickle) == 0:
+                logger.info('empty %s' % filename_pickle)
+                n_missing +=1
+                continue
+
+            # marginal kappa-radius
+            # log_prob = results_pickle*214.524/2.577
+            marginals = results_pickle['marginals']
+            log_prob_2D = marginals[0,1,:,:]
+
+            if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                log_prob_2D[np.isnan(log_prob_2D)] = min_element
+
+            plot_prob_all, _, _, _ = mathstools.get_normalisation(logprob_kappa0_radius)  
+            plot_prob_this, _, _, _ = mathstools.get_normalisation(log_prob_2D)   
+
+            if hires:
+                func_interp = scipy.interpolate.interp2d(vec_kappa0,vec_radius,log_prob_2D, kind='cubic')
+                log_prob_2D_hires = func_interp(vec_kappa0_hires,vec_radius_hires)
+                if np.any(np.isnan(log_prob_2D_hires)):
+                    print 'nans in log_prob_2D_hires'
+                    import pdb; pdb.set_trace()
+                logprob_kappa0_radius_hires += log_prob_2D_hires
+
+            if plots:
+                if nf % 10 == 0:
+                    plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
+                    plot_prob_this_hires, _, _,_ = mathstools.get_normalisation(log_prob_2D_hires)   
+                    pl.figure(figsize=(10,10))
+                    pl.subplot(2,2,1)
+                    pl.pcolormesh(grid_kappa0, grid_radius , plot_prob_all); pl.colorbar()
+                    pl.subplot(2,2,2)
+                    pl.pcolormesh(grid_kappa0 , grid_radius , plot_prob_this); pl.colorbar()
+                    pl.subplot(2,2,3)
+                    pl.pcolormesh(grid_kappa0_hires, grid_radius_hires , plot_prob_all_hires); pl.colorbar()
+                    pl.subplot(2,2,4)
+                    pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , plot_prob_this_hires); pl.colorbar()
+                    pl.suptitle(nf)
+                    pl.show()
+
+          
+            n_usable_results+=1
+            list_ids_used.append(nf)
+            logger.debug('%4d %s n_usable_results=%d' , nf , filename_pickle , n_usable_results)
+            if nf % 100 == 0 : logger.info('%4d n_usable_results=%d' , nf , n_usable_results)
+
+
+    if hires:
+        grid2D_dict = { 'grid_kappa0'  : grid_kappa0_hires , 'grid_radius' : grid_radius_hires}  
+        prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
+        return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
+    else:
+        prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
+        return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
+    
+    # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
 def plot_vs_length():
 
@@ -948,7 +1087,7 @@ def plot_vs_length():
         grid2D_kappa0 = list_res_dict[ib]['grid2D_kappa0']
         grid2D_radius = list_res_dict[ib]['grid2D_radius']
 
-        log.info('[%2.2e<mass<%2.2e]' % (bin['bin_min'] , bin['bin_max'] ))
+        logger.info('[%2.2e<mass<%2.2e]' % (bin['bin_min'] , bin['bin_max'] ))
 
         contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod2D_pdf)
         prod2D_pdf,_,_,_ = mathstools.get_normalisation(np.log(prod2D_pdf))
@@ -966,7 +1105,7 @@ def plot_vs_length():
         pl.ylim([0.25,4])
         filename_fig = 'figs/fig.length.%02d.%s.%d.png' % (ib,args.filename_config.replace('.yaml',''),bin['n_pairs_used'])
         pl.savefig(filename_fig)
-        log.info('saved %s' % filename_fig)
+        logger.info('saved %s' % filename_fig)
 
 
         # pl.figure()
@@ -1015,7 +1154,7 @@ def plotdata_vs_length():
         length = pairs['R_pair']
         # mass = (halo1['snr']+halo2['snr'])/2.
         ids = np.nonzero((length > bins_edges[ib-1]) * (length < bins_edges[ib]))[0]
-        log.info('bin %d found n=%d ids' % (ib,len(ids)))
+        logger.info('bin %d found n=%d ids' % (ib,len(ids)))
         list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
 
         res_dict = {}
@@ -1083,12 +1222,12 @@ def plotdata_vs_mass():
 
         ids = np.nonzero((mass > bins_snr_edges[ib-1]) * (mass < bins_snr_edges[ib]))[0]
 
-        log.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
+        logger.info('bin %d: [%2.2e<mass<%2.2e], found n=%d ids' % (ib,  bins_snr_edges[ib-1], bins_snr_edges[ib], len(ids)))
         # if ib==1:
         list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids)
         # if ib==2:
             # list_prod_pdf , list_grid_pdf , prod2D_pdf ,  grid2D_kappa0 , grid2D_radius , n_pairs_used = get_prob_prod_gridsearch(ids,plots=True)
-        log.info('using %d pairs' , n_pairs_used)
+        logger.info('using %d pairs' , n_pairs_used)
 
         res_dict = {}
         res_dict['mass_param_name'] = mass_param_name
@@ -1154,7 +1293,7 @@ def plot_vs_mass():
        
     for ib,snr_bin in enumerate(list_res_dict):
 
-        log.info('[%2.2e<mass<%2.2e]' % (snr_bin['bin_min'] , snr_bin['bin_max'] ))
+        logger.info('[%2.2e<mass<%2.2e]' % (snr_bin['bin_min'] , snr_bin['bin_max'] ))
 
         prod2D_pdf = list_res_dict[ib]['prod2D_pdf']
         grid2D_kappa0 = list_res_dict[ib]['grid2D_kappa0']
@@ -1177,7 +1316,7 @@ def plot_vs_mass():
         pl.title(title_str)
         filename_fig = 'figs/fig.mass.%02d.%s.%d.png' % (ib,args.filename_config.replace('.yaml',''),snr_bin['n_pairs_used'])
         pl.savefig(filename_fig)
-        log.info('saved %s' % filename_fig)
+        logger.info('saved %s' % filename_fig)
 
         # grid2D_mass = grid2D_kappa0 /  (grid2D_radius * np.pi)
         # pl.figure()
@@ -1231,7 +1370,7 @@ def plot_single_pairs():
 
 
         title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF1=%2.4f BF2=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['BF1'][ids], pairs['BF2'][ids])
-        log.info(title_str)
+        logger.info(title_str)
     
         rho_crit = 2.77501358101e+11
         int_DS = 1e14*(grid_dict['grid_kappa0'] * ( grid_dict['grid_radius'] * np.pi ) /2.) 
@@ -1254,7 +1393,7 @@ def plot_single_pairs():
 
         filename_fig='figs/pair.%04d.kappa0-radius.png' % ids
         pl.savefig(filename_fig)
-        log.info('saved %s',filename_fig)
+        logger.info('saved %s',filename_fig)
         # pl.show()
         pl.close()
 
@@ -1311,7 +1450,7 @@ def plot_single_pairs_const():
 
         filename_fig='figs/pair.%04d.kappa0-const.png' % ids
         pl.savefig(filename_fig)
-        log.info('saved %s',filename_fig)
+        logger.info('saved %s',filename_fig)
         pl.close()
 
 
@@ -1385,8 +1524,13 @@ def plotdata_all():
 
     # ids=np.arange(n_pairs)
     ids=np.arange(n_pairs)[select]
+    ids=ids[:args.num]
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
-    prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)
+    if config['optimization_mode'] == 'gridsearch':
+        prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)
+    if config['optimization_mode'] == 'mcmc':
+        prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_sampling_2D(ids)
+
 
     print 'used %d pairs' % n_pairs_used
 
@@ -1488,7 +1632,7 @@ def plotdata_all():
     # pl.title(title_str)
     # filename_fig = 'figs/fig.all.%s.png' % (args.filename_config.replace('.yaml',''))
     # pl.savefig(filename_fig)
-    # log.info('saved %s' % filename_fig)
+    # logger.info('saved %s' % filename_fig)
     # pl.show()
 
 def triangle_plots():
@@ -1594,7 +1738,7 @@ def plot_data_stamp():
         pl.subplot(3,1,3)
         filaments_tools.plot_pair(pairs['u1_mpc'][id_pair], pairs['v1_mpc'][id_pair], pairs['u2_mpc'][id_pair], pairs['v2_mpc'][id_pair], shears_info['u_mpc'], shears_info['v_mpc'], shears_info['g1'], shears_info['g2'],idp=id_pair,halo1=halo1[id_pair],halo2=halo2[id_pair],pair_info=pairs[id_pair],plot_type='g2')
         pl.savefig(filename_fig)
-        log.info('saved %s', filename_fig)
+        logger.info('saved %s', filename_fig)
         pl.close()
 
 
@@ -1630,7 +1774,7 @@ def remove_similar_connections():
     n_unique=len(unique_de)
     box_coords = np.concatenate([x[:,None],y[:,None],z[:,None]],axis=1)
 
-    log.info('getting Ball Tree for 3D')
+    logger.info('getting Ball Tree for 3D')
     BT = BallTree(box_coords, leaf_size=5)
     n_connections=100
     bt_dx,bt_id = BT.query(box_coords,k=n_connections)
@@ -1641,14 +1785,14 @@ def remove_similar_connections():
     ih2 = bt_id_reduced
     DA  = bt_dx_reduced
 
-    log.info('number of pairs %d ' % len(ih1))
+    logger.info('number of pairs %d ' % len(ih1))
     select = ih1 < ih2
     ih1 = ih1[select]
     ih2 = ih2[select]
     DA = DA[select]
-    log.info('number of pairs after removing duplicates %d ' % len(ih1))
+    logger.info('number of pairs after removing duplicates %d ' % len(ih1))
 
-    log.info('calculating x-y distance')
+    logger.info('calculating x-y distance')
     halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(  unique_ra[ih1] , unique_de[ih1]  )
     halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(  unique_ra[ih2] , unique_de[ih2]  )
     
@@ -1894,8 +2038,8 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
-    parser.add_argument('-n', '--n_results_files',type=int,  default=1, action='store', help='number of results files to use')
-    parser.add_argument('-f', '--first_result_file',type=int, default=0, action='store', help='number of first result file to open')
+    parser.add_argument('-n', '--num',type=int,  default=1, action='store', help='number of results files to use')
+    parser.add_argument('-f', '--first',type=int, default=0, action='store', help='number of first result file to open')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
     parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
@@ -1911,7 +2055,7 @@ def main():
                        2: logging.INFO,
                        3: logging.DEBUG }
     logging_level = logging_levels[args.verbosity]
-    log.setLevel(logging_level)
+    logger.setLevel(logging_level)
 
     global config 
     config = yaml.load(open(args.filename_config))

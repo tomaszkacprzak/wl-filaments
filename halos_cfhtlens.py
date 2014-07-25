@@ -83,8 +83,8 @@ def select_halos():
 
 def select_halos_LRGSCLUS():
 
-    range_z=config['range_z']
-    range_M=config['range_M']
+    range_z=map(float,config['range_z'])
+    range_M=map(float,config['range_M'])
     filename_halos=config['filename_halos']
 
 
@@ -95,13 +95,13 @@ def select_halos_LRGSCLUS():
     import pyfits
     import plotstools
 
-    filename_catalog_lrgs = 'lrgs_cfhtlens_lrg.fits'
-    filename_catalog_clusters = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
+    filename_catalog_lrgs = config['filename_BOSS_lrgs']
+    filename_catalog_clusters = config['filename_clusters']
 
     cat_clusters=tabletools.loadTable(filename_catalog_clusters)
     cat_lrgs=np.array(pyfits.getdata(filename_catalog_lrgs))
 
-    select= (cat_clusters['m200']>range_M[0]) * (cat_clusters['m200']<range_M[1])
+    select= ( (10**cat_clusters['m200'])>range_M[0] ) * (10**cat_clusters['m200']<range_M[1])
     cat_clusters=cat_clusters[select]
 
     coords_lrgs = np.concatenate([cat_lrgs['ra'][:,None],cat_lrgs['dec'][:,None]],axis=1)
@@ -111,14 +111,14 @@ def select_halos_LRGSCLUS():
     n_connections=1
     bt_dx,bt_id = BT.query(coords_clusters,k=n_connections)
     
-    dx = 0.02
+    dx = 0.1
     select=bt_dx<dx
     ids_selected = bt_id[select]
 
     cat_lrgs_lrgsclus = cat_lrgs[ids_selected]
     cat_clus_lrgsclus = cat_clusters[select.flatten()]
 
-    select = np.abs(cat_lrgs_lrgsclus['z'] - cat_clus_lrgsclus['z'])<0.1
+    select = np.abs(cat_lrgs_lrgsclus['z'] - cat_clus_lrgsclus['z'])<0.2
     cat_lrgs_lrgsclus = cat_lrgs_lrgsclus[select]
     cat_clus_lrgsclus = cat_clus_lrgsclus[select]
 
@@ -131,6 +131,15 @@ def select_halos_LRGSCLUS():
     fix_case(cat_join)
     print 'selected on redshift range, n_clusters=%d' % len(cat_join)
 
+    cat_join = tabletools.ensureColumn(name='m200_fit',rec=cat_join)
+    cat_join = tabletools.ensureColumn(name='ra_clus',rec=cat_join)
+    cat_join = tabletools.ensureColumn(name='dec_clus',rec=cat_join)
+    cat_join['ra_clus'] = cat_clus_lrgsclus['ra']
+    cat_join['dec_clus'] = cat_clus_lrgsclus['dec']
+    cat_join['ra']  = cat_lrgs_lrgsclus['ra'].copy()
+    cat_join['dec'] = cat_lrgs_lrgsclus['dec'].copy()
+    
+
     pl.figure()
     pl.hist(cat_join['m200'])
     filename_fig = 'figs/hist.m200.png'
@@ -138,6 +147,15 @@ def select_halos_LRGSCLUS():
     pl.close()
     print 'saved' , filename_fig
 
+    pl.figure()
+    pl.scatter(cat_lrgs['ra'],cat_lrgs['dec'],edgecolor='b',label='lrgs',s=100,facecolors='none')
+    pl.scatter(cat_clusters['ra'],cat_clusters['dec'],edgecolor='r',label='clus',s=100,facecolors='none')
+    pl.scatter(cat_lrgs_lrgsclus['ra'],cat_lrgs_lrgsclus['dec'],c='c',label='join lrg',s=20)
+    pl.scatter(cat_clus_lrgsclus['ra'],cat_clus_lrgsclus['dec'],c='m',label='join clu',s=20)
+    pl.legend()
+    pl.show()
+
+    import pdb; pdb.set_trace()
     tabletools.saveTable(filename_halos,cat_join)
 
 def select_halos_CLUSTERZ():
@@ -378,6 +396,8 @@ def fit_halos():
     stacked_tangential_profile = []
     stacked_halo_shear = []
 
+    redshift_offset = 0.2
+
     global cfhtlens_shear_catalog
     cfhtlens_shear_catalog=None
     logger.info('running on %d - %d',id_first,id_last)
@@ -424,7 +444,7 @@ def fit_halos():
         shear_g1_proj , shear_g2_proj = cosmology.get_gnomonic_projection_shear(shear_ra_rad , shear_de_rad , halo_ra_rad , halo_de_rad, shear_g1,shear_g2)       
 
         dtheta_x , dtheta_y = cosmology.arcmin_to_rad(box_size/2.,box_size/2.)
-        select = ( np.abs( shear_u_rad ) < np.abs(dtheta_x)) * (np.abs(shear_v_rad) < np.abs(dtheta_y))
+        select = ( np.abs( shear_u_rad ) < np.abs(dtheta_x)) * (np.abs(shear_v_rad) < np.abs(dtheta_y)) * (shear_z > (halo_z + redshift_offset))
 
         shear_u_stamp_rad  = shear_u_rad[select]
         shear_v_stamp_rad  = shear_v_rad[select]

@@ -303,11 +303,11 @@ def figure_fields():
     box_w4 = [131.5,137.5,-6.5,-0.5]
 
            
-    select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
+    # select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
 
-    pairs=pairs[select]
-    halo1=halo1[select]
-    halo2=halo2[select]
+    # pairs=pairs[select]
+    # halo1=halo1[select]
+    # halo2=halo2[select]
     n_pairs_used = len(pairs)
 
     print 'using %d pairs' % len(halo2)

@@ -2,6 +2,7 @@ import os, yaml, argparse, sys, logging , pyfits,  emcee, tabletools, cosmology,
 import numpy as np
 import pylab as pl
 import warnings
+import scipy.interpolate
 
 warnings.simplefilter('once')
 
@@ -226,7 +227,7 @@ class modelfit():
 
         # Duffy et al 2008 from King and Mead 2011
         # concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
-        concentr = 5.72/(1.+z)**0.71 * (M / 1e14)**(-0.081)
+        concentr = 5.72/(1.+z)**0.71 * (np.abs(M) / 1e14)**(-0.081)
 
         return concentr
 
@@ -240,32 +241,41 @@ class modelfit():
         self.n_model_evals +=1
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
+        halo1_M200 = params[2] * 1e14
+        halo2_M200 = params[3] * 1e14
+
+        self.nh1.M_200= halo1_M200
+        self.nh1.concentr = self.get_concentr(halo1_M200,self.halo1_z)
+        self.nh1.R_200 = self.nh1.r_s*self.nh1.concentr
+
+        self.nh2.M_200= halo2_M200
+        self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
+        self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr      
+
         if self.kappa_is_K: # model where kappa is dependent on halo mass
-            halo2_M200 = params[3]
-            halo1_M200 = params[2]
-            filament_kappa0 = params[0]*(halo2_M200+halo1_M200)/1e14
-            filament_radius = params[1]
+            h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
+            h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
+            theta1_x=self.nh1.theta_cx+h1_r200_arcmin
+            theta2_x=self.nh2.theta_cx+h2_r200_arcmin
+            h1g1 , h1g2 , h1_DeltaSigma_1 , h1_DeltaSigma_2  = self.nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
+            h2g1 , h2g2 , h2_DeltaSigma_1 , h2_DeltaSigma_2  = self.nh1.get_shears_with_pz_fast(np.array([theta2_x,theta2_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
+            DeltaSigma1_at_R200 = np.abs(h1_DeltaSigma_1[0])
+            DeltaSigma2_at_R200 = np.abs(h2_DeltaSigma_2[0])
+            filament_kappa0 = params[0]*(DeltaSigma1_at_R200+DeltaSigma2_at_R200)/2. / 1e14
+            filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
+            if self.n_model_evals % 1000==0:
+                print params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200
         else:   # standard model
             filament_kappa0 = params[0]
             filament_radius = params[1]
             halo2_M200 = params[3] * 1e14
             halo1_M200 = params[2] * 1e14
 
+        filament_u1_mpc = self.halo1_u_mpc - self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc + self.nh2.R_200
 
-        self.nh1.M_200= halo1_M200
-        self.nh1.concentr = self.get_concentr(halo1_M200,self.halo1_z)
-        self.nh1.R_200 = self.nh1.r_s*self.nh1.concentr
-
-
-        self.nh2.M_200= halo2_M200
-        self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
-        self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr
-
-        filament_u1_mpc = self.halo1_u_mpc - 0.5*self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + 0.5*self.nh2.R_200
-
-        h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        h1g1 , h1g2 , _ , _  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        h2g1 , h2g2 , _ , _  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         fg1 , fg2 = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
 
 
@@ -288,7 +298,7 @@ class modelfit():
             posterior = -np.inf
         else:
             # use no info from prior for now
-            posterior = likelihood 
+            posterior = likelihood + prior 
 
         if log.level == logging.DEBUG:
             n_progress = 10
@@ -331,14 +341,20 @@ class modelfit():
         h2M200 = theta[3]
 
         # prob = -0.5 * ( (log10_M200 - self.gaussian_prior_theta[0]['mean'])/self.gaussian_prior_theta[0]['std'] )**2  - np.log(np.sqrt(2*np.pi))
-        prob=1e-10 # small number so that the prior doesn't matter
+        prob=1e-20 # small number so that the prior doesn't matter
 
         if ( self.parameters[0]['box']['min'] <= kappa0 <= self.parameters[0]['box']['max'] ):
             if ( self.parameters[1]['box']['min'] <= radius <= self.parameters[1]['box']['max'] ):
                 if ( self.parameters[2]['box']['min'] <= h1M200 <= self.parameters[2]['box']['max'] ):
                     if ( self.parameters[3]['box']['min'] <= h2M200 <= self.parameters[3]['box']['max'] ):
-                        return prob
-
+                                if self.m200_sigma != None:
+                                    m200_prior1 = np.log(np.exp( (self.halo1_M200 - h1M200)**2/self.m200_sigma**2 ))
+                                    m200_prior2 = np.log(np.exp( (self.halo2_M200 - h2M200)**2/self.m200_sigma**2 ))
+                                    prob += m200_prior1 
+                                    prob += m200_prior2 
+                                    return prob
+                                else:
+                                    return prob
         return -np.inf
        
     def log_likelihood(self,model_g1,model_g2,limit_mask):
@@ -403,7 +419,7 @@ class modelfit():
         for iw in range(self.n_walkers):
             start = [None]*self.n_dim
             for ip in range(self.n_dim):
-                start[ip]  = np.random.uniform( low=self.parameters[ip]['box']['min'] , high=self.parameters[ip]['box']['max'] ) 
+                start[ip]  = np.random.uniform( low= -self.parameters[ip]['box']['max'] , high=self.parameters[ip]['box']['max'] ) 
 
             start = np.array(start)
             theta0.append( start )
@@ -413,30 +429,58 @@ class modelfit():
         self.sampler.run_mcmc(theta0, self.n_samples)
 
         # cut burnin
-        N_BURNIN = 2000
+        N_BURNIN = 100
         if N_BURNIN < len(self.sampler.flatchain):
             chain = self.sampler.chain[:, N_BURNIN:, :].reshape((-1, self.n_dim))
+            chain_lnprob = self.sampler.lnprobability[:,N_BURNIN:].reshape(-1)
         else:
             chain = self.sampler.flatchain
+            chain_lnprob = self.sampler.flatlnprobability
 
-        # numerical stability
-        import pdb; pdb.set_trace()
+        diff=np.diff(chain,axis=0)
+        norm_diff = np.linalg.norm(diff,axis=1)
+        norm_diff=np.insert(norm_diff,0,0)
+        select = norm_diff>1e-5
+        chain = chain[select,:]
+        chain_lnprob = chain_lnprob[select]
 
         # from samples to grid
-        from scipy.stats.kde import gaussian_kde
-        kde_est = gaussian_kde(chain)
-        grid_flat=np.concatenate([grid_kappa0.flatten()[:,None],grid_radius.flatten()[:,None],grid_h1M200.flatten()[:,None],grid_h2M200.flatten()[:,None]],axis=1)
-        kde_prob = kde_est(grid_flat.T)
-        logger.info('params KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(kde_prob))
-        log_post = np.log(kde_prob)
-        select = np.isnan(log_post) | np.isinf(log_post)
-        log_post[select] = log_post[~select].min()
+        # from scipy.stats.kde import gaussian_kde
+        # kde_est = gaussian_kde(chain.T)
+        # grid_flat=np.concatenate([X1.flatten()[:,None],X2.flatten()[:,None],X3.flatten()[:,None],X4.flatten()[:,None]],axis=1)
+        # kde_prob = kde_est(grid_flat.T)
+        # log.info('params KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(kde_prob))
+        # log_post = np.log(kde_prob)
+        # select = np.isnan(log_post) | np.isinf(log_post)
+        # log_post[select] = log_post[~select].min()
+        # dims = [self.parameters[i]['n_grid'] for i in range(self.n_dim)]
+        # log_post = np.reshape(log_post,dims)
 
         # save
+
+        # get 2d margs
+        from scipy.stats.kde import gaussian_kde
+        marginals = np.zeros([self.n_dim,self.n_dim,self.n_mcmc_grid,self.n_mcmc_grid])
+
+        for i1 in range(0,self.n_dim):
+            for i2 in range(i1+1,self.n_dim):
+                kde_est = gaussian_kde(chain[:,[i1,i2]].T)
+                grid1=np.linspace(self.parameters[i1]['box']['min'],self.parameters[0]['box']['max'], self.n_mcmc_grid)
+                grid2=np.linspace(self.parameters[i2]['box']['min'],self.parameters[0]['box']['max'], self.n_mcmc_grid)
+                G1,G2=np.meshgrid(grid1,grid2,indexing='ij')
+                grid_flat=np.concatenate([G1.flatten()[:,None],G2.flatten()[:,None]],axis=1)
+                kde_prob = kde_est(grid_flat.T)
+                log.info('params KDE bandwidth=%2.3f normalisation=%f', kde_est.factor , np.sum(kde_prob))
+                log_post = np.log(kde_prob)
+                select = np.isnan(log_post) | np.isinf(log_post)
+                log_post[select] = log_post[~select].min()
+                dims = [self.n_mcmc_grid,self.n_mcmc_grid]
+                log_post = np.reshape(log_post,dims)
+                marginals[i1,i2,:,:] = log_post
+
         grids = [X1,X2,X3,X4]
-        chain_lnprob = self.sampler.flatlnprobability.astype(np.float32)
         params =  [grid_kappa0, grid_radius , grid_h1M200 , grid_h2M200]
-        return log_post , params , grids , chain, chain_lnprob
+        return log_post , params , grids , chain, chain_lnprob, marginals
 
     def run_gridsearch(self):
         
@@ -466,8 +510,13 @@ class modelfit():
 
         grid_kappa0 = np.linspace(self.parameters[0]['box']['min'],self.parameters[0]['box']['max'], self.parameters[0]['n_grid'])
         grid_radius = np.linspace(self.parameters[1]['box']['min'],self.parameters[1]['box']['max'], self.parameters[1]['n_grid'])
-        grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'], self.parameters[2]['n_grid'])
-        grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'], self.parameters[3]['n_grid'])
+        if self.m200_sigma == None:
+            grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'], self.parameters[2]['n_grid'])
+            grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'], self.parameters[3]['n_grid'])
+        else:
+            grid_h1M200 = np.linspace(self.halo1_M200 - self.m200_sigma*2,self.halo1_M200 + self.m200_sigma*2, self.parameters[2]['n_grid'])
+            grid_h2M200 = np.linspace(self.halo2_M200 - self.m200_sigma*2,self.halo2_M200 + self.m200_sigma*2, self.parameters[2]['n_grid'])
+
         n_total = len(grid_kappa0)* len(grid_radius)* len(grid_h1M200)* len(grid_h2M200)
         log_post = np.zeros([len(grid_kappa0), len(grid_radius) , len(grid_h1M200) , len(grid_h2M200)] )
         X1,X2,X3,X4 = np.meshgrid(grid_kappa0,grid_radius,grid_h1M200,grid_h2M200,indexing='ij')
@@ -492,9 +541,33 @@ class modelfit():
                             ia+=1
                             # if ia % 1000 == 0 : log.info('gridsearch progress %d/%d models' , ia, n_total)
 
+        n_upsample = 100
+        grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
+        grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
+        log_prob_2D = np.zeros_like(log_post[:,:,0,0])
+        normalisation_const=log_post.max()
+        for i1 in range(len(log_post[:,0,0,0])):
+            for i2 in range(len(log_post[0,:,0,0])):
+                m200_2D = log_post[i1,i2,:,:]
+                func_interp = scipy.interpolate.interp2d(grid_h1M200,grid_h2M200,m200_2D, kind='cubic')
+                m200_2D_hires = func_interp(grid_h1M200_hires,grid_h2M200_hires)
+                m200_2D_hires_prob=np.exp(m200_2D_hires-normalisation_const)
+                log_prob_2D[i1,i2] = np.log(np.sum(m200_2D_hires_prob))
+
+                import mathstools
+                import pdb; pdb.set_trace()
+                print grid_kappa0[i1], grid_radius[i2] , np.sum(np.exp(m200_2D-normalisation_const)) / float(len(m200_2D.flatten())) , np.sum(np.exp(m200_2D_hires-normalisation_const))/float(len(m200_2D_hires.flatten()))
+                # pl.figure()
+                # pl.subplot(1,2,1)
+                # pl.imshow(mathstools.normalise(m200_2D),interpolation='nearest')
+                # pl.subplot(1,2,2)
+                # pl.imshow(mathstools.normalise(m200_2D_hires),interpolation='nearest')
+                # pl.show()
+
+
         grids = [X1,X2,X3,X4]
         params =  [grid_kappa0, grid_radius , grid_h1M200 , grid_h2M200]
-        return log_post , params , grids 
+        return log_post , params , grids  , log_prob_2D
 
 
     def get_bcc_pz(self,filename_lenscat):
@@ -571,6 +644,7 @@ class modelfit():
         vmax_h1M200 = vmax_params[2]
         vmax_h2M200 = vmax_params[3]
         vmax_params = vmax_params[:]
+        import pdb; pdb.set_trace()
 
         best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
 

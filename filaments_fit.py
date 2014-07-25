@@ -17,11 +17,6 @@ import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
 import shutil
-try:
-    from pyqt_fit import kde
-except: 
-    print 'importing pyqt_fit failed'
-
 
 
 logger = logging.getLogger("filam..fit") 
@@ -158,12 +153,14 @@ def fit_2hf():
             fitobj.inv_sq_sigma_g = fitobj.shear_w
             logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
                     
+        fitobj.m200_sigma = None if ('m200_sigma' not in config) else config['m200_sigma']
+
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair_in_catalog]
         fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair_in_catalog]
         fitobj.halo1_z =  pairs_table['z'][id_pair_in_catalog]
-        # fitobj.halo1_M200 = halo1_table['m200'][id_pair_in_catalog]
+        fitobj.halo1_M200 = (10**halo1_table['m200'][id_pair_in_catalog])/1e14
         # fitobj.halo1_conc = halo1_conc
 
         fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair_in_catalog]
@@ -171,7 +168,7 @@ def fit_2hf():
         fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair_in_catalog]
         fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair_in_catalog]
         fitobj.halo2_z =  pairs_table['z'][id_pair_in_catalog]
-        # fitobj.halo2_M200 = halo2_table['m200'][id_pair_in_catalog]
+        fitobj.halo2_M200 = (10**halo2_table['m200'][id_pair_in_catalog])/1e14
         # fitobj.halo2_conc = halo2_conc
 
         fitobj.parameters[0]['box']['min'] = config['kappa0']['box']['min']
@@ -190,6 +187,8 @@ def fit_2hf():
         fitobj.parameters[3]['box']['max'] = float(config['h2M200']['box']['max'])
         fitobj.parameters[3]['n_grid'] = config['h2M200']['n_grid']
 
+        fitobj.n_mcmc_grid = config['n_grid']
+
         # fitobj.plot_shears_mag(fitobj.shear_g1,fitobj.shear_g2)
         # pl.show()
         # fitobj.save_all_models=False
@@ -198,20 +197,18 @@ def fit_2hf():
             logger.info('running sampling')
             fitobj.n_walkers = config['n_walkers']
             fitobj.n_samples = config['n_samples']
-            log_post , params , grids , chain, chain_lnprob = fitobj.run_mcmc()
-            tabletools.savePickle(filename_results_prob,log_post.astype(np.float32))
+            log_post , params , grids , chain, chain_lnprob, marginals = fitobj.run_mcmc()
 
             chain_info = {}
             chain_info['chain'] =  chain
             chain_info['chain_lnprob'] =  chain_lnprob
+            chain_info['marginals'] =  marginals
             tabletools.savePickle(filename_results_chain,chain_info)        
 
             # get the normalised PDF and use the same normalisation on the log
-            prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)
+            prob_post , _ , _ , _ = mathstools.get_normalisation(chain_lnprob)
             # # get the maximum likelihood solution
-            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_grid_max(log_post,params)
-            # # get the marginals
-            # list_prob_marg, list_params_marg = mathstools.get_marginals(params,prob_post)
+            vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params = fitobj.get_samples_max(chain_lnprob,chain)
            
             if id_pair == id_pair_first:
                 grid_info = {}
@@ -229,8 +226,11 @@ def fit_2hf():
         elif config['optimization_mode'] == 'gridsearch':
             logger.info('running grid search')
 
-            log_post , params, grids = fitobj.run_gridsearch()
-            tabletools.savePickle(filename_results_prob,log_post.astype(np.float32),append=True)
+            log_post , params, grids, log_post_2D = fitobj.run_gridsearch()
+            result_info={}
+            result_info['log_post'] = log_post.astype(np.float32)
+            result_info['log_post_2D'] = log_post_2D.astype(np.float32)
+            tabletools.savePickle(filename_results_prob,result_info)
 
             # get the normalised PDF and use the same normalisation on the log
             prob_post , _ , _ , _ = mathstools.get_normalisation(log_post)

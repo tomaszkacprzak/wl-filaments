@@ -26,6 +26,8 @@ stream_handler.setFormatter(log_formatter)
 logger.addHandler(stream_handler)
 logger.propagate = False
 
+redshift_offset = 0.2
+
 config = {}
 
 def get_halo_map(filename_pairs,color=None,pl=pl):
@@ -226,7 +228,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             dtheta_y = config['boundary_mpc'] / cosmology.get_ang_diam_dist(pair_z) 
 
             # select = (shear_v_rot_rad < dtheta_y) * (shear_v_rot_rad > -dtheta_y) * (shear_u_rot_rad < (halo1_u_rot_rad + dtheta_x)) *  (shear_u_rot_rad > (halo2_u_rot_rad - dtheta_x))
-            select = ( np.abs( shear_u_rot_rad ) < np.abs(halo1_u_rot_rad + dtheta_x)) * (np.abs(shear_v_rot_rad) < np.abs(dtheta_y))
+            select = ( np.abs( shear_u_rot_rad ) < np.abs(halo1_u_rot_rad + dtheta_x)) * (np.abs(shear_v_rot_rad) < np.abs(dtheta_y)) * (shear_z > (pair_z + redshift_offset))
 
             range_u_mpc , range_v_mpc = cosmology.rad_to_mpc(2*halo1_u_rot_rad+2*dtheta_x,2*dtheta_y,pair_z)
             range_u_arcmin , range_v_arcmin = cosmology.rad_to_arcmin(2*halo1_u_rot_rad+2*dtheta_x,2*dtheta_y)
