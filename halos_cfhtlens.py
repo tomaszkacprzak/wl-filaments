@@ -542,10 +542,10 @@ def fit_halos():
         logger.info(titlestr)
 
         if args.legion:
-            filename_halos_part = filename_halos.replace('.fits','.%d.cat' % ih)
-            line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]],dtype=['i4','i4','i4','f4','f4','f4'])
+            filename_halos_part = os.path.basename(filename_halos).replace('.fits','.%04d.cat' % ih)
+            line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]])
             np.savetxt(filename_halos_part,line)
-            logger.info('saved %d',filename_halos_part)
+            logger.info('saved %s',filename_halos_part)
             continue
 
         pyfits.writeto(filename_halos,halos,clobber=True)
@@ -576,6 +576,9 @@ def fit_halos():
 
 
     logger.info('finished fitting %d individual halos',args.num)
+
+    if args.legion:
+	return 
     
     pl.figure()
     pl.hist(halos['m200_fit'],bins=50)
@@ -751,7 +754,7 @@ def main():
     parser.add_argument('-n', '--num', default=1,type=int, action='store', help='number of pairs to process')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
-    parser.add_argument('--legion', default=False,type=bool, action='store', help='if cluster run')
+    parser.add_argument('--legion', action='store_true', help='if cluster run')
 
     global args
 
