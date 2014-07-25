@@ -740,9 +740,22 @@ def select_lrgs():
     select_fun = config['cfhtlens_select_fun']
     exec(select_fun+'()')
 
+def merge_legion():
+
+    halos=tabletools.loadTable(config['filename_halos'])
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='index',dtype='i4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_fit',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_sig',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errhi',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errlo',dtype='f4')
+
+    for ih in range(len(halos)):
+        filename_halos
+
+
 def main():
 
-    valid_actions = ['select_lrgs','fit_halos']
+    valid_actions = ['select_lrgs','fit_halos','merge_legion']
 
     description = 'halo_stamps'
     parser = argparse.ArgumentParser(description=description, add_help=True)
