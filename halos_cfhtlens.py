@@ -533,13 +533,23 @@ def fit_halos():
         halos['m200_fit'][ih]=ml_m200
         halos['m200_sig'][ih]= n_sig
         halos['m200_errhi'][ih]= err_hi
-        halos['m200_errlo'][ih]= err_lo 
-
-        pyfits.writeto(filename_halos,halos,clobber=True)
-        logger.info('saved %s' , filename_halos)
+        halos['m200_errlo'][ih]= err_lo        
+        n_eff_this=float(len(shear_weight_stamp))/(box_size**2)
+        n_gals_this = len(shear_g1_stamp)
+        n_invalid_this = n_invalid
 
         titlestr = '%5d n_gals=%d n_invalid=%d n_eff=%2.2f m200_fit=%2.2e +/- %2.2e %2.2e n_sig=%2.2f' % (ihalo,len(shear_g1_stamp),n_invalid,float(len(shear_weight_stamp))/(box_size**2),ml_m200,err_hi,err_lo,n_sig)
         logger.info(titlestr)
+
+        if args.legion:
+            filename_halos_part = filename_halos.replace('.fits','.%d.cat' % ih)
+            line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]],dtype=['i4','i4','i4','f4','f4','f4'])
+            np.savetxt(filename_halos_part,line)
+            logger.info('saved %d',filename_halos_part)
+            continue
+
+        pyfits.writeto(filename_halos,halos,clobber=True)
+        logger.info('saved %s' , filename_halos)
 
         if iall<100:
             pl.figure()
@@ -741,6 +751,7 @@ def main():
     parser.add_argument('-n', '--num', default=1,type=int, action='store', help='number of pairs to process')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
+    parser.add_argument('--legion', default=False,type=bool, action='store', help='if cluster run')
 
     global args
 
