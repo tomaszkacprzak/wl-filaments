@@ -308,7 +308,7 @@ def figure_fields_cfhtlens():
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
     filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
-    filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalogger.fits'
+    filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
     halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
@@ -771,6 +771,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
 
     
     import scipy.interpolate
@@ -801,7 +802,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     normalisation_factor=-10000
 
     if hires:    
-        n_upsample = 50
+        n_upsample = 20
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         # vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
@@ -826,18 +827,18 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 n_missing +=1
                 continue
                 
-            # log_prob = results_pickle['log_post']
-            # log_prob_2D = results_pickle['log_post_2D']
-            log_prob = results_pickle
+            log_prob = results_pickle['log_post']
+            log_prob_2D = results_pickle['log_post_2D']
+            # log_prob = results_pickle
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            log_prob = log_prob[:,:,:20,:20]
+            # log_prob = log_prob[:,:,10:,10:]
 
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-            print grid_h1M200[:20].min() , grid_h1M200[:20].max() 
-            print grid_h2M200[:20].min() , grid_h2M200[:20].max()
+            # print grid_h1M200[:].min() , grid_h1M200[:].max() 
+            # print grid_h2M200[:].min() , grid_h2M200[:].max()
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -850,7 +851,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                         func_interp = scipy.interpolate.interp2d(grid_h1M200,grid_h2M200,m200_2D, kind='cubic')
                         m200_2D_hires = func_interp(grid_h1M200_hires,grid_h2M200_hires)
                         normalisation_const=2000
-                        m200_2D_hires_prob=np.exp(m200_2D_hires-normalisation_const)
+                        m200_2D_hires_prob=np.exp(m200_2D_hires-log_prob.max())
                         log_prob_2D[i1,i2] = np.log(np.sum(m200_2D_hires_prob))
                         
                         if plots:
@@ -887,6 +888,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                 log_prob_2D = np.log(pdf_prob_2D)
                 if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                    import pdb; pdb.set_trace()
                     logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
                     logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
                     min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
@@ -919,7 +921,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 logprob_kappa0_radius_hires += log_prob_2D_hires
 
             if plots:
-                if nf % 10 == 0:
+                if nf % 1 == 0:
                     plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
                     plot_prob_this_hires, _, _,_ = mathstools.get_normalisation(log_prob_2D_hires)   
                     pl.figure(figsize=(10,10))
@@ -931,7 +933,9 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                     pl.pcolormesh(grid_kappa0_hires, grid_radius_hires , plot_prob_all_hires); pl.colorbar()
                     pl.subplot(2,2,4)
                     pl.pcolormesh(grid_kappa0_hires , grid_radius_hires , plot_prob_this_hires); pl.colorbar()
-                    pl.suptitle(nf)
+                    dtotal = np.sqrt(pairs[nf]['Dxy']**2+pairs[nf]['Dlos']**2)
+                    titlestr='nf=%d ih1=%d ih2=%d m200_h1=%2.2e m200_h2=%2.2e sig1=%2.2f sig2=%2.2f Dxy=%2.2f Dlos=%2.2f Dtot=%2.2f' % (nf, pairs[nf]['ih1'] , pairs[nf]['ih2'], pairs[nf]['m200_h1_fit'], pairs[nf]['m200_h2_fit'],halo1['m200_sig'][nf],halo2['m200_sig'][nf],pairs[nf]['Dxy'],pairs[nf]['Dlos'],dtotal)
+                    pl.suptitle(titlestr)
                     pl.show()
 
           
@@ -1336,40 +1340,21 @@ def plot_single_pairs():
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
-    # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
-    pairs = tabletools.ensureColumn(rec=pairs,name='BF1')
-    pairs = tabletools.ensureColumn(rec=pairs,name='BF2')
     pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class')
 
-    if 'cfhtlens' in filename_pairs:
-        bins_snr_edges = [5,20]
-        mass_param_name = 'snr'
-    else:
-        bins_snr_edges = [1e14,1e15]
-        mass_param_name = 'm200'
-    # bins_snr_centers = [ 3 , 6]
-    bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
-
-    if (args.n_results_files == 1) & (args.first_result_file==0):
-        id_file_first = args.first_result_file
-        id_file_last = n_pairs
-    else:
-        id_file_first = args.first_result_file
-        id_file_last = id_file_first + args.n_results_files
-
-    for ids in range(id_file_first,id_file_last):
+    for ids in range(len(pairs)):
 
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D([ids])
-        # contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
 
+        Dtot = np.sqrt(pairs[ids]['Dxy']**2+pairs[ids]['Dlos']**2)
 
-        title_str= 'ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f class=%d BF1=%2.4f BF2=%2.4f' % (pairs[ids]['ih1'] , pairs[ids]['ih2'], pairs[ids]['m200_h1_fit'], pairs[ids]['m200_h2_fit'] , pairs['eyeball_class'][ids] , pairs['BF1'][ids], pairs['BF2'][ids])
+        title_str= 'ip=%d ih1=%d ih2=%d m200_h1=%2.2e m200_h2=%2.2e Dxy=%2.2f Dlos=%2.2f Dtot=%2.2f class=%d' % (ids,pairs[ids]['ih1'] , pairs[ids]['ih2'], halo1[ids]['m200_fit'], halo2[ids]['m200_fit'] , pairs[ids]['Dxy'], pairs[ids]['Dlos'], Dtot, pairs['eyeball_class'][ids] )
         logger.info(title_str)
     
         rho_crit = 2.77501358101e+11
@@ -1467,6 +1452,18 @@ def plotdata_all():
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
+    pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class',dtype='i4')
+    if os.path.isfile('class.txt'):
+        classification = np.loadtxt('class.txt',dtype='i4')
+        pairs['eyeball_class'] = classification[:,1]
+
+    tabletools.saveTable(filename_pairs,pairs)
+
+    for ic in range(len(pairs)):
+        Dtot = np.sqrt(pairs['Dxy'][ic]**2+pairs['Dlos'][ic]**2)
+        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class'])
+
+
     if 'cfhtlens' in filename_pairs:
         bins_snr_edges = [5,20]
         mass_param_name = 'snr'
@@ -1482,7 +1479,7 @@ def plotdata_all():
     # pairs_prune = tabletools.loadTable(filename_prune)
     # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
 
-    # classification = np.loadtxt('classification.txt',dtype='i4')
+
     # mass_prior= np.max(np.concatenate([pairs['m200_h1_fit'][:,None],pairs['m200_h2_fit'][:,None]],axis=1),axis=1)
     # mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
     # mass= halo1['m200']   
@@ -1498,33 +1495,16 @@ def plotdata_all():
             ids_halos_use.append(pairs['ih1'][idc])
             ids_halos_use.append(pairs['ih2'][idc])
     select = ids_pairs_use
+    print select
 
-    # select = (pairs['m200_h1_fit'] > 13.) | (pairs['m200_h2_fit'] > 13.)
-    # select = (halo1['m200'] > 14.2) | (halo2['m200'] > 13.5) # 011 nice shape 2+ sigma
-    # select = mass_prior > 14 # 011 
-    # sorting=np.argsort(mass_prior)[::-1]
-    # sorting=np.argsort(mass_prior)[::-1]
-    # sorting=np.argsort(mass)[::-1]
-    # select = sorting[:80]
-    # print 'min(mass[select])', min(mass[select])
-    # print select
-    # print mass_prior[select]
-    # 70 - 2.57
-    # 80 - 2.7
-    # 90 - 2.17
-    # 100 - 2.39
-    # 110 - 2.53
+    for idp in np.array(select).astype(np.int32).copy():
+        Dtot = np.sqrt(pairs[idp]['Dxy']**2+pairs[idp]['Dlos']**2)
+        # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.65
+        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)):
+            select.remove(idp)
+            # print 'removed ' , idp, len(select)
 
-    # select = (classification[:,1] == 1) #| (classification[:,1] == 3) 
-    # select = (pairs['bayes_factor'] > 20) & (pairs['eyeball_class'] <2)
-    # select = (pairs['BF1']>1) & (pairs['BF2']>1) 
-    # select = pairs['BF1']>-1
-    # select = (pairs['R_pair'] < 20) & (pairs['m200_h1_fit'] > 13.7) & (pairs['m200_h2_fit'] > 13.7)
-
-
-    # ids=np.arange(n_pairs)
-    ids=np.arange(n_pairs)[select]
-    ids=ids[:args.num]
+    ids=select
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
     if config['optimization_mode'] == 'gridsearch':
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)
@@ -1535,9 +1515,11 @@ def plotdata_all():
     print 'used %d pairs' % n_pairs_used
 
     for ic in list_ids_used:
-        print 'ih1=%d ih2=%d m200_h1=%2.2e m200_h2=%2.2e' % (pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'])
+        print 'ipair=%03d\tih1=%03d\tih2=%03d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs[ic]['z'],pairs[ic]['eyeball_class'])
         
-
+    pairs = tabletools.ensureColumn(rec=pairs,arr=np.zeros(len(pairs)),name='analysis',dtype='i4')
+    pairs['analysis'][list_ids_used] = 1
+    tabletools.saveTable(filename_pairs,pairs)
 
     res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
 

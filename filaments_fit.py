@@ -138,6 +138,7 @@ def fit_2hf():
         fitobj.shear_g1 =  shears_info['g1']
         fitobj.shear_g2 =  shears_info['g2']
         fitobj.shear_w =  shears_info['weight']
+        fitobj.R_start = config['R_start']
 
         # choose a method to add and account for noise
         if config['sigma_method'] == 'add':

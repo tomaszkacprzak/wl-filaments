@@ -286,14 +286,14 @@ def select_halos_LRG():
 
 def select_halos_random():
 
-    range_z=config['range_z']
-    range_M=config['range_M']
+    range_z=map(float,config['range_z'])
+    range_M=map(float,config['range_M'])
     filename_halos=config['filename_halos']
 
     logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
 
-    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLenS_BOSSDR10-LRGs.fits'
-    halocat = tabletools.loadTable(filename_halos_cfhtlens)
+    filename_halos_cfhtlens = config['filename_BOSS_lrgs']
+    halocat = np.array(pyfits.getdata(filename_halos_cfhtlens))
 
     sample = np.random.uniform(0,len(halocat),config['n_random_pairs'])
     sample = sample.astype('i4')
@@ -302,7 +302,7 @@ def select_halos_random():
 
     # select on proximity to CFHTLens
     logger.info('getting LRGs close to CFHTLens - Ball Tree for 2D')
-    filename_cfhtlens_shears =  os.environ['HOME'] + '/data/CFHTLens/CFHTLens_2014-06-14.normalised.fits'
+    filename_cfhtlens_shears =  config['filename_cfhtlens_shears']
     shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
     if 'ALPHA_J2000' in shearcat.dtype.names:
         ra_field = 'ALPHA_J2000'
@@ -314,11 +314,11 @@ def select_halos_random():
     cfhtlens_coords = np.concatenate([shearcat[ra_field][:,None],shearcat[de_field][:,None]],axis=1)
 
     perm = np.random.permutation(len(shearcat))[:config['n_random_pairs']]
-    ra = shearcat['ALPHA_J2000'][perm]
-    dec = shearcat['DELTA_J2000'][perm]
+    ra = shearcat[ra_field][perm]
+    dec = shearcat[de_field][perm]
 
-    halocat['ra'] = ra+np.random.randn(len(ra))*0.001
-    halocat['dec'] = dec+np.random.randn(len(ra))*0.001
+    halocat['ra'] = ra+np.random.randn(len(ra))*0.1
+    halocat['dec'] = dec+np.random.randn(len(ra))*0.1
     
     logger.info('getting BT')
     BT = BallTree(cfhtlens_coords, leaf_size=5)
@@ -357,6 +357,14 @@ def select_halos_random():
     halocat = tabletools.ensureColumn(rec=halocat, name='snr'  )
     fix_case( halocat )
     # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
+
+    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='index',dtype='i4')
+    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_fit',dtype='f4')
+    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_sig',dtype='f4')
+    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_errhi',dtype='f4')
+    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_errlo',dtype='f4')
+    halocat['m200_fit'] = 1e14
+    halocat['m200_sig'] = 5
         
     tabletools.saveTable(filename_halos,halocat)
     logger.info('wrote %s' % filename_halos)

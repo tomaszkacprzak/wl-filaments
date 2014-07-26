@@ -271,8 +271,8 @@ class modelfit():
             halo2_M200 = params[3] * 1e14
             halo1_M200 = params[2] * 1e14
 
-        filament_u1_mpc = self.halo1_u_mpc - self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + self.nh2.R_200
+        filament_u1_mpc = self.halo1_u_mpc - self.R_start*self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc + self.R_start*self.nh2.R_200
 
         h1g1 , h1g2 , _ , _  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2 , _ , _  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
@@ -541,21 +541,21 @@ class modelfit():
                             ia+=1
                             # if ia % 1000 == 0 : log.info('gridsearch progress %d/%d models' , ia, n_total)
 
-        n_upsample = 100
-        grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
-        grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
-        log_prob_2D = np.zeros_like(log_post[:,:,0,0])
-        normalisation_const=log_post.max()
-        for i1 in range(len(log_post[:,0,0,0])):
-            for i2 in range(len(log_post[0,:,0,0])):
-                m200_2D = log_post[i1,i2,:,:]
-                func_interp = scipy.interpolate.interp2d(grid_h1M200,grid_h2M200,m200_2D, kind='cubic')
-                m200_2D_hires = func_interp(grid_h1M200_hires,grid_h2M200_hires)
-                m200_2D_hires_prob=np.exp(m200_2D_hires-normalisation_const)
-                log_prob_2D[i1,i2] = np.log(np.sum(m200_2D_hires_prob))
+        # n_upsample = 100
+        # grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
+        # grid_h2M200_hires=np.linspace(grid_h2M200.min(),grid_h2M200.max(),len(grid_h2M200)*n_upsample)
+        # log_prob_2D = np.zeros_like(log_post[:,:,0,0])
+        # normalisation_const=log_post.max()
+        # for i1 in range(len(log_post[:,0,0,0])):
+        #     for i2 in range(len(log_post[0,:,0,0])):
+        #         m200_2D = log_post[i1,i2,:,:]
+        #         func_interp = scipy.interpolate.interp2d(grid_h1M200,grid_h2M200,m200_2D, kind='cubic')
+        #         m200_2D_hires = func_interp(grid_h1M200_hires,grid_h2M200_hires)
+        #         m200_2D_hires_prob=np.exp(m200_2D_hires-normalisation_const)
+        #         log_prob_2D[i1,i2] = np.log(np.sum(m200_2D_hires_prob))
 
-                import mathstools
-                print grid_kappa0[i1], grid_radius[i2] , np.sum(np.exp(m200_2D-normalisation_const)) / float(len(m200_2D.flatten())) , np.sum(np.exp(m200_2D_hires-normalisation_const))/float(len(m200_2D_hires.flatten()))
+        #         import mathstools
+        #         print grid_kappa0[i1], grid_radius[i2] , np.sum(np.exp(m200_2D-normalisation_const)) / float(len(m200_2D.flatten())) , np.sum(np.exp(m200_2D_hires-normalisation_const))/float(len(m200_2D_hires.flatten()))
                 # pl.figure()
                 # pl.subplot(1,2,1)
                 # pl.imshow(mathstools.normalise(m200_2D),interpolation='nearest')
@@ -563,7 +563,7 @@ class modelfit():
                 # pl.imshow(mathstools.normalise(m200_2D_hires),interpolation='nearest')
                 # pl.show()
 
-
+        log_prob_2D = np.zeros(2)
         grids = [X1,X2,X3,X4]
         params =  [grid_kappa0, grid_radius , grid_h1M200 , grid_h2M200]
         return log_post , params , grids  , log_prob_2D

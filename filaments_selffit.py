@@ -33,6 +33,23 @@ def get_clone():
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
 
+    # make clone using only those pairs, which were used in main analysis
+    select = pairs_table['analysis'] == 1
+    pairs_table_clone = pairs_table[select].copy()
+    halo1_table_clone = halo1_table[select].copy()
+    halo2_table_clone = halo2_table[select].copy()
+    for irep in range(config['n_clones']):
+        pairs_table_clone = np.concatenate([pairs_table_clone,pairs_table[select].copy()])
+        halo1_table_clone = np.concatenate([halo1_table_clone,halo1_table[select].copy()])
+        halo2_table_clone = np.concatenate([halo2_table_clone,halo2_table[select].copy()])
+        logger.info('% 3d cloned % 3d pairs, total % 3d' %(irep,len(pairs_table),len(pairs_table_clone)))
+    tabletools.saveTable(filename_pairs.replace('.fits','.clone.fits'),pairs_table_clone)
+    tabletools.saveTable(filename_halo1.replace('.fits','.clone.fits'),halo1_table_clone)
+    tabletools.saveTable(filename_halo2.replace('.fits','.clone.fits'),halo2_table_clone)
+    pairs_table = pairs_table_clone
+    halo1_table = halo1_table_clone
+    halo2_table = halo2_table_clone
+
     id_pair_first = args.first
     id_pair_last = len(pairs_table) if args.num==-1 else args.first + args.num
     if id_pair_first >= id_pair_last: raise Exception('first pair greater than len(halo_pairs) %d > %d' % (id_pair_first,id_pair_last))
@@ -117,8 +134,8 @@ def get_clone():
         fitobj.nh2.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
 
 
-        mock_m200_h1 = pairs_table['m200_h1_fit'][id_pair_in_catalog]
-        mock_m200_h2 = pairs_table['m200_h2_fit'][id_pair_in_catalog]
+        mock_m200_h1 = pairs_table['m200_h1_fit'][id_pair_in_catalog]/1e14
+        mock_m200_h2 = pairs_table['m200_h2_fit'][id_pair_in_catalog]/1e14
 
         shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([mock_kappa0, mock_radius, mock_m200_h1, mock_m200_h2])
 
@@ -159,10 +176,11 @@ def get_clone():
 
         logger.info('noise sig=%2.2f std_g1=%2.2f std_g2=%2.2f',np.mean(sig[~select]),np.std(noise_g1[~select]), np.std(noise_g2[~select]))
 
-    logger.warning('========================================\n \
+    logger.warning('\n========================================\n \
                     now you have to change the config entry\n \
-                    filename_cfhtlens_shears to use clone file:\n \
-                    filename_cfhtlens_shears :shears_cfhtlens_lrgs.clone.pp2\n \
+                    files to use clone files:\n \
+                    filename_cfhtlens_shears : shears_cfhtlens_lrgs.clone.pp2\n \
+                    filename_pairs : pairs_cfhtlens_lrgs.clone.fits\n \
                     ==========================================\
                     ')
 
