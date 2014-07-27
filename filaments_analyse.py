@@ -300,7 +300,8 @@ def figure_fields():
 
 def figure_fields_cfhtlens():
 
-    pairs_colors = ['r','g','y']
+    pairs_colors = ['r','g','b']
+    clean_colors = ['k','w']
 
     box_w1 = [29.5,39.5,-12,-3]
     box_w2 = [208,221,50.5,58.5]
@@ -317,25 +318,29 @@ def figure_fields_cfhtlens():
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
     cluscat = tabletools.loadTable(filename_cluscat)
     fieldscat = tabletools.loadTable(filename_fields)
-    select = (cluscat['m200'] > 13.5) * (cluscat['z'] < 2)
+    select = (cluscat['m200'] > 14) * (cluscat['z'] < 2)
     cluscat = cluscat[select]
     cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
-    import pdb; pdb.set_trace()
-    
-    if 'm200_h1_fit' not in pairs.dtype.names:
-        if 'm200' in halos.dtype.names:
-            pairs = tabletools.appendColumn(rec=pairs,arr=halo1['m200'],name='m200_h1_fit')
-            pairs = tabletools.appendColumn(rec=pairs,arr=halo2['m200'],name='m200_h2_fit')
-            
-    # select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
-    select = pairs['m200_h1_fit'] >= 0
-    # select = [5/8]
-    pairs=pairs[select]
-    halo1=halo1[select]
-    halo2=halo2[select]
-    n_pairs_used = len(pairs)
 
+    select = halos['m200_fit'] > 5e13
+    halos = halos[select]
+
+    # select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
+    # pairs=pairs[select]
+        
+
+    import graphstools
+    select=graphstools.get_clean_connections(pairs,cluscat)
+    pairs=tabletools.appendColumn(arr=np.zeros(len(pairs)),rec=pairs,dtype='i4',name='clean')
+    pairs['clean'][select]=1
+    # pairs=pairs[select]
+    # halo1=halo1[select]
+    # halo2=halo2[select]
+    # n_pairs_used = len(pairs)
     print 'using %d pairs' % len(halo2)
+    print 'eyeball_class 0', sum( (pairs['eyeball_class']==0) & select)
+    print 'eyeball_class 1', sum( (pairs['eyeball_class']==1) & select)
+    print 'eyeball_class 2', sum( (pairs['eyeball_class']==2) & select)
 
 
     try:
@@ -361,14 +366,18 @@ def figure_fields_cfhtlens():
     maxz=0.8
 
     ax1.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
-    # ax1.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s', vmin=minz, vmax=maxz)
+    ax1.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
     ax1.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
     ax1.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
     for i in range(len(pairs)): 
-        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
+        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
         ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         ax1.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
-        ax1.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+        ax1.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
+        radius=cosmology.get_angular_separation(pairs['ra1'][i],pairs['dec1'][i],pairs['ra2'][i],pairs['dec2'][i])/2.
+        circle=pl.Circle((pairs['ra_mid'][i],pairs['dec_mid'][i]),radius,color='y',fill=False)
+        ax1.add_artist(circle)
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
         x2=fieldscat[f]['de_min']
@@ -380,7 +389,8 @@ def figure_fields_cfhtlens():
             rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
         ax1.add_patch(rect)
     for h in range(len(cluscat)):
-        r200_mpc = cluscat['r200'][h]
+        # r200_mpc = cluscat['r200'][h]
+        r200_mpc = 1
         z = cluscat['z'][h]
         r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
@@ -390,13 +400,14 @@ def figure_fields_cfhtlens():
     ax1.set_ylim(box_w1[2],box_w1[3])
 
     ax2.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
-    # ax2.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s',vmin=minz, vmax=maxz)
+    ax2.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
     ax2.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
     ax2.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
     for i in range(len(pairs)): 
-        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]])
-        ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
-        ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
+        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
+        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
+        ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d %2.2f'%(pairs['ih1'][i],halo1['z'][i]),fontsize=10)
+        ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d %2.2f'%(pairs['ih2'][i],halo2['z'][i]),fontsize=10)
         ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
@@ -409,7 +420,8 @@ def figure_fields_cfhtlens():
             rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
         ax2.add_patch(rect)
     for h in range(len(cluscat)):
-        r200_mpc = cluscat['r200'][h]
+        # r200_mpc = cluscat['r200'][h]
+        r200_mpc = 1
         z = cluscat['z'][h]
         r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
@@ -420,11 +432,12 @@ def figure_fields_cfhtlens():
     ax2.set_ylim(box_w2[2],box_w2[3])
 
     ax3.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
-    # ax3.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s',vmin=minz, vmax=maxz)
+    ax3.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
     ax3.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
     ax3.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
     for i in range(len(pairs)): 
-        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
+        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
         ax3.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         ax3.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
@@ -439,7 +452,8 @@ def figure_fields_cfhtlens():
             rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
         ax3.add_patch(rect)
     for h in range(len(cluscat)):
-        r200_mpc = cluscat['r200'][h]
+        # r200_mpc = cluscat['r200'][h]
+        r200_mpc = 1
         z = cluscat['z'][h]
         r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
@@ -449,11 +463,12 @@ def figure_fields_cfhtlens():
     ax3.set_ylim(box_w3[2],box_w3[3])
     
     ax4.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d')
-    # cax=ax4.scatter(bossdr10['ra'],bossdr10['dec'],s=50,c=bossdr10['z'],marker='s')
+    cax=ax4.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s')
     ax4.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
     cax=ax4.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
     for i in range(len(pairs)): 
-        ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
+        ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
         ax4.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         ax4.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
@@ -468,7 +483,8 @@ def figure_fields_cfhtlens():
             rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
         ax4.add_patch(rect)
     for h in range(len(cluscat)):
-        r200_mpc = cluscat['r200'][h]
+        # r200_mpc = cluscat['r200'][h]
+        r200_mpc = 1
         z = cluscat['z'][h]
         r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
@@ -478,8 +494,8 @@ def figure_fields_cfhtlens():
     ax4.set_ylim(box_w4[2],box_w4[3])
 
     fig.subplots_adjust(right=0.8)
-    cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
-    fig.colorbar(cax,cax=cbar_ax)
+    # cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
+    # fig.colorbar(cax,cax=cbar_ax)
     # fig.suptitle('%d pairs - class %d' % (n_pairs_used, classif))
     filename_fig = 'filament_map.png'
     # pl.savefig(filename_fig)
@@ -835,13 +851,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            log_prob = log_prob[:,:,2:,2:]
+            log_prob = log_prob[:,:,:15,:15]
             print 'log_prob.shape' , log_prob.shape
 
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-            print grid_h1M200[2:].min() , grid_h1M200[2:].max() 
-            print grid_h2M200[2:].min() , grid_h2M200[2:].max()
+            print grid_h1M200[:15].min() , grid_h1M200[:15].max() 
+            print grid_h2M200[:15].min() , grid_h2M200[:15].max()
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -1458,18 +1474,17 @@ def plotdata_all():
     pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class',dtype='i4')
     if os.path.isfile('class.txt'):
         classification = np.loadtxt('class.txt',dtype='i4')
-        try:
-            pairs['eyeball_class'] = classification[:,1]
-        except:
-            pass
+        pairs['eyeball_class'] = classification[:,1]
+
 
     tabletools.saveTable(filename_pairs,pairs)
-
+    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
+    cluscat = tabletools.loadTable(filename_cluscat)
+    cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
 
     print 'class 0',sum(pairs['eyeball_class']==0)
     print 'class 1',sum(pairs['eyeball_class']==1)
     print 'class 2',sum(pairs['eyeball_class']==2)
-
 
     if 'cfhtlens' in filename_pairs:
         bins_snr_edges = [5,20]
@@ -1493,6 +1508,8 @@ def plotdata_all():
     # select = (mass < 1e16) * (mass > 7e13)
     # print np.nonzero(select)
     # select = (pairs['m200_h1_fit'] > 6e13) & (pairs['m200_h2_fit'] > 6e13)
+
+
     ids_pairs_use = []
     ids_halos_use = []
     np.sort(pairs,order=['m200_h1_fit','m200_h2_fit'])
@@ -1517,8 +1534,20 @@ def plotdata_all():
     select.remove(17) # 17-18 , 18 is more massive
     # select.remove(68) # 68 - 38 , 38 is more massive
     select.remove(73) # 73 - 71 , 71 is more massive
+    print 'class 0',sum(pairs['eyeball_class'][select]==0)
+    print 'class 1',sum(pairs['eyeball_class'][select]==1)
+    print 'class 2',sum(pairs['eyeball_class'][select]==2)
+
+
+    import graphstools
+    select_clean=graphstools.get_clean_connections(pairs,cluscat)
+    for i in select: 
+        if select_clean[i]==False:
+            select.remove(i)
 
     ids=select
+
+    print len(select)
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
     if config['optimization_mode'] == 'gridsearch':
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)

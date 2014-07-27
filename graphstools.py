@@ -15,6 +15,37 @@ col_ids_sorted = 5
 
 nodes_used = []
 
+def get_clean_connections(lrg_pairs,clusters):
+
+    select=10**clusters['m200'] > 1e14
+    clusters=clusters.copy()[select]
+
+    # init to false
+    select_clean=lrg_pairs['ipair'] < -1
+    radius_frac=0.
+    min_dz=0.1
+    min_dz_lrg=0.01
+
+    for ip,vp in enumerate(lrg_pairs):
+        clus_dist=cosmology.get_angular_separation(vp['ra_mid'],vp['dec_mid'],clusters['ra'],clusters['dec'])
+        radius=cosmology.get_angular_separation(vp['ra1'],vp['dec1'],vp['ra2'],vp['dec2'])*radius_frac/2
+        select1 = (clus_dist<radius) & (np.abs(vp['z']-clusters['z'])<min_dz)
+
+        lrgs_ra = np.concatenate([lrg_pairs['ra1'],lrg_pairs['ra2']])
+        lrgs_de = np.concatenate([lrg_pairs['dec1'],lrg_pairs['dec2']])
+        lrgs_z = np.concatenate([lrg_pairs['z'],lrg_pairs['z']])
+        
+        clus_dist=cosmology.get_angular_separation(vp['ra_mid'],vp['dec_mid'],lrgs_ra,lrgs_de)
+        radius=cosmology.get_angular_separation(vp['ra1'],vp['dec1'],vp['ra2'],vp['dec2'])*radius_frac/2
+        select2 = (clus_dist<radius) & (np.abs(vp['z']-lrgs_z)<min_dz_lrg)
+
+        if ( (~np.any(select1)) & (~np.any(select2)) ):
+            select_clean[ip] = True
+
+    return select_clean
+
+
+
 def get_nearest_nodes(node_id):
 
 

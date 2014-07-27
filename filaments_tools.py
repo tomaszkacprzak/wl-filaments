@@ -655,35 +655,88 @@ def get_pairs_new():
     # select on M
     select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
     halocat=halocat[select]
+    halocat = tabletools.appendColumn(rec=halocat,arr=np.ones(len(halocat)),dtype='i4',name='is_lrg')
+    halocat = tabletools.appendColumn(rec=halocat,arr=np.arange(len(halocat)),dtype='i4',name='halo_id')
+    halocat = tabletools.appendColumn(rec=halocat,arr=np.ones(len(halocat))*-1,dtype='i4',name='clus_id')
     logger.info('selected on SNR number of halos: %d' % len(halocat))
 
     cluscat = tabletools.loadTable(config['filename_cfhtlens_clusters'])   
-    cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
-    cluscat['m200'] = 10**cluscat['m200']
-    select = (cluscat['m200'] > range_M[0]) * (cluscat['m200'] < range_M[1])
-    cluscat=cluscat[select]
+    cluscat_append = np.zeros(len(cluscat),dtype=halocat.dtype)
+    cluscat_append['ra'] = cluscat['RA']
+    cluscat_append['dec'] = cluscat['DEC']
+    cluscat_append['z'] = cluscat['z']
+    cluscat_append['m200_fit'] = 10**cluscat['m200']
+    cluscat_append['is_lrg'] = 0
+    cluscat_append['clus_id'] = cluscat['id']
+    cluscat_append['halo_id'] = -1
 
-    joined_cat1 = np.array([halocat['ra'],halocat['dec'],halocat['m200_fit'],halocat['z'],np.zeros(len(halocat))]).T
-    joined_cat2 = np.array([cluscat['ra'],cluscat['dec'],cluscat['m200'],cluscat['z'],np.ones(len(cluscat))]).T
+    # join
+    halocat = np.concatenate([halocat,cluscat_append])
 
-    joined_cat = np.concatenate([joined_cat1,joined_cat2])
+    # select by mass
+    select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
+    halocat=halocat[select]      
+    halocat['index'] =range(len(halocat))
 
     # for each LRG add three nearest clusters
     pairs_list = []
+    indices_list = []
     n_connections = 50
     redshift_error = 0.15
     n_closest = 3
-    BT = BallTree(joined_cat[:,0:2], leaf_size=5)
-    for ic in range(len(joined_cat)):
-        ra = joined_cat[ic,0]
-        de = joined_cat[ic,1]
-        z = joined_cat[ic,3]
-        ang_sep = cosmology.get_angular_separation(ra,de,joined_cat[:,0],joined_cat[:,1])
-        sorting = ang_sep.argsort()
-        joined_cat_sorted = joined_cat[sorting]
-        select = np.abs(z - joined_cat_sorted[:,3]) < redshift_error
-        import pdb; pdb.set_trace()
-        closest = joined_cat_sorted[:,select][:n_closest]
+    min_ang_sep_mpc =1
+    ipair = -1
+    for ic in range(len(halocat)):
+        this_halo = halocat[ic]
+        ang_sep = cosmology.get_angular_separation(this_halo['ra'],this_halo['dec'],halocat['ra'],halocat['dec'],unit='deg')
+        sorting = ang_sep.argsort()[1:]
+        halocat_sorted = halocat[sorting]
+        select = np.abs(this_halo['z'] - halocat_sorted['z']) < redshift_error
+        n_add=0
+        for nc in range(len(halocat_sorted[select])):
+            if n_add >= n_closest:
+                break
+            this_close = halocat_sorted[nc]
+            ang_sep = cosmology.get_angular_separation(this_halo['ra'],this_halo['dec'],this_close['ra'],this_close['dec'],unit='deg') 
+            z_sep = np.abs(this_halo['z']-this_close['z'])
+            ang_sep_mpc = ang_sep*np.pi/180 * cosmology.get_ang_diam_dist(this_halo['z'])
+            if ang_sep_mpc>min_ang_sep_mpc:
+                n_add += 1
+                logger.info('% 6d - % 6d \tang_sep=%6.2f ang_sep_mpc=%2.2f z_esp=%2.2f m1=%2.2e m2=%2.2e %d %d' % (this_halo['index'],this_close['index'],ang_sep,ang_sep_mpc,z_sep,this_halo['m200_fit'],this_close['m200_fit'],this_halo['is_lrg'],this_close['is_lrg']))
+                # add more Dlos and Dxy conditions
+                ipair+=1
+                row = np.zeros(1,dtype=dtype_pairs)
+                row['ipair'] = ipair
+                row['ih1'] = this_halo['index']
+                row['ih2'] = this_close['index']
+                row['ra1'] = this_halo['ra']
+                row['dec1'] = this_halo['dec']
+                row['ra2'] = this_close['ra']
+                row['dec2'] = this_close['dec']
+                row['z'] = this_close['z']
+                logger.info('ra1=%2.3f dec1=%2.3f ra2=%2.3f dec2=%2.3f',row['ra1'],row['dec1'],row['ra2'],row['dec2'])
+
+                indices = [int(row['ih1']),int(row['ih2'])]
+                indices.sort()
+                if ipair==0:
+                    indices_list.append(indices)
+                else:
+                    if indices not in indices_list:
+                        indices_list.append(indices)
+                        pairs_list.append(row)
+                    else:
+                        print 'skipping' , indices
+
+    pairs_table = np.concatenate(pairs_list)
+    vh1 = halocat[pairs_table['ih1']]
+    vh2 = halocat[pairs_table['ih2']]
+
+    pairs_table = tabletools.ensureColumn(rec=pairs_table,name='eyeball_class',dtype='i4')
+    tabletools.saveTable(config['filename_pairs'],pairs_table)   
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos1.fits'), vh1)    
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos2.fits'), vh2)    
+
+    import pdb; pdb.set_trace()
 
 
 
@@ -804,16 +857,6 @@ def get_pairs():
     pairs_table['dec1'] = vh1['dec']
     pairs_table['ra2'] = vh2['ra']
     pairs_table['dec2'] = vh2['dec']
-    # rest of the fields to be filled in later
-
-    # row = [ipair[:,None],ih1[:,None],ih2[:,None],n_gal[:,None],
-            # DA[:,None],d_los[:,None],d_xy[:,None],
-            # ra_mid[:,None],dec_mid[:,None],z[:,None],
-            # vh1['ra'][:,None],vh1['dec'][:,None],vh2['ra'][:,None],vh2['dec'][:,None],
-            # ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0,ipair[:,None]*0, # these fields will be filled in later
-            # R_pair[:,None],drloss[:,None],dz[:,None],ipair[:,None]*0,ipair[:,None]*0]
-    # pairs_table = np.concatenate(row,axis=1)
-    # pairs_table = tabletools.array2recarray(pairs_table,dtype_pairs)
 
     import graphstools
     select = graphstools.remove_similar_connections(pairs_table,min_angle=config['graph_min_angle'])

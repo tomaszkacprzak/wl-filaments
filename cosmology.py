@@ -153,15 +153,31 @@ def get_angular_separation_vec(radec1_rad,radec2_rad):
     return theta
 
 
-def get_angular_separation(ra1_rad,de1_rad,ra2_rad,de2_rad):
+def get_angular_separation(ra1,de1,ra2,de2,unit='rad'):
+
+    if unit=='rad':  
+        ra1_rad,de1_rad,ra2_rad,de2_rad = ra1,de1,ra2,de2
+    elif unit=='deg':  
+        ra1_rad,de1_rad = deg_to_rad(ra1,de1)
+        ra2_rad,de2_rad = deg_to_rad(ra2,de2)
+    if unit=='arcmin':  
+        ra1_rad,de1_rad = deg_to_arcmin(ra1,de1)
+        ra2_rad,de2_rad = deg_to_arcmin(ra2,de2)
+    if unit=='arcsec':  
+        ra1_rad,de1_rad = deg_to_arcsec(ra1,de1)
+        ra2_rad,de2_rad = deg_to_arcsec(ra2,de2)
 
     d_ra =  np.abs(ra1_rad-ra2_rad)
     d_de =  np.abs(de1_rad-de2_rad)
-    theta = np.arccos( np.sin(de1_rad)*np.sin(de2_rad) + np.cos(de1_rad)*np.cos(de2_rad)*np.cos(d_ra))
-    # theta = 2*np.arcsin( np.sqrt( np.sin(d_de/2.)**2  + np.cos(de1_rad)*np.cos(de2_rad)*np.sin(d_ra/2.)**2 ) )
+    theta_rad = np.arccos( np.sin(de1_rad)*np.sin(de2_rad) + np.cos(de1_rad)*np.cos(de2_rad)*np.cos(d_ra))
 
+    if unit=='rad':   theta = theta_rad
+    if unit=='deg':   theta = theta_rad*180./np.pi
+    if unit=='arcmin':  theta = theta_rad*180./np.pi*60
+    if unit=='arcsec':  theta = theta_rad*180./np.pi*60
 
     return theta
+
 
 def get_projection_matrix(center_ra,center_dec):
 
@@ -231,13 +247,39 @@ def cartesian_to_spherical_deg(x, y, z):
     ra_deg , de_deg =  rad_to_deg(ra_rad, de_rad) 
     return ra_deg , de_deg , r
 
-def get_midpoint_deg( halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg ):
+def get_midpoint( halo1_ra , halo1_de , halo2_ra , halo2_de , unit='rad' ):
 
-    halo1_ra_rad , halo1_de_rad = deg_to_rad(halo1_ra_deg , halo1_de_deg)
-    halo2_ra_rad , halo2_de_rad = deg_to_rad(halo2_ra_deg , halo2_de_deg)
-    pairs_ra_rad , pairs_de_rad = get_midpoint_rad( halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad )
-    pairs_ra_deg , pairs_de_deg = rad_to_deg( pairs_ra_rad , pairs_de_rad )
-    return pairs_ra_deg , pairs_de_deg
+    if unit=='deg':
+        halo1_ra_rad , halo1_de_rad = deg_to_rad(halo1_ra , halo1_de)
+        halo2_ra_rad , halo2_de_rad = deg_to_rad(halo2_ra , halo2_de)
+    elif unit=='rad':
+        halo1_ra_rad , halo1_de_rad = halo1_ra , halo1_de
+        halo2_ra_rad , halo2_de_rad = halo2_ra , halo2_de
+    elif unit=='arcmin':
+        halo1_ra_rad , halo1_de_rad = deg_to_arcmin(halo1_ra , halo1_de) 
+        halo2_ra_rad , halo2_de_rad = deg_to_arcmin(halo2_ra , halo2_de) 
+    elif unit=='arcsec':
+        halo1_ra_rad , halo1_de_rad = deg_to_arcsec(halo1_ra , halo1_de) 
+        halo2_ra_rad , halo2_de_rad = deg_to_arcsec(halo2_ra , halo2_de) 
+
+
+    # lon <-> RA , lat <-> DEC
+    # http://www.movable-type.co.uk/scripts/latlong.html
+    Bx = np.cos(halo2_de_rad) * np.cos(halo2_ra_rad - halo1_ra_rad)
+    By = np.cos(halo2_de_rad) * np.sin(halo2_ra_rad - halo1_ra_rad)
+    mid_de_rad = np.arctan2( np.sin(halo1_de_rad) + np.sin(halo2_de_rad) , np.sqrt( (np.cos(halo1_de_rad) + Bx)**2 + By**2 ) )
+    mid_ra_rad = halo1_ra_rad + np.arctan2(By , np.cos(halo1_de_rad) + Bx)
+
+    if unit=='deg':
+        mid_de , mid_ra = rad_to_deg(mid_de_rad , mid_ra_rad)
+    elif unit=='rad':
+        mid_de , mid_ra = mid_de_rad , mid_ra_rad
+    elif unit=='arcmin':
+        mid_de , mid_ra = rad_to_deg(mid_de_rad , mid_ra_rad)*60.
+    elif unit=='arcsec':
+        mid_de , mid_ra = rad_to_deg(mid_de_rad , mid_ra_rad)*60.*60
+
+    return mid_ra, mid_de
 
 
 def get_midpoint_rad( halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad ):

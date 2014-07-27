@@ -67,7 +67,7 @@ def get_shears_for_single_pair(halo1,halo2,idp=0):
     halo1_ra_deg , halo1_de_deg = halo1['ra'],halo1['dec']
     halo2_ra_deg , halo2_de_deg = halo2['ra'],halo2['dec']
 
-    pair_ra_deg,  pair_de_deg = cosmology.get_midpoint_deg(halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg)
+    pair_ra_deg,  pair_de_deg = cosmology.get_midpoint(halo1_ra_deg , halo1_de_deg , halo2_ra_deg , halo2_de_deg,unit='deg')
     pair_z = np.mean([halo1['z'],halo2['z']])
 
     pairs_shear , halos_coords , pairs_shear_full   = filaments_tools.create_filament_stamp(halo1_ra_deg, halo1_de_deg, 
@@ -181,7 +181,7 @@ def main():
 
     logger.info('selecting halos using %s' % config['cfhtlens_select_fun'])
     filaments_tools.add_phys_dist()
-    filaments_tools.get_pairs_new()
+    filaments_tools.get_pairs()
 
     filaments_tools.stats_pairs()
     filaments_tools.boundary_mpc=config['boundary_mpc']
