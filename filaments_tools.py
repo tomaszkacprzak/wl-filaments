@@ -641,7 +641,53 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pair
     
     return (pairs_table, vh1, vh2)
 
-    
+def get_pairs_new():
+
+
+    range_Dxy = map(float,config['range_Dxy'])
+    range_M = map(float,config['range_M'])
+    Dlos = config['max_dlos']
+    range_z = map(float,config['range_z'])
+  
+    halocat = tabletools.loadTable(config['filename_halos'])
+    logger.info('number of halos: %d' % len(halocat))  
+
+    # select on M
+    select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
+    halocat=halocat[select]
+    logger.info('selected on SNR number of halos: %d' % len(halocat))
+
+    cluscat = tabletools.loadTable(config['filename_cfhtlens_clusters'])   
+    cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
+    cluscat['m200'] = 10**cluscat['m200']
+    select = (cluscat['m200'] > range_M[0]) * (cluscat['m200'] < range_M[1])
+    cluscat=cluscat[select]
+
+    joined_cat1 = np.array([halocat['ra'],halocat['dec'],halocat['m200_fit'],halocat['z'],np.zeros(len(halocat))]).T
+    joined_cat2 = np.array([cluscat['ra'],cluscat['dec'],cluscat['m200'],cluscat['z'],np.ones(len(cluscat))]).T
+
+    joined_cat = np.concatenate([joined_cat1,joined_cat2])
+
+    # for each LRG add three nearest clusters
+    pairs_list = []
+    n_connections = 50
+    redshift_error = 0.15
+    n_closest = 3
+    BT = BallTree(joined_cat[:,0:2], leaf_size=5)
+    for ic in range(len(joined_cat)):
+        ra = joined_cat[ic,0]
+        de = joined_cat[ic,1]
+        z = joined_cat[ic,3]
+        ang_sep = cosmology.get_angular_separation(ra,de,joined_cat[:,0],joined_cat[:,1])
+        sorting = ang_sep.argsort()
+        joined_cat_sorted = joined_cat[sorting]
+        select = np.abs(z - joined_cat_sorted[:,3]) < redshift_error
+        import pdb; pdb.set_trace()
+        closest = joined_cat_sorted[:,select][:n_closest]
+
+
+
+
 
 def get_pairs():
 
@@ -716,9 +762,9 @@ def get_pairs():
     select2 = d_xy > range_Dxy[0]
     select3 = d_xy < range_Dxy[1]
 
-    # remove subhalos
 
 
+    # select
     select  = select1 * select2 * select3
     ih1 = ih1[select]
     ih2 = ih2[select]

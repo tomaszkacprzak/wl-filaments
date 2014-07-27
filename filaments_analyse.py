@@ -300,6 +300,8 @@ def figure_fields():
 
 def figure_fields_cfhtlens():
 
+    pairs_colors = ['r','g','y']
+
     box_w1 = [29.5,39.5,-12,-3]
     box_w2 = [208,221,50.5,58.5]
     box_w3 = [329.5,336,-2,5.5]
@@ -307,7 +309,7 @@ def figure_fields_cfhtlens():
 
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
-    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
+    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
     filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
@@ -315,9 +317,11 @@ def figure_fields_cfhtlens():
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
     cluscat = tabletools.loadTable(filename_cluscat)
     fieldscat = tabletools.loadTable(filename_fields)
-    select = (cluscat['m200'] > 14.) * (cluscat['z'] < 2)
+    select = (cluscat['m200'] > 13.5) * (cluscat['z'] < 2)
     cluscat = cluscat[select]
-
+    cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
+    import pdb; pdb.set_trace()
+    
     if 'm200_h1_fit' not in pairs.dtype.names:
         if 'm200' in halos.dtype.names:
             pairs = tabletools.appendColumn(rec=pairs,arr=halo1['m200'],name='m200_h1_fit')
@@ -382,8 +386,6 @@ def figure_fields_cfhtlens():
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
         ax1.add_artist(circle)
 
-
-
     ax1.set_xlim(box_w1[0],box_w1[1])
     ax1.set_ylim(box_w1[2],box_w1[3])
 
@@ -392,7 +394,7 @@ def figure_fields_cfhtlens():
     ax2.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
     ax2.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
     for i in range(len(pairs)): 
-        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]])
         ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
@@ -833,12 +835,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            # log_prob = log_prob[:,:,10:,10:]
+            log_prob = log_prob[:,:,2:,2:]
+            print 'log_prob.shape' , log_prob.shape
 
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-            # print grid_h1M200[:].min() , grid_h1M200[:].max() 
-            # print grid_h2M200[:].min() , grid_h2M200[:].max()
+            print grid_h1M200[2:].min() , grid_h1M200[2:].max() 
+            print grid_h2M200[2:].min() , grid_h2M200[2:].max()
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -1455,13 +1458,17 @@ def plotdata_all():
     pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class',dtype='i4')
     if os.path.isfile('class.txt'):
         classification = np.loadtxt('class.txt',dtype='i4')
-        pairs['eyeball_class'] = classification[:,1]
+        try:
+            pairs['eyeball_class'] = classification[:,1]
+        except:
+            pass
 
     tabletools.saveTable(filename_pairs,pairs)
 
-    for ic in range(len(pairs)):
-        Dtot = np.sqrt(pairs['Dxy'][ic]**2+pairs['Dlos'][ic]**2)
-        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class'])
+
+    print 'class 0',sum(pairs['eyeball_class']==0)
+    print 'class 1',sum(pairs['eyeball_class']==1)
+    print 'class 2',sum(pairs['eyeball_class']==2)
 
 
     if 'cfhtlens' in filename_pairs:
@@ -1490,7 +1497,7 @@ def plotdata_all():
     ids_halos_use = []
     np.sort(pairs,order=['m200_h1_fit','m200_h2_fit'])
     for idc in range(len(pairs)):
-        if (pairs['ih1'][idc] not in ids_halos_use) & (pairs['ih2'][idc] not in ids_halos_use) & (pairs['m200_h1_fit'][idc] > 4e13) & (pairs['m200_h2_fit'][idc] > 4e13):
+        # if (pairs['ih1'][idc] not in ids_halos_use) & (pairs['ih2'][idc] not in ids_halos_use) & (pairs['m200_h1_fit'][idc] > 4e13) & (pairs['m200_h2_fit'][idc] > 4e13):
             ids_pairs_use.append(idc)   
             ids_halos_use.append(pairs['ih1'][idc])
             ids_halos_use.append(pairs['ih2'][idc])
@@ -1499,10 +1506,17 @@ def plotdata_all():
 
     for idp in np.array(select).astype(np.int32).copy():
         Dtot = np.sqrt(pairs[idp]['Dxy']**2+pairs[idp]['Dlos']**2)
-        # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.65
-        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)):
+        # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.01
+        # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 1e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): = 3.06
+        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) | (pairs[idp]['z'] < 0.1) ): 
+
             select.remove(idp)
             # print 'removed ' , idp, len(select)
+    
+    # remove multiply connected
+    select.remove(17) # 17-18 , 18 is more massive
+    # select.remove(68) # 68 - 38 , 38 is more massive
+    select.remove(73) # 73 - 71 , 71 is more massive
 
     ids=select
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
@@ -1512,14 +1526,29 @@ def plotdata_all():
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_sampling_2D(ids)
 
 
+    for ic in range(len(pairs)):
+        Dtot = np.sqrt(pairs['Dxy'][ic]**2+pairs['Dlos'][ic]**2)
+        if ic in select : 
+            mark = '   *' 
+        else:
+            mark = ''
+        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class']) + mark
+
+    print '======================================================'
     print 'used %d pairs' % n_pairs_used
 
     for ic in list_ids_used:
-        print 'ipair=%03d\tih1=%03d\tih2=%03d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs[ic]['z'],pairs[ic]['eyeball_class'])
+        Dtot = np.sqrt(pairs[ic]['Dxy']**2+pairs[ic]['Dlos']**2)
+        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class'])
         
-    pairs = tabletools.ensureColumn(rec=pairs,arr=np.zeros(len(pairs)),name='analysis',dtype='i4')
+    pairs = tabletools.ensureColumn(rec=pairs,name='analysis',dtype='i4')
+    pairs['analysis'] = 0
     pairs['analysis'][list_ids_used] = 1
     tabletools.saveTable(filename_pairs,pairs)
+
+    print 'class 0' , sum(pairs[select]['eyeball_class']==0)
+    print 'class 1' , sum(pairs[select]['eyeball_class']==1)
+    print 'class 2' , sum(pairs[select]['eyeball_class']==2)
 
     res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
 
