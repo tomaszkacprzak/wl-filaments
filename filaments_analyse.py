@@ -318,12 +318,17 @@ def figure_fields_cfhtlens():
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
     cluscat = tabletools.loadTable(filename_cluscat)
     fieldscat = tabletools.loadTable(filename_fields)
-    select = (cluscat['m200'] > 14) * (cluscat['z'] < 2)
+    select = (cluscat['m200'] > np.log10(2e13)) * (cluscat['z'] < 2)
     cluscat = cluscat[select]
     cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
 
     select = halos['m200_fit'] > 5e13
     halos = halos[select]
+
+    select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
+    pairs=pairs[select]
+    halo1=halo1[select]
+    halo2=halo2[select]
 
     # select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
     # pairs=pairs[select]
@@ -333,6 +338,7 @@ def figure_fields_cfhtlens():
     select=graphstools.get_clean_connections(pairs,cluscat)
     pairs=tabletools.appendColumn(arr=np.zeros(len(pairs)),rec=pairs,dtype='i4',name='clean')
     pairs['clean'][select]=1
+    # pairs=tabletools.ensureColumn(pairs,name='eyeball_class',dtype='i4')
     # pairs=pairs[select]
     # halo1=halo1[select]
     # halo2=halo2[select]
@@ -372,12 +378,12 @@ def figure_fields_cfhtlens():
     for i in range(len(pairs)): 
         ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
         ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
-        ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
-        ax1.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
+        # ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%hal['ih1'][i],fontsize=10)
+        # ax1.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         ax1.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
-        radius=cosmology.get_angular_separation(pairs['ra1'][i],pairs['dec1'][i],pairs['ra2'][i],pairs['dec2'][i])/2.
-        circle=pl.Circle((pairs['ra_mid'][i],pairs['dec_mid'][i]),radius,color='y',fill=False)
-        ax1.add_artist(circle)
+        # radius=cosmology.get_angular_separation(pairs['ra1'][i],pairs['dec1'][i],pairs['ra2'][i],pairs['dec2'][i])/2.
+        # circle=pl.Circle((pairs['ra_mid'][i],pairs['dec_mid'][i]),radius,color='y',fill=False)
+        # ax1.add_artist(circle)
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
         x2=fieldscat[f]['de_min']
@@ -395,6 +401,8 @@ def figure_fields_cfhtlens():
         r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
         ax1.add_artist(circle)
+        ax1.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
+
 
     ax1.set_xlim(box_w1[0],box_w1[1])
     ax1.set_ylim(box_w1[2],box_w1[3])
@@ -406,9 +414,9 @@ def figure_fields_cfhtlens():
     for i in range(len(pairs)): 
         ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
         ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
-        ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d %2.2f'%(pairs['ih1'][i],halo1['z'][i]),fontsize=10)
-        ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d %2.2f'%(pairs['ih2'][i],halo2['z'][i]),fontsize=10)
-        ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+        # ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d %2.2f'%(pairs['ih1'][i],halo1['z'][i]),fontsize=10)
+        # ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d %2.2f'%(pairs['ih2'][i],halo2['z'][i]),fontsize=10)
+        ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
         x2=fieldscat[f]['de_min']
@@ -426,6 +434,7 @@ def figure_fields_cfhtlens():
         r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
         circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
         ax2.add_artist(circle)
+        ax2.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
 
 
     ax2.set_xlim(box_w2[0],box_w2[1])
@@ -1525,7 +1534,7 @@ def plotdata_all():
         Dtot = np.sqrt(pairs[idp]['Dxy']**2+pairs[idp]['Dlos']**2)
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.01
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 1e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): = 3.06
-        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) | (pairs[idp]['z'] < 0.1) ): 
+        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11.) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) | (pairs[idp]['z'] < 0.1) ): 
 
             select.remove(idp)
             # print 'removed ' , idp, len(select)
