@@ -300,7 +300,7 @@ def figure_fields():
 
 def figure_fields_cfhtlens():
 
-    pairs_colors = ['r','g','b']
+    pairs_colors = ['r','g','b','y']
     clean_colors = ['k','w']
 
     box_w1 = [29.5,39.5,-12,-3]
@@ -794,8 +794,14 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     
     import scipy.interpolate
     n_per_file = 1
-    id_file_first = 0
-    id_file_last = max(ids)+1
+    id_file_first = args.first
+    if args.num==-1:
+        id_file_last = max(ids)+1
+    elif id_file_first+args.num>max(ids):
+        id_file_last = max(ids)+1
+    else:
+        id_file_last=id_file_first+args.num
+
     n_params = 4
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
 
@@ -831,7 +837,6 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
         if nf in ids:
 
-
             # filename_pickle = 'results_local2scratch/results.prob.%04d.%04d.%s.pp2'  % (nf*n_per_file, (nf+1)*n_per_file , name_data)
             filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir,nf*n_per_file, (nf+1)*n_per_file , name_data)
             try:
@@ -851,13 +856,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            log_prob = log_prob[:,:,:15,:15]
+            log_prob = log_prob[:,:,:,:]
             print 'log_prob.shape' , log_prob.shape
 
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-            print grid_h1M200[:15].min() , grid_h1M200[:15].max() 
-            print grid_h2M200[:15].min() , grid_h2M200[:15].max()
+            print grid_h1M200[:].min() , grid_h1M200[:].max() 
+            print grid_h2M200[:].min() , grid_h2M200[:].max()
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -1525,15 +1530,15 @@ def plotdata_all():
         Dtot = np.sqrt(pairs[idp]['Dxy']**2+pairs[idp]['Dlos']**2)
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.01
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 1e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): = 3.06
-        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) | (pairs[idp]['z'] < 0.1) ): 
+        if ( (halo1[idp]['m200_fit'] < 3e13) | (halo2[idp]['m200_fit'] < 3e13) | (Dtot>20) | (pairs[idp]['Dlos']<0) | (pairs[idp]['Dxy']<0) | (halo1[idp]['m200_sig'] < 0) | (halo2[idp]['m200_sig'] < 0) | (pairs[idp]['z'] < 0.1) ): 
 
             select.remove(idp)
             # print 'removed ' , idp, len(select)
     
     # remove multiply connected
-    select.remove(17) # 17-18 , 18 is more massive
+    # select.remove(17) # 17-18 , 18 is more massive
     # select.remove(68) # 68 - 38 , 38 is more massive
-    select.remove(73) # 73 - 71 , 71 is more massive
+    # select.remove(73) # 73 - 71 , 71 is more massive
     print 'class 0',sum(pairs['eyeball_class'][select]==0)
     print 'class 1',sum(pairs['eyeball_class'][select]==1)
     print 'class 2',sum(pairs['eyeball_class'][select]==2)
@@ -2078,7 +2083,7 @@ def main():
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     # parser.add_argument('-o', '--filename_output', default='test2.cat',type=str, action='store', help='name of the output catalog')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
-    parser.add_argument('-n', '--num',type=int,  default=1, action='store', help='number of results files to use')
+    parser.add_argument('-n', '--num',type=int,  default=-1, action='store', help='number of results files to use')
     parser.add_argument('-f', '--first',type=int, default=0, action='store', help='number of first result file to open')
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
