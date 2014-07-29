@@ -181,7 +181,7 @@ def main():
 
     logger.info('selecting halos using %s' % config['cfhtlens_select_fun'])
     filaments_tools.add_phys_dist()
-    filaments_tools.get_pairs()
+    filaments_tools.get_pairs_topo()
 
     filaments_tools.stats_pairs()
     filaments_tools.boundary_mpc=config['boundary_mpc']

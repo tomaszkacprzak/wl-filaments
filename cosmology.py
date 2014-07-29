@@ -155,27 +155,14 @@ def get_angular_separation_vec(radec1_rad,radec2_rad):
 
 def get_angular_separation(ra1,de1,ra2,de2,unit='rad'):
 
-    if unit=='rad':  
-        ra1_rad,de1_rad,ra2_rad,de2_rad = ra1,de1,ra2,de2
-    elif unit=='deg':  
-        ra1_rad,de1_rad = deg_to_rad(ra1,de1)
-        ra2_rad,de2_rad = deg_to_rad(ra2,de2)
-    if unit=='arcmin':  
-        ra1_rad,de1_rad = deg_to_arcmin(ra1,de1)
-        ra2_rad,de2_rad = deg_to_arcmin(ra2,de2)
-    if unit=='arcsec':  
-        ra1_rad,de1_rad = deg_to_arcsec(ra1,de1)
-        ra2_rad,de2_rad = deg_to_arcsec(ra2,de2)
-
+    ra1_rad = to_radians(ra1,unit=unit)
+    de1_rad = to_radians(de1,unit=unit)
+    ra2_rad = to_radians(ra2,unit=unit)
+    de2_rad = to_radians(de2,unit=unit)
     d_ra =  np.abs(ra1_rad-ra2_rad)
     d_de =  np.abs(de1_rad-de2_rad)
     theta_rad = np.arccos( np.sin(de1_rad)*np.sin(de2_rad) + np.cos(de1_rad)*np.cos(de2_rad)*np.cos(d_ra))
-
-    if unit=='rad':   theta = theta_rad
-    if unit=='deg':   theta = theta_rad*180./np.pi
-    if unit=='arcmin':  theta = theta_rad*180./np.pi*60
-    if unit=='arcsec':  theta = theta_rad*180./np.pi*60
-
+    theta = from_radians(theta_rad,unit=unit)
     return theta
 
 
@@ -217,22 +204,43 @@ def spherical_to_cartesian_with_redshift(ra_deg,de_deg,z):
     # los = get_comoving_dist_line_of_sight(z)
     los = get_ang_diam_dist(z)
     ra_rad , de_rad = deg_to_rad(ra_deg, de_deg)
-    x, y, z = spherical_to_cartesian_rad(ra_rad , de_rad , los)  
+    x, y, z = spherical_to_cartesian(ra_rad , de_rad , los, unit='rad')  
 
     return x, y, z
 
-def spherical_to_cartesian_deg(ra_deg,de_deg,radius):
+def to_radians(x,unit='deg'):
 
-    ra_rad , de_rad = deg_to_rad(ra_deg, de_deg)
-    return spherical_to_cartesian_rad(ra_rad,de_rad,radius)
+    if unit=='deg':
+        x_rad = x *np.pi/180.
+    elif unit=='rad':
+        x_rad = x 
+    elif unit=='arcmin':
+        x_rad = x *np.pi/180./60.
+    elif unit=='arcsec':
+        x_rad = x *np.pi/180./60./60.
+    return x_rad
+
+def from_radians(x_rad,unit='deg'):
+
+    if unit=='deg':
+        x = x_rad /np.pi*180.
+    elif unit=='rad':
+        x = x_rad 
+    elif unit=='arcmin':
+        x = x_rad /np.pi*180.*60.
+    elif unit=='arcsec':
+        x = x_rad /np.pi*180.*60.*60.
+    return x
 
 
-def spherical_to_cartesian_rad(ra_rad,de_rad,radius):
- 
+def spherical_to_cartesian(ra,de,radius,unit='rad'):
+
+    ra_rad = to_radians(ra,unit)
+    de_rad = to_radians(de,unit)
     x=radius * np.cos(de_rad)*np.cos(ra_rad);
     y=radius * np.cos(de_rad)*np.sin(ra_rad);
     z=radius * np.sin(de_rad);
-    return x, y, z
+    return x,y,z
 
 def cartesian_to_spherical_rad(x, y, z):
 
@@ -249,19 +257,9 @@ def cartesian_to_spherical_deg(x, y, z):
 
 def get_midpoint( halo1_ra , halo1_de , halo2_ra , halo2_de , unit='rad' ):
 
-    if unit=='deg':
-        halo1_ra_rad , halo1_de_rad = deg_to_rad(halo1_ra , halo1_de)
-        halo2_ra_rad , halo2_de_rad = deg_to_rad(halo2_ra , halo2_de)
-    elif unit=='rad':
-        halo1_ra_rad , halo1_de_rad = halo1_ra , halo1_de
-        halo2_ra_rad , halo2_de_rad = halo2_ra , halo2_de
-    elif unit=='arcmin':
-        halo1_ra_rad , halo1_de_rad = deg_to_arcmin(halo1_ra , halo1_de) 
-        halo2_ra_rad , halo2_de_rad = deg_to_arcmin(halo2_ra , halo2_de) 
-    elif unit=='arcsec':
-        halo1_ra_rad , halo1_de_rad = deg_to_arcsec(halo1_ra , halo1_de) 
-        halo2_ra_rad , halo2_de_rad = deg_to_arcsec(halo2_ra , halo2_de) 
-
+    
+    halo1_ra_rad , halo1_de_rad = to_radians(halo1_ra,unit=unit) , to_radians(halo1_de,unit=unit)
+    halo2_ra_rad , halo2_de_rad = to_radians(halo2_ra,unit=unit) , to_radians(halo2_de,unit=unit)
 
     # lon <-> RA , lat <-> DEC
     # http://www.movable-type.co.uk/scripts/latlong.html
@@ -270,14 +268,7 @@ def get_midpoint( halo1_ra , halo1_de , halo2_ra , halo2_de , unit='rad' ):
     mid_de_rad = np.arctan2( np.sin(halo1_de_rad) + np.sin(halo2_de_rad) , np.sqrt( (np.cos(halo1_de_rad) + Bx)**2 + By**2 ) )
     mid_ra_rad = halo1_ra_rad + np.arctan2(By , np.cos(halo1_de_rad) + Bx)
 
-    if unit=='deg':
-        mid_de , mid_ra = rad_to_deg(mid_de_rad , mid_ra_rad)
-    elif unit=='rad':
-        mid_de , mid_ra = mid_de_rad , mid_ra_rad
-    elif unit=='arcmin':
-        mid_de , mid_ra = rad_to_deg(mid_de_rad , mid_ra_rad)*60.
-    elif unit=='arcsec':
-        mid_de , mid_ra = rad_to_deg(mid_de_rad , mid_ra_rad)*60.*60
+    mid_de , mid_ra = from_radians(mid_de_rad,unit=unit) , from_radians(mid_ra_rad,unit=unit)
 
     return mid_ra, mid_de
 

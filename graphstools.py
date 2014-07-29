@@ -15,6 +15,129 @@ col_ids_sorted = 5
 
 nodes_used = []
 
+
+def get_graph_topo(halos):
+
+    x,y,z = cosmology.spherical_to_cartesian_with_redshift(halos['ra'],halos['dec'],halos['z'])
+    box_coords = np.concatenate( [x,y,z] , axis=1)
+    BT = BallTree(box_coords, leaf_size=5)
+    list_conn = []
+    for ih,vh in enumerate(halos):
+       
+        n_connections=70
+        bt_dx,bt_id = BT.query(box_coords[ih,:],k=n_connections)
+
+        for ic,vc in enumerate(halos[bt_id]):
+
+            pass
+            
+
+
+        # DS=comology.get_angular_separation(vh['ra'],vh['dec'],halos['ra'],halos['dec'])
+        # DA=comology.get_ang_diam_dist(vh['z'],halos['z'])
+
+
+
+
+def get_triangulation(pairs,halo1,halo2,halos):
+
+    select = halos['m200_fit']>5e13
+    halos=halos[select].copy()
+    find_neighbors = lambda x,triang: list(set(indx for simplex in triang.simplices if x in simplex for indx in simplex if indx !=x))
+    # find_neighbors = lambda pindex,triang: triang.vertex_neighbor_vertices[1][triang.vertex_neighbor_vertices[0][pindex]:triang.vertex_neighbor_vertices[0][pindex+1]]
+    import scipy.spatial
+    # coords = np.concatenate([halos['ra'][:,None],halos['dec'][:,None],halos['z'][:,None]],axis=1)
+    coords = np.concatenate([halos['ra'][:,None],halos['dec'][:,None]],axis=1)
+    dt=scipy.spatial.Delaunay(coords)
+    list_ne = []
+    for i in range(dt.simplices.shape[0]):
+        v=[ dt.simplices[i][0] , dt.simplices[i][1] ];
+        if v not in list_ne: list_ne.append(v)
+        v=[ dt.simplices[i][0] , dt.simplices[i][2] ];
+        if v not in list_ne: list_ne.append(v)
+        # v=[ dt.simplices[i][0] , dt.simplices[i][3] ];
+        if v not in list_ne: list_ne.append(v)
+        v=[ dt.simplices[i][1] , dt.simplices[i][2] ];
+        if v not in list_ne: list_ne.append(v)
+        # v=[ dt.simplices[i][1] , dt.simplices[i][3] ];
+        if v not in list_ne: list_ne.append(v)
+        # v=[ dt.simplices[i][2] , dt.simplices[i][3] ];
+        if v not in list_ne: list_ne.append(v)
+        
+        print i
+
+    ne=np.array(list_ne)    
+    import pylab as pl
+    pl.figure()
+    pl.plot([halos['ra'][ne[:,0]],halos['ra'][ne[:,1]]],[halos['dec'][ne[:,0]],halos['dec'][ne[:,1]]],c='r')
+
+    import tabletools
+    tabletools.savePickle('trian.pp2',ne)
+    import pdb; pdb.set_trace()
+    import pdb; pdb.set_trace()
+
+def get_best_neighbour(pairs,halo1,halo2):
+
+    select_list = []
+    used_nodes = []
+    Dtot = np.sqrt(pairs['Dxy']**2 + pairs['Dlos']**2)
+    # select_cut = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 4) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 0) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) )  # 001-lrgs 
+    select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 009-lrgs
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 4) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) & (halo2['m200_sig'] > 0) ) 
+    # select_cut = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) ) 
+
+    for ip,vp in enumerate(pairs):
+        add=False
+        select = ((pairs['ih1'] == vp['ih1']) | (pairs['ih2'] == vp['ih1'])) & select_cut
+        d =np.sqrt(pairs[select]['Dxy']**2 + pairs[select]['Dlos']**2)**(1/2.)
+        # d = 1/pairs[select]['Dlos']
+        q =  halo2[select]['m200_fit']/1e14/d
+        # q =  d
+
+        dist1 = cosmology.get_angular_separation(vp['ra1'],vp['dec1'],pairs[select_list]['ra1'],pairs[select_list]['dec1'],unit='deg')
+        dist2 = cosmology.get_angular_separation(vp['ra1'],vp['dec1'],pairs[select_list]['ra2'],pairs[select_list]['dec2'],unit='deg')
+        dist3 = cosmology.get_angular_separation(vp['ra2'],vp['dec2'],pairs[select_list]['ra1'],pairs[select_list]['dec1'],unit='deg')
+        dist4 = cosmology.get_angular_separation(vp['ra2'],vp['dec2'],pairs[select_list]['ra2'],pairs[select_list]['dec2'],unit='deg')
+        dist = np.concatenate([dist1,dist2,dist3,dist4])
+
+        if np.any(dist < 0.1):
+            continue
+
+        if len(np.nonzero(select)[0]) == 0:
+            continue    
+        else:
+            # q =  halo2[select]['m200_fit']
+
+            sorting = q.argsort()[::-1]
+            id_best = pairs[select]['ipair'][sorting[0]]
+            if id_best != ip:
+                continue
+            # if pairs[id_best]['eyeball_class']==0:
+            #     import pdb; pdb.set_trace()
+            if (id_best not in select_list) & (vp['ih1'] not in used_nodes) & (vp['ih2'] not in used_nodes): 
+
+                select_list.append(id_best)
+                used_nodes.append(vp['ih1'])
+                used_nodes.append(vp['ih2'])
+                add=True
+
+        if add:
+            str_ids = ' '.join([ '%2d'%i for i in pairs[select]['ipair']])
+            str_mass = ' '.join([ '%2.1e'%i for i in halo2[select]['m200_fit']])
+            str_qs = ' '.join([ '%2.2f'%i for i in q])
+            str_ds = ' '.join([ '%2.2f'%i for i in d])
+            str_nodes = str([pairs[i]['eyeball_class'] for i in np.nonzero(select)[0]])
+            str_class = sum(pairs[select_list]['eyeball_class']==0), sum(pairs[select_list]['eyeball_class']==1), sum(pairs[select_list]['eyeball_class']==2)
+            print '% 3d\t% 5.2f\t% 5.2f\t%20s\t%20s\t%30s\t%40s\t%40s\t%20s' % (ip,vp['ra1'],vp['dec1'],str_ids,str_nodes,str_mass,str_qs,str_ds,str_class)
+
+    select_cut2 = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 3) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 0) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) )  # 001-lrgs 
+
+    # for ip in select_list: 
+        # if select_cut2[ip]==False: select_list.remove(ip)
+
+
+    return select_list
+
 def get_clean_connections(lrg_pairs,clusters):
 
     select=10**clusters['m200'] > 1e14

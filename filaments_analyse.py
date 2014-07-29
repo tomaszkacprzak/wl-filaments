@@ -296,11 +296,109 @@ def figure_fields():
     pl.show()
     import pdb; pdb.set_trace()
 
+def figures_proximity():
+
+    pairs_colors = ['r','g','b','y','y']
+    clean_colors = ['k','w']
+
+
+    halos = tabletools.loadTable(config['filename_halos'])
+    filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
+    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
+    filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'
+    bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
+    pairs = tabletools.loadTable(config['filename_pairs'])
+    halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
+    halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
+    cluscat = tabletools.loadTable(filename_cluscat)
+    fieldscat = tabletools.loadTable(filename_fields)
+    select = (cluscat['sig'] > 5) * (cluscat['z'] < 2)
+    cluscat = cluscat[select]
+    cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
+
+    ne = tabletools.loadPickle('trian.pp2')
+
+    select = halos['m200_fit'] > 5e13
+    halos = halos[select]
+
+    minz , maxz = 0.2 , 0.8
+    def match_ne(vp):
+        matched = [(vp['ra1']*10000).astype(np.int32),(vp['ra2']*10000).astype(np.int32)] in (halos['ra'][ne]*10000).astype(np.int32)
+        return matched
+
+    def plot_field(ax,box_w):
+
+        import scipy.spatial
+        import pylab as pl
+
+        # ax.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
+        ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
+
+        for i in range(len(pairs)): 
+            # print match_ne(pairs[i])
+            ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=9)
+            ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['analysis'][i]],lw=5)
+            ax.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
+            # radius=cosmology.get_angular_separation(pairs['ra1'][i],pairs['dec1'][i],pairs['ra2'][i],pairs['dec2'][i])/2.
+            # circle=pl.Circle((pairs['ra_mid'][i],pairs['dec_mid'][i]),radius,color='y',fill=False)
+            # ax.add_artist(circle)
+        ax.scatter(pairs['ra1'],pairs['dec1'], 100 , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+        ax.scatter(pairs['ra2'],pairs['dec2'], 100 , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+        for f in range(len(fieldscat)):
+            x1=fieldscat[f]['ra_min']
+            x2=fieldscat[f]['de_min']
+            l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
+            l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
+            if fieldscat[f]['bad']==1:
+                rect = pl.matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
+            else:
+                rect = pl.matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
+            ax.add_patch(rect)
+        for h in range(len(cluscat)):
+            r200_mpc = cluscat['r200'][h]
+            # r200_mpc = 1
+            z = cluscat['z'][h]
+            r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+            # circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+            # ax.add_artist(circle)
+            # ax.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f %1.2f'%(cluscat['z'][h],cluscat['m200'][h]),fontsize=10)
+        for i in range(len(halos)):
+            ax.text(halos['ra'][i],halos['dec'][i],' %d %2.1e %2.4f'% (i,halos['m200_fit'][i],halos['z'][i]),fontsize=10)
+
+        # pl.plot([halos['ra'][ne[:,0]],halos['ra'][ne[:,1]]],[halos['dec'][ne[:,0]],halos['dec'][ne[:,1]]],c='y',lw=1)
+
+
+
+        ax.set_xlim(box_w[0],box_w[1])
+        ax.set_ylim(box_w[2],box_w[3])
+
+
+    for ip,vp in enumerate(pairs):
+
+        # if vp['analysis'] == 0:
+        #     continue
+
+        min_ra = min([vp['ra1'],vp['ra2']])   -1
+        max_ra = max([vp['ra1'],vp['ra2']])   +1
+        min_de = min([vp['dec1'],vp['dec2']]) -1
+        max_de = max([vp['dec1'],vp['dec2']]) +1
+        box_w = [min_ra,max_ra,min_de,max_de]
+        pl.figure(figsize=(10,10))
+        plot_field(pl.gca(),box_w)
+        Dtot=np.sqrt(vp['Dxy']**2+vp['Dlos']**2)
+        titlestr = '%d analysis=%d class=%d Dlos=%2.2f Dxy=%2.2f Dtot=%2.2f m1=%1.1e m2=%1.1e' % (ip,vp['analysis'],vp['eyeball_class'],vp['Dlos'],vp['Dxy'],Dtot,halo1[ip]['m200_fit'],halo2[ip]['m200_fit'])
+        pl.title(titlestr)
+        filename_fig = 'figs/proximity.%04d.png' % ip
+        pl.savefig(filename_fig,dpi=150)
+        pl.close()
+        logger.info('saved %s',filename_fig)
+
+
 
 
 def figure_fields_cfhtlens():
 
-    pairs_colors = ['r','g','b','y']
+    pairs_colors = ['r','g','b','y','y']
     clean_colors = ['k','w']
 
     box_w1 = [29.5,39.5,-12,-3]
@@ -318,36 +416,26 @@ def figure_fields_cfhtlens():
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
     cluscat = tabletools.loadTable(filename_cluscat)
     fieldscat = tabletools.loadTable(filename_fields)
-    select = (cluscat['m200'] > np.log10(2e13)) * (cluscat['z'] < 2)
+    select = (cluscat['m200'] > np.log10(4e13)) * (cluscat['z'] < 2)
     cluscat = cluscat[select]
     cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
 
     select = halos['m200_fit'] > 5e13
     halos = halos[select]
 
-    select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
-    pairs=pairs[select]
-    halo1=halo1[select]
-    halo2=halo2[select]
+    # select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
+    # pairs=pairs[select]
+    # halo1=halo1[select]
+    # halo2=halo2[select]
 
     # select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
     # pairs=pairs[select]
         
-
-    import graphstools
-    select=graphstools.get_clean_connections(pairs,cluscat)
-    pairs=tabletools.appendColumn(arr=np.zeros(len(pairs)),rec=pairs,dtype='i4',name='clean')
-    pairs['clean'][select]=1
-    # pairs=tabletools.ensureColumn(pairs,name='eyeball_class',dtype='i4')
-    # pairs=pairs[select]
-    # halo1=halo1[select]
-    # halo2=halo2[select]
     # n_pairs_used = len(pairs)
-    print 'using %d pairs' % len(halo2)
-    print 'eyeball_class 0', sum( (pairs['eyeball_class']==0) & select)
-    print 'eyeball_class 1', sum( (pairs['eyeball_class']==1) & select)
-    print 'eyeball_class 2', sum( (pairs['eyeball_class']==2) & select)
-
+    print 'using %d pairs' % sum( pairs['analysis']==1)
+    print 'eyeball_class 0', sum( (pairs['eyeball_class']==0))
+    print 'eyeball_class 1', sum( (pairs['eyeball_class']==1))
+    print 'eyeball_class 2', sum( (pairs['eyeball_class']==2))
 
     try:
         import matplotlib
@@ -371,136 +459,47 @@ def figure_fields_cfhtlens():
     minz=0.2
     maxz=0.8
 
-    ax1.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
-    ax1.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
-    ax1.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
-    ax1.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
-    for i in range(len(pairs)): 
-        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
-        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
-        # ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%hal['ih1'][i],fontsize=10)
-        # ax1.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
-        ax1.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
-        # radius=cosmology.get_angular_separation(pairs['ra1'][i],pairs['dec1'][i],pairs['ra2'][i],pairs['dec2'][i])/2.
-        # circle=pl.Circle((pairs['ra_mid'][i],pairs['dec_mid'][i]),radius,color='y',fill=False)
-        # ax1.add_artist(circle)
-    for f in range(len(fieldscat)):
-        x1=fieldscat[f]['ra_min']
-        x2=fieldscat[f]['de_min']
-        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
-        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
-        if fieldscat[f]['bad']==1:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
-        else:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
-        ax1.add_patch(rect)
-    for h in range(len(cluscat)):
-        # r200_mpc = cluscat['r200'][h]
-        r200_mpc = 1
-        z = cluscat['z'][h]
-        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
-        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
-        ax1.add_artist(circle)
-        ax1.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
+    def plot_field(ax,box_w):
 
+        ax.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
+        ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
+        for i in range(len(pairs)): 
+            ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
+            ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['analysis'][i]],lw=2)
+            ax.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
+            # radius=cosmology.get_angular_separation(pairs['ra1'][i],pairs['dec1'][i],pairs['ra2'][i],pairs['dec2'][i])/2.
+            # circle=pl.Circle((pairs['ra_mid'][i],pairs['dec_mid'][i]),radius,color='y',fill=False)
+            # ax.add_artist(circle)
+        ax.scatter(pairs['ra1'],pairs['dec1'], 100 , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+        ax.scatter(pairs['ra2'],pairs['dec2'], 100 , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+        for f in range(len(fieldscat)):
+            x1=fieldscat[f]['ra_min']
+            x2=fieldscat[f]['de_min']
+            l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
+            l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
+            if fieldscat[f]['bad']==1:
+                rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
+            else:
+                rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
+            ax.add_patch(rect)
+        for h in range(len(cluscat)):
+            # r200_mpc = cluscat['r200'][h]
+            r200_mpc = 1
+            z = cluscat['z'][h]
+            r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+            circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+            ax.add_artist(circle)
+            ax.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
+        for i in range(len(halos)):
+            ax.text(halos['ra'][i],halos['dec'][i],' %d %2.1e'% (i,halos['m200_fit'][i]),fontsize=10)
 
-    ax1.set_xlim(box_w1[0],box_w1[1])
-    ax1.set_ylim(box_w1[2],box_w1[3])
+        ax.set_xlim(box_w[0],box_w[1])
+        ax.set_ylim(box_w[2],box_w[3])
 
-    ax2.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
-    ax2.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
-    ax2.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
-    ax2.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
-    for i in range(len(pairs)): 
-        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
-        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
-        # ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d %2.2f'%(pairs['ih1'][i],halo1['z'][i]),fontsize=10)
-        # ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d %2.2f'%(pairs['ih2'][i],halo2['z'][i]),fontsize=10)
-        ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d %2.2f'%(pairs[i]['ipair'],pairs[i]['z']),fontsize=10)
-    for f in range(len(fieldscat)):
-        x1=fieldscat[f]['ra_min']
-        x2=fieldscat[f]['de_min']
-        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
-        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
-        if fieldscat[f]['bad']==1:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
-        else:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
-        ax2.add_patch(rect)
-    for h in range(len(cluscat)):
-        # r200_mpc = cluscat['r200'][h]
-        r200_mpc = 1
-        z = cluscat['z'][h]
-        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
-        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
-        ax2.add_artist(circle)
-        ax2.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
-
-
-    ax2.set_xlim(box_w2[0],box_w2[1])
-    ax2.set_ylim(box_w2[2],box_w2[3])
-
-    ax3.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d',vmin=minz, vmax=maxz)
-    ax3.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
-    ax3.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
-    ax3.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
-    for i in range(len(pairs)): 
-        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
-        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
-        ax3.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
-        ax3.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
-        ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
-    for f in range(len(fieldscat)):
-        x1=fieldscat[f]['ra_min']
-        x2=fieldscat[f]['de_min']
-        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
-        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
-        if fieldscat[f]['bad']==1:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
-        else:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
-        ax3.add_patch(rect)
-    for h in range(len(cluscat)):
-        # r200_mpc = cluscat['r200'][h]
-        r200_mpc = 1
-        z = cluscat['z'][h]
-        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
-        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
-        ax3.add_artist(circle)
-
-    ax3.set_xlim(box_w3[0],box_w3[1])
-    ax3.set_ylim(box_w3[2],box_w3[3])
-    
-    ax4.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d')
-    cax=ax4.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s')
-    ax4.scatter(pairs['ra1'],pairs['dec1'], 60 , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
-    cax=ax4.scatter(pairs['ra2'],pairs['dec2'], 60 , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz)
-    for i in range(len(pairs)): 
-        ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
-        ax4.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['clean'][i]],lw=2)
-        ax4.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
-        ax4.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
-        ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
-    for f in range(len(fieldscat)):
-        x1=fieldscat[f]['ra_min']
-        x2=fieldscat[f]['de_min']
-        l1=fieldscat[f]['ra_max'] - fieldscat[f]['ra_min']
-        l2=fieldscat[f]['de_max'] - fieldscat[f]['de_min']
-        if fieldscat[f]['bad']==1:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor='red', edgecolor='Black', linewidth=1.0 , alpha = 0.5)
-        else:
-            rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
-        ax4.add_patch(rect)
-    for h in range(len(cluscat)):
-        # r200_mpc = cluscat['r200'][h]
-        r200_mpc = 1
-        z = cluscat['z'][h]
-        r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
-        circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
-        ax4.add_artist(circle)
-
-    ax4.set_xlim(box_w4[0],box_w4[1])
-    ax4.set_ylim(box_w4[2],box_w4[3])
+    plot_field(ax1,box_w1)
+    plot_field(ax2,box_w2)
+    plot_field(ax3,box_w3)
+    plot_field(ax4,box_w4)
 
     fig.subplots_adjust(right=0.8)
     # cbar_ax = fig.add_axes([0.85, 0.15, 0.015, 0.7])
@@ -841,6 +840,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         grid_kappa0_hires, grid_radius_hires = np.meshgrid(vec_kappa0_hires,vec_radius_hires,indexing='ij')
         logprob_kappa0_radius_hires = np.zeros([ len(vec_kappa0_hires) , len(vec_radius_hires) ])+66
+        logprob_kappa0_hires = np.zeros([ len(vec_kappa0_hires) ])+66
 
     for nf in range(id_file_first,id_file_last):
 
@@ -865,13 +865,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            log_prob = log_prob[:,:,:,:]
-            print 'log_prob.shape' , log_prob.shape
+            log_prob = log_prob[:,:,:20,:20]
+            warnings.warn('log_prob.shape %s' % str(log_prob.shape))
 
-            grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
-            grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
-            print grid_h1M200[:].min() , grid_h1M200[:].max() 
-            print grid_h2M200[:].min() , grid_h2M200[:].max()
+            grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:25,0]
+            grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:25]
+            warnings.warn(str( (grid_h1M200[:25].min() , grid_h1M200[:25].max())))
+            warnings.warn(str( (grid_h2M200[:25].min() , grid_h2M200[:25].max())))
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -953,6 +953,11 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 # log_prob_2D_hires[:,-1] = 2*log_prob_2D_hires[:,-2] - log_prob_2D_hires[:,-3]
                 logprob_kappa0_radius_hires += log_prob_2D_hires
 
+
+                prob_1D_hires = np.exp(log_prob_2D_hires-log_prob_2D_hires.max())
+                log_prob_1D_hires = np.log(prob_1D_hires.sum(axis=1))
+                logprob_kappa0_hires += log_prob_1D_hires
+
             if plots:
                 if nf % 1 == 0:
                     plot_prob_all_hires, _, _,_ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
@@ -984,7 +989,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
         return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
     else:
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius)   
-        return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
+        return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results 
     
     # return None, None, prod2D_pdf, grid_kappa0, grid_radius, n_usable_results
 
@@ -1478,11 +1483,13 @@ def plotdata_all():
     filename_pairs = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    filename_halos = config['filename_halos']
     # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
     pairs = tabletools.loadTable(filename_pairs)
+    halos = tabletools.loadTable(filename_halos)
     n_pairs = len(halo1)
 
     pairs = tabletools.ensureColumn(rec=pairs,name='eyeball_class',dtype='i4')
@@ -1510,20 +1517,7 @@ def plotdata_all():
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
     list_res_dict = []
-    
-    # filename_prune = 'pairs_cfhtlens_lrgs.prune.fits'
-    # pairs_prune = tabletools.loadTable(filename_prune)
-    # select_prune = np.array([ (True if pairs['ipair'][ip] in pairs_prune['ipair'] else False) for ip in pairs['ipair']])
-
-
-    # mass_prior= np.max(np.concatenate([pairs['m200_h1_fit'][:,None],pairs['m200_h2_fit'][:,None]],axis=1),axis=1)
-    # mass= (pairs['m200_h1_fit']+pairs['m200_h2_fit'])/2.
-    # mass= halo1['m200']   
-    # select = (mass < 1e16) * (mass > 7e13)
-    # print np.nonzero(select)
-    # select = (pairs['m200_h1_fit'] > 6e13) & (pairs['m200_h2_fit'] > 6e13)
-
-
+        
     ids_pairs_use = []
     ids_halos_use = []
     np.sort(pairs,order=['m200_h1_fit','m200_h2_fit'])
@@ -1540,7 +1534,7 @@ def plotdata_all():
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.01
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 1e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): = 3.06
 
-        if ( (halo1[idp]['m200_fit'] < 3e13) | (halo2[idp]['m200_fit'] < 3e13) | (Dtot>20) | (pairs[idp]['Dlos']<0) | (pairs[idp]['Dxy']<0) | (halo1[idp]['m200_sig'] < 0) | (halo2[idp]['m200_sig'] < 0) | (pairs[idp]['z'] < 0.1) ): 
+        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 5e13) | (Dtot>11) | (pairs[idp]['Dlos']<0) | (pairs[idp]['Dxy']<4.5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): 
 
             select.remove(idp)
             # print 'removed ' , idp, len(select)
@@ -1555,24 +1549,22 @@ def plotdata_all():
 
 
     import graphstools
-    select_clean=graphstools.get_clean_connections(pairs,cluscat)
-    for i in select: 
-        if select_clean[i]==False:
-            select.remove(i)
+    select_best=graphstools.get_best_neighbour(pairs,halo1,halo2)
+    # select_best=graphstools.get_triangulation(pairs,halo1,halo2,halos)
 
-    ids=select
+    # ids=select_best
+    ids=select_best
 
-    print len(select)
+    print len(ids)
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
     if config['optimization_mode'] == 'gridsearch':
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)
     if config['optimization_mode'] == 'mcmc':
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_sampling_2D(ids)
 
-
     for ic in range(len(pairs)):
         Dtot = np.sqrt(pairs['Dxy'][ic]**2+pairs['Dlos'][ic]**2)
-        if ic in select : 
+        if ic in list_ids_used: 
             mark = '   *' 
         else:
             mark = ''
@@ -1583,16 +1575,16 @@ def plotdata_all():
 
     for ic in list_ids_used:
         Dtot = np.sqrt(pairs[ic]['Dxy']**2+pairs[ic]['Dlos']**2)
-        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class'])
+        print 'ipair=% 3d\th1=[% 5.2f % 5.2f]\th2=[% 5.2f % 5.2f]\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ra1'] , pairs[ic]['dec1'], pairs[ic]['ra2'] , pairs[ic]['dec2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class'])
         
     pairs = tabletools.ensureColumn(rec=pairs,name='analysis',dtype='i4')
     pairs['analysis'] = 0
     pairs['analysis'][list_ids_used] = 1
     tabletools.saveTable(filename_pairs,pairs)
 
-    print 'class 0' , sum(pairs[select]['eyeball_class']==0)
-    print 'class 1' , sum(pairs[select]['eyeball_class']==1)
-    print 'class 2' , sum(pairs[select]['eyeball_class']==2)
+    print 'class 0' , sum(pairs[list_ids_used]['eyeball_class']==0)
+    print 'class 1' , sum(pairs[list_ids_used]['eyeball_class']==1)
+    print 'class 2' , sum(pairs[list_ids_used]['eyeball_class']==2)
 
     res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
 
@@ -2086,7 +2078,7 @@ def snr_analysis():
 def main():
 
 
-    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields_cfhtlens' , 'figure_fields' , 'plot_single_pairs' , 'add_model_selection' , 'mark_overlap' , 'plot_single_pairs_const' , 'remove_manually' , 'snr_analysis' ]
+    valid_actions = ['test_kde_methods', 'plot_vs_mass', 'plotdata_vs_mass' , 'plot_vs_length', 'plotdata_vs_length', 'plotdata_all' , 'triangle_plots', 'plot_data_stamp','add_stats' ,'plot_halo_map' , 'plot_pickle','remove_similar_connections' , 'figure_fields_cfhtlens' , 'figure_fields' , 'plot_single_pairs' , 'add_model_selection' , 'mark_overlap' , 'plot_single_pairs_const' , 'remove_manually' , 'snr_analysis' , 'figures_proximity']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
