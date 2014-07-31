@@ -139,9 +139,9 @@ def fit_2hf():
         fitobj.shear_g2 =  shears_info['g2']
         fitobj.shear_w =  shears_info['weight']
         fitobj.R_start = config['R_start']
-        fitobj.Dlos = pairs[ic]['Dlos']        
-        fitobj.Dtot = np.sqrt(pairs[ic]['Dxy']**2+pairs[ic]['Dlos']**2)
-        fitobj.boost = Dtot/pairs[ic]['Dxy']
+        fitobj.Dlos = pairs_table[ic]['Dlos']        
+        fitobj.Dtot = np.sqrt(pairs_table[ic]['Dxy']**2+pairs_table[ic]['Dlos']**2)
+        fitobj.boost = Dtot/pairs_table[ic]['Dxy']
         fitobj.use_boost = config['use_boost']
 
 
