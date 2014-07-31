@@ -141,7 +141,7 @@ def fit_2hf():
         fitobj.R_start = config['R_start']
         fitobj.Dlos = pairs_table[id_pair]['Dlos']        
         fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
-        fitobj.boost = Dtot/pairs_table[id_pair]['Dxy']
+        fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
         fitobj.use_boost = config['use_boost']
 
 
