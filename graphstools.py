@@ -82,7 +82,11 @@ def get_best_neighbour(pairs,halo1,halo2):
     used_nodes = []
     Dtot = np.sqrt(pairs['Dxy']**2 + pairs['Dlos']**2)
     # select_cut = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 4) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 0) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) )  # 001-lrgs 
-    select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 009-lrgs
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 009-lrgs
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo 2.02 35
+    select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 13) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo 2.05 37
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 13) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 1.9) | (halo2['m200_sig'] > 1.9)) ) # 010-lrgs-topo 2.05 37
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo
     # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 4) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) & (halo2['m200_sig'] > 0) ) 
     # select_cut = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) ) 
 

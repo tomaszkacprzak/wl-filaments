@@ -271,6 +271,9 @@ class modelfit():
             halo2_M200 = params[3] * 1e14
             halo1_M200 = params[2] * 1e14
 
+        if self.use_boost:
+            filament_kappa0 *= self.boost
+
         filament_u1_mpc = self.halo1_u_mpc - self.R_start*self.nh1.R_200
         filament_u2_mpc = self.halo2_u_mpc + self.R_start*self.nh2.R_200
 

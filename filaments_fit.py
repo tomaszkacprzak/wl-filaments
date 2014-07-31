@@ -139,6 +139,11 @@ def fit_2hf():
         fitobj.shear_g2 =  shears_info['g2']
         fitobj.shear_w =  shears_info['weight']
         fitobj.R_start = config['R_start']
+        fitobj.Dlos = pairs[ic]['Dlos']        
+        fitobj.Dtot = np.sqrt(pairs[ic]['Dxy']**2+pairs[ic]['Dlos']**2)
+        fitobj.boost = Dtot/pairs[ic]['Dxy']
+        fitobj.use_boost = config['use_boost']
+
 
         # choose a method to add and account for noise
         if config['sigma_method'] == 'add':

@@ -769,10 +769,103 @@ def merge_legion():
     pyfits.writeto(config['filename_halos'],halos,clobber=True)
     logger.info('saved %s' , config['filename_halos'])
 
+def add_closest_cluster():
+
+
+    range_M=map(float,config['range_M'])
+    filename_halos=config['filename_halos']
+
+    import os
+    import numpy as np
+    import pylab as pl
+    import tabletools
+    import pyfits
+    import plotstools
+
+    cat_lrgs=tabletools.loadTable(config['filename_halos'])
+    cat_clus=tabletools.loadTable(config['filename_cfhtlens_clusters'])
+    cat_pair=tabletools.loadTable(config['filename_pairs'])
+    tabletools.fixCase(cat_clus)
+
+    coords_lrgs = np.concatenate([cat_lrgs['ra'][:,None],cat_lrgs['dec'][:,None]],axis=1)
+    coords_clus = np.concatenate([cat_clus['ra'][:,None],cat_clus['dec'][:,None]],axis=1)
+    from sklearn.neighbors import BallTree as BallTree
+    BT = BallTree(coords_clus, leaf_size=5)
+    n_connections=10
+    bt_dx,bt_id = BT.query(coords_lrgs,k=n_connections)
+    
+    zerr=0.1
+    ids_match=bt_id[:,0]
+    for i in range(len(cat_lrgs)):
+        select = (cat_clus[bt_id[i,:]]['z']-cat_lrgs['z'][i]) < zerr
+        if sum(select) != 0:
+            ids_match[i] = bt_id[i,select][0]
+            print bt_dx[i,select] , cat_clus[bt_id[i,select]]['m200']
+        else:
+            select = (cat_clus[bt_id[i,:]]['z']-cat_lrgs['z'][i]) < zerr*10
+            ids_match[i] = bt_id[i,select][0]
+
+    ang_sep = cosmology.get_angular_separation(cat_lrgs['ra'],cat_lrgs['dec'],cat_clus['ra'][ids_match],cat_clus['dec'][ids_match],unit='deg')
+    dist_mpc = ang_sep*cosmology.get_ang_diam_dist(cat_lrgs['z'])*ang_sep
+
+    cat_clus_matched = cat_clus[ids_match]
+
+    exclude = np.concatenate([cat_pair[cat_pair['analysis']==1]['ih1'] , cat_pair[cat_pair['analysis']==1]['ih2']])
+    select= (dist_mpc<0.25) & (cat_lrgs['m200_fit'] > 5e13) 
+    select[exclude] = False
+    print 'number used to calibrate priors' , sum(select)
+
+    print 'number of halos with prior at 2 mpc' , sum(dist_mpc[exclude] < 2)
+
+    x = 10**cat_clus_matched['m200'][select]
+    y = cat_lrgs['m200_fit'][select]
+    s=(cat_lrgs['m200_errlo'][select] + cat_lrgs['m200_errhi'][select])/2.
+    import fitting
+    b,a,C=fitting.get_line_fit(x,y,s)
+    print a
+    print b
+    print np.sqrt(C)
+    cat_lrgs = tabletools.ensureColumn(name='m200_prior',rec=cat_lrgs)
+    cat_lrgs['m200_prior'] =  (10**cat_clus_matched['m200'])*a + b
+
+
+    pl.figure()
+    pl.errorbar(10**cat_clus_matched['m200'][exclude],cat_lrgs['m200_fit'][exclude],yerr=[cat_lrgs['m200_errlo'][exclude],cat_lrgs['m200_errhi'][exclude]],fmt='.')
+    cax=pl.scatter(10**cat_clus_matched['m200'][exclude],cat_lrgs['m200_fit'][exclude],c=dist_mpc[exclude],marker='o',s=100)
+    pl.colorbar(cax)
+    # xmin,xmax = pl.xlim()
+    # pl.plot(np.linspace(xmin,xmax,1000),np.linspace(xmin,xmax,1000)*(1+a)+b)
+    pl.title('filament sample')
+    pl.xlabel('cluster mass')
+    pl.ylabel('lensing mass')
+    pl.axis('equal')
+
+
+    pl.figure()
+    # pl.errorbar(10**cat_clus_matched['m200'][select],cat_lrgs['m200_fit'][select],yerr=[cat_lrgs['m200_errlo'][select],cat_lrgs['m200_errhi'][select]],fmt='.')
+    cax=pl.scatter(10**cat_clus_matched['m200'][select],cat_lrgs['m200_fit'][select],c=dist_mpc[select],marker='o',s=100)
+    pl.colorbar(cax)
+    # xmin,xmax = pl.xlim()
+    # pl.plot(np.linspace(xmin,xmax,1000),np.linspace(xmin,xmax,1000)*(1+a)+b)
+    pl.title('rest of the sample')
+    pl.xlabel('cluster mass')
+    pl.ylabel('lensing mass')
+    pl.axis('equal')
+
+
+    pl.figure()
+    pl.hist(dist_mpc,100)
+
+    pl.show()
+
+    import pdb; pdb.set_trace()
+
+
+
 
 def main():
 
-    valid_actions = ['select_lrgs','fit_halos','merge_legion']
+    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster']
 
     description = 'halo_stamps'
     parser = argparse.ArgumentParser(description=description, add_help=True)

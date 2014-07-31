@@ -316,8 +316,6 @@ def figures_proximity():
     cluscat = cluscat[select]
     cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
 
-    ne = tabletools.loadPickle('trian.pp2')
-
     select = halos['m200_fit'] > 5e13
     halos = halos[select]
 
@@ -858,20 +856,24 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 logger.info('empty %s' % filename_pickle)
                 n_missing +=1
                 continue
-                
-            log_prob = results_pickle['log_post']
-            log_prob_2D = results_pickle['log_post_2D']
-            # log_prob = results_pickle
+
+            try:                
+                log_prob = results_pickle['log_post']
+                log_prob_2D = results_pickle['log_post_2D']
+            except:
+                log_prob = results_pickle
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
-            log_prob = log_prob[:,:,:20,:20]
             warnings.warn('log_prob.shape %s' % str(log_prob.shape))
 
-            grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:25,0]
-            grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:25]
-            warnings.warn(str( (grid_h1M200[:25].min() , grid_h1M200[:25].max())))
-            warnings.warn(str( (grid_h2M200[:25].min() , grid_h2M200[:25].max())))
+            m200_imin = 0
+            m200_imax = log_prob.shape[3]
+            grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
+            grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
+            log_prob = log_prob[:,:,m200_imin:m200_imax,m200_imin:m200_imax]
+            warnings.warn('m200_min, m200_max %d %d' % (grid_h1M200[m200_imin],grid_h1M200[m200_imax-1]))
+            warnings.warn('m200_min, m200_max %d %d' % (grid_h2M200[m200_imin],grid_h2M200[m200_imax-1]))
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -897,36 +899,47 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                             pl.show()
 
             else:
-                
-                # the prior trick
-                # select1 = grid_pickle['grid_h1M200'] > (halo1[nf]['m200_fit'] - 2*halo1['m200_errlo'][nf]) 
-                # select2 = grid_pickle['grid_h1M200'] < (halo1[nf]['m200_fit'] + 2*halo1['m200_errhi'][nf])
-                # select3 = grid_pickle['grid_h2M200'] > (halo2[nf]['m200_fit'] - 2*halo2['m200_errlo'][nf]) 
-                # select4 = grid_pickle['grid_h2M200'] < (halo2[nf]['m200_fit'] + 2*halo2['m200_errhi'][nf])
-                # selectp = select1 & select2 & select3 & select4
 
-                # log_prob_2D = np.zeros([log_prob.shape[0],log_prob.shape[1]])
-                # normalisation=log_prob.max()
-                # for i1 in range(log_prob.shape[0]):
-                #     for i2 in range(log_prob.shape[1]):
-                #         selecti = np.zeros(log_prob.shape,dtype=np.bool)
-                #         selecti[i1,i2,:,:] = True
-                #         select = selectp & selecti
-                #         n_points = len(np.nonzero(select.flatten())[0])
-                #         all_prob = log_prob[select]  
-                #         log_prob_2D[i1,i2] = np.log(np.sum(np.exp(all_prob-normalisation))/n_points)
-                # pdf_prob = np.exp(log_prob[select] - log_prob[select].max()) 
+                prior_trick=True
+                if prior_trick:
+                    if grid_pickle['grid_h1M200'][0,0,0,0] < 1e12:
+                       div=1e14
+                    else:
+                       div=1
+                    
+                    # the prior trick
+                    select1 = grid_pickle['grid_h1M200'] > (halo1[nf]['m200_fit'] - 3*halo1['m200_errlo'][nf])/div
+                    select2 = grid_pickle['grid_h1M200'] < (halo1[nf]['m200_fit'] + 3*halo1['m200_errhi'][nf])/div
+                    select3 = grid_pickle['grid_h2M200'] > (halo2[nf]['m200_fit'] - 3*halo2['m200_errlo'][nf])/div 
+                    select4 = grid_pickle['grid_h2M200'] < (halo2[nf]['m200_fit'] + 3*halo2['m200_errhi'][nf])/div
+                    selectp = select1 & select2 & select3 & select4
+                    log_prob_2D = np.zeros([log_prob.shape[0],log_prob.shape[1]])
+                    normalisation=log_prob.max()
+                    for i1 in range(log_prob.shape[0]):
+                        for i2 in range(log_prob.shape[1]):
+                            selecti = np.zeros(log_prob.shape,dtype=np.bool)
+                            selecti[i1,i2,:,:] = True
+                            select = selectp & selecti
+                            n_points = len(np.nonzero(select.flatten())[0])
+                            if n_points!=0: 
+                                all_prob = log_prob[select]  
+                                log_prob_2D[i1,i2] = np.log(np.sum(np.exp(all_prob-normalisation))/n_points)
+                            else:
+                                pdf_prob = np.exp(log_prob - log_prob.max()) 
+                                pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
+                                log_prob_2D = np.log(pdf_prob_2D)
+                else:
 
-                pdf_prob = np.exp(log_prob - log_prob.max()) 
-                pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
-                log_prob_2D = np.log(pdf_prob_2D)
-                if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
-                    import pdb; pdb.set_trace()
-                    logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
-                    logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
-                    min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
-                    log_prob_2D[np.isinf(log_prob_2D)] = min_element
-                    log_prob_2D[np.isnan(log_prob_2D)] = min_element
+                    pdf_prob = np.exp(log_prob - log_prob.max()) 
+                    pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
+                    log_prob_2D = np.log(pdf_prob_2D)
+                    if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                        import pdb; pdb.set_trace()
+                        logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                        logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                        min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                        log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                        log_prob_2D[np.isnan(log_prob_2D)] = min_element
 
 
 
@@ -1533,16 +1546,15 @@ def plotdata_all():
         Dtot = np.sqrt(pairs[idp]['Dxy']**2+pairs[idp]['Dlos']**2)
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 6e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1)): = 3.01
         # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 1e13) | (Dtot>11) | (pairs[idp]['Dlos']<4) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): = 3.06
+        # if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 1e13) | (Dtot>11) | (pairs[idp]['Dlos']<3) | (pairs[idp]['Dxy']<5) | (halo1[idp]['m200_sig'] < 0) | (halo2[idp]['m200_sig'] < 0) ): 
 
-        if ( (halo1[idp]['m200_fit'] < 1e14) | (halo2[idp]['m200_fit'] < 5e13) | (Dtot>11) | (pairs[idp]['Dlos']<0) | (pairs[idp]['Dxy']<4.5) | (halo1[idp]['m200_sig'] < 1) | (halo2[idp]['m200_sig'] < 1) ): 
-
-            select.remove(idp)
+            # select.remove(idp)
             # print 'removed ' , idp, len(select)
     
     # remove multiply connected
     # select.remove(17) # 17-18 , 18 is more massive
     # select.remove(68) # 68 - 38 , 38 is more massive
-    # select.remove(73) # 73 - 71 , 71 is more massive
+    # select.remove([0,7,10,11,13]) # 73 - 71 , 71 is more massive
     print 'class 0',sum(pairs['eyeball_class'][select]==0)
     print 'class 1',sum(pairs['eyeball_class'][select]==1)
     print 'class 2',sum(pairs['eyeball_class'][select]==2)
@@ -1552,8 +1564,12 @@ def plotdata_all():
     select_best=graphstools.get_best_neighbour(pairs,halo1,halo2)
     # select_best=graphstools.get_triangulation(pairs,halo1,halo2,halos)
 
-    # ids=select_best
     ids=select_best
+    # ids=select
+    # ids.remove(0)
+    # ids.remove(10)
+    # ids.remove(11)
+    # ids.remove(13)
 
     print len(ids)
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
@@ -1575,7 +1591,8 @@ def plotdata_all():
 
     for ic in list_ids_used:
         Dtot = np.sqrt(pairs[ic]['Dxy']**2+pairs[ic]['Dlos']**2)
-        print 'ipair=% 3d\th1=[% 5.2f % 5.2f]\th2=[% 5.2f % 5.2f]\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ra1'] , pairs[ic]['dec1'], pairs[ic]['ra2'] , pairs[ic]['dec2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class'])
+        boost = Dtot/pairs[ic]['Dxy']
+        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\th1=[% 5.2f % 5.2f]\th2=[% 5.2f % 5.2f]\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tboost=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'], pairs[ic]['ih2'], pairs[ic]['ra1'] , pairs[ic]['dec1'], pairs[ic]['ra2'] , pairs[ic]['dec2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,boost,pairs[ic]['z'],pairs[ic]['eyeball_class'])
         
     pairs = tabletools.ensureColumn(rec=pairs,name='analysis',dtype='i4')
     pairs['analysis'] = 0
