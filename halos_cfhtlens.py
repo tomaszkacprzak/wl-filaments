@@ -547,7 +547,7 @@ def fit_halos():
         logger.info(titlestr)
 
         if args.legion:
-            filename_halos_part = os.path.basename(filename_halos).replace('.fits','.%04d.cat' % ih)
+            filename_halos_part = os.path.basename(filename_halos).replace('.fits','.%04d.pp2' % ih)
             line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]])
             res={'ml' : line, 'log_post' : log_post, 'grid_M200' : grid_M200 }
             tabletools.savePickle(filename_halos_part,res)
@@ -757,17 +757,34 @@ def merge_legion():
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errhi',dtype='f4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errlo',dtype='f4')
 
+    halos_like = np.zeros([len(halos),config['M200']['n_grid']])
+
     for ih in range(len(halos)):
-            filename_halos_part = 'results_halos/'+os.path.basename(config['filename_halos']).replace('.fits','.%04d.cat' % ih)
-            res=np.loadtxt(filename_halos_part)
-            halos[ih]['m200_fit'] = res[4]
-            halos[ih]['m200_sig'] = res[5]
-            halos[ih]['m200_errhi'] = res[6]
-            halos[ih]['m200_errlo'] = res[7]
+            filename_halos_part = 'results_halos/'+os.path.basename(config['filename_halos']).replace('.fits','.%04d.pp2' % ih)
+            res=tabletools.loadPickle(filename_halos_part)
+            halos[ih]['m200_fit'] = res['ml'][4]
+            halos[ih]['m200_sig'] = res['ml'][5]
+            halos[ih]['m200_errhi'] = res['ml'][6]
+            halos[ih]['m200_errlo'] = res['ml'][7]
+            halos_like[ih,:] = res['log_post']
+
             # ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]]
     
     pyfits.writeto(config['filename_halos'],halos,clobber=True)
     logger.info('saved %s' , config['filename_halos'])
+
+
+    prior_prob= np.sum(np.exp(halos_like - halos_like.max()),axis=0)
+    pl.plot(grid_M200,prior_prob)
+    filename_fig = 'halos.prior.png'
+    pl.savefig(filename_fig)
+    logger.info('saved %d',filename_fig)
+    pl.show()
+    pl.close()
+
+    filename_prob = config['filename_halos'].replace('.fits','.prior.pp2')  
+    prior_dict = {'halos_like':halos_like,'grid_M200':grid_M200,'prior':prior_prob}
+    tabletools.savePickle(filename_prob)
 
 def add_closest_cluster():
 
