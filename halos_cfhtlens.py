@@ -549,8 +549,8 @@ def fit_halos():
         if args.legion:
             filename_halos_part = os.path.basename(filename_halos).replace('.fits','.%04d.cat' % ih)
             line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]])
-            np.savetxt(filename_halos_part,line)
-            logger.info('saved %s',filename_halos_part)
+            res={'ml' : line, 'log_post' : log_post, 'grid_M200' : grid_M200 }
+            tabletools.savePickle(filename_halos_part,res)
             continue
 
         pyfits.writeto(filename_halos,halos,clobber=True)

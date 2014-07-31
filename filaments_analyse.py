@@ -867,13 +867,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             # log_prob = results_pickle*214.524/2.577
             warnings.warn('log_prob.shape %s' % str(log_prob.shape))
 
-            m200_imin = 0
-            m200_imax = log_prob.shape[3]
+            m200_imin = 10
+            m200_imax = 30 #log_prob.shape[3]
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
             log_prob = log_prob[:,:,m200_imin:m200_imax,m200_imin:m200_imax]
-            warnings.warn('m200_min, m200_max %d %d' % (grid_h1M200[m200_imin],grid_h1M200[m200_imax-1]))
-            warnings.warn('m200_min, m200_max %d %d' % (grid_h2M200[m200_imin],grid_h2M200[m200_imax-1]))
+            warnings.warn('m200_min, m200_max %2.3f %2.3f' % (grid_h1M200[m200_imin],grid_h1M200[m200_imax-1]))
+            warnings.warn('m200_min, m200_max %2.3f %2.3f' % (grid_h2M200[m200_imin],grid_h2M200[m200_imax-1]))
             if hires_marg:
 
                 grid_h1M200_hires=np.linspace(grid_h1M200.min(),grid_h1M200.max(),len(grid_h1M200)*n_upsample)
@@ -900,7 +900,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
             else:
 
-                prior_trick=True
+                prior_trick=False
                 if prior_trick:
                     if grid_pickle['grid_h1M200'][0,0,0,0] < 1e12:
                        div=1e14
@@ -1565,7 +1565,8 @@ def plotdata_all():
     # select_best=graphstools.get_triangulation(pairs,halo1,halo2,halos)
 
     ids=select_best
-    # ids=select
+    # import pdb; pdb.set_trace()
+    # ids=range(len(pairs))
     # ids.remove(0)
     # ids.remove(10)
     # ids.remove(11)
@@ -1577,6 +1578,9 @@ def plotdata_all():
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D(ids)
     if config['optimization_mode'] == 'mcmc':
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_sampling_2D(ids)
+
+    select_radius_prior = grid_dict['grid_radius'][0,:]
+
 
     for ic in range(len(pairs)):
         Dtot = np.sqrt(pairs['Dxy'][ic]**2+pairs['Dlos'][ic]**2)
