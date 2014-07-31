@@ -43,15 +43,13 @@ def get_clone():
         halo1_table_clone = np.concatenate([halo1_table_clone,halo1_table[select].copy()])
         halo2_table_clone = np.concatenate([halo2_table_clone,halo2_table[select].copy()])
         logger.info('% 3d cloned % 3d pairs, total % 3d' %(irep,len(pairs_table),len(pairs_table_clone)))
-    tabletools.saveTable(filename_pairs.replace('.fits','.clone.fits'),pairs_table_clone)
-    tabletools.saveTable(filename_halo1.replace('.fits','.clone.fits'),halo1_table_clone)
-    tabletools.saveTable(filename_halo2.replace('.fits','.clone.fits'),halo2_table_clone)
+
     pairs_table = pairs_table_clone
     halo1_table = halo1_table_clone
     halo2_table = halo2_table_clone
 
     id_pair_first = args.first
-    id_pair_last = len(pairs_table) if args.num==-1 else args.first + args.num
+    id_pair_last = len(pairs_table_clone) if args.num==-1 else args.first + args.num
     if id_pair_first >= id_pair_last: raise Exception('first pair greater than len(halo_pairs) %d > %d' % (id_pair_first,id_pair_last))
     logger.info('running on pairs from %d to %d' , id_pair_first , id_pair_last)
   
@@ -84,6 +82,8 @@ def get_clone():
         fitobj.shear_g1 =  shears_info['g1']
         fitobj.shear_g2 =  shears_info['g2']
         fitobj.shear_w =  shears_info['weight']
+        fitobj.use_boost = config['use_boost']
+        fitobj.R_start = config['R_start']
 
         # choose a method to add and account for noise
         if config['sigma_method'] == 'add':
@@ -172,10 +172,16 @@ def get_clone():
         shears_info['g1'] = fitobj.shear_g1
         shears_info['g2'] = fitobj.shear_g2
 
+
+
         tabletools.savePickle(filename_shears_mock,shears_info,append=True)
 
         logger.info('noise sig=%2.2f std_g1=%2.2f std_g2=%2.2f',np.mean(sig[~select]),np.std(noise_g1[~select]), np.std(noise_g2[~select]))
 
+    pairs_table_clone['ipair']=np.arange(len(pairs_table_clone))
+    tabletools.saveTable(filename_pairs.replace('.fits','.clone.fits'),pairs_table_clone)
+    tabletools.saveTable(filename_halo1.replace('.fits','.clone.fits'),halo1_table_clone)
+    tabletools.saveTable(filename_halo2.replace('.fits','.clone.fits'),halo2_table_clone)
     logger.warning('\n========================================\n \
                     now you have to change the config entry\n \
                     files to use clone files:\n \

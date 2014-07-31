@@ -274,8 +274,8 @@ class modelfit():
         if self.use_boost:
             filament_kappa0 *= self.boost
 
-        filament_u1_mpc = self.halo1_u_mpc - self.R_start*self.nh1.R_200
-        filament_u2_mpc = self.halo2_u_mpc + self.R_start*self.nh2.R_200
+        filament_u1_mpc = self.halo1_u_mpc - self.R_start #*self.nh1.R_200
+        filament_u2_mpc = self.halo2_u_mpc + self.R_start #*self.nh2.R_200
 
         h1g1 , h1g2 , _ , _  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
         h2g1 , h2g2 , _ , _  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
@@ -350,14 +350,7 @@ class modelfit():
             if ( self.parameters[1]['box']['min'] <= radius <= self.parameters[1]['box']['max'] ):
                 if ( self.parameters[2]['box']['min'] <= h1M200 <= self.parameters[2]['box']['max'] ):
                     if ( self.parameters[3]['box']['min'] <= h2M200 <= self.parameters[3]['box']['max'] ):
-                                if self.m200_sigma != None:
-                                    m200_prior1 = np.log(np.exp( (self.halo1_M200 - h1M200)**2/self.m200_sigma**2 ))
-                                    m200_prior2 = np.log(np.exp( (self.halo2_M200 - h2M200)**2/self.m200_sigma**2 ))
-                                    prob += m200_prior1 
-                                    prob += m200_prior2 
-                                    return prob
-                                else:
-                                    return prob
+                        return prob
         return -np.inf
        
     def log_likelihood(self,model_g1,model_g2,limit_mask):
@@ -513,12 +506,8 @@ class modelfit():
 
         grid_kappa0 = np.linspace(self.parameters[0]['box']['min'],self.parameters[0]['box']['max'], self.parameters[0]['n_grid'])
         grid_radius = np.linspace(self.parameters[1]['box']['min'],self.parameters[1]['box']['max'], self.parameters[1]['n_grid'])
-        if self.m200_sigma == None:
-            grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'], self.parameters[2]['n_grid'])
-            grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'], self.parameters[3]['n_grid'])
-        else:
-            grid_h1M200 = np.linspace(self.halo1_M200 - self.m200_sigma*2,self.halo1_M200 + self.m200_sigma*2, self.parameters[2]['n_grid'])
-            grid_h2M200 = np.linspace(self.halo2_M200 - self.m200_sigma*2,self.halo2_M200 + self.m200_sigma*2, self.parameters[2]['n_grid'])
+        grid_h1M200 = np.linspace(self.parameters[2]['box']['min'],self.parameters[2]['box']['max'], self.parameters[2]['n_grid'])
+        grid_h2M200 = np.linspace(self.parameters[3]['box']['min'],self.parameters[3]['box']['max'], self.parameters[3]['n_grid'])
 
         n_total = len(grid_kappa0)* len(grid_radius)* len(grid_h1M200)* len(grid_h2M200)
         log_post = np.zeros([len(grid_kappa0), len(grid_radius) , len(grid_h1M200) , len(grid_h2M200)] )

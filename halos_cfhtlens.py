@@ -767,6 +767,7 @@ def merge_legion():
             halos[ih]['m200_errhi'] = res['ml'][6]
             halos[ih]['m200_errlo'] = res['ml'][7]
             halos_like[ih,:] = res['log_post']
+            grid_M200 = res['grid_M200']
 
             # ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]]
     
@@ -774,17 +775,25 @@ def merge_legion():
     logger.info('saved %s' , config['filename_halos'])
 
 
+    
     prior_prob= np.sum(np.exp(halos_like - halos_like.max()),axis=0)
-    pl.plot(grid_M200,prior_prob)
+    downsample=1
+    h,b = np.histogram(halos['m200_fit']/1e14,bins=grid_M200[::downsample*100]/1e14,normed=True)
+    pl.plot(grid_M200[::downsample]/1e14,prior_prob[::downsample]/np.max(prior_prob))
+    pl.plot(b[:-1],h/np.max(h))
     filename_fig = 'halos.prior.png'
     pl.savefig(filename_fig)
-    logger.info('saved %d',filename_fig)
+    logger.info('saved %s',filename_fig)
     pl.show()
     pl.close()
 
-    filename_prob = config['filename_halos'].replace('.fits','.prior.pp2')  
-    prior_dict = {'halos_like':halos_like,'grid_M200':grid_M200,'prior':prior_prob}
-    tabletools.savePickle(filename_prob)
+    import pdb; pdb.set_trace()
+
+
+
+    filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
+    prior_dict = {'halos_like':halos_like,'grid_M200':grid_M200[::downsample],'prior':np.log(prior_prob[::downsample])}
+    tabletools.savePickle(filename_prior,prior_dict)
 
 def add_closest_cluster():
 

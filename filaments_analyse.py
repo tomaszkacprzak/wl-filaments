@@ -784,7 +784,42 @@ def get_prob_prod_gridsearch(ids):
 
     return prod_pdf, grid_pickle, n_usable_results
     
+prior_dict=None
+def apply_prior(log_prob,grid_h1M200,grid_h2M200):
 
+    global prior_dict 
+    if prior_dict==None:
+        filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
+        prior_dict = tabletools.loadPickle(filename_prior)
+
+    import scipy.interpolate
+    x=prior_dict['grid_M200']/1e14
+    y=prior_dict['prior']
+    # y=x*0-1
+
+    min_m200_h1 = 1.
+    min_m200_h2 = 0.5
+    max_m200_h1 = 10
+    max_m200_h2 = 10
+    y1 = y.copy()
+    y2 = y.copy()
+    y1[x<min_m200_h1] = y.min()*10000
+    y2[x<min_m200_h2] = y.min()*10000
+    y1[x>max_m200_h1] = y.min()*10000
+    y2[x>max_m200_h2] = y.min()*10000
+
+    pl.plot(x,np.exp(y2-y2.max()))
+
+    fun=scipy.interpolate.interp1d(x,y1)
+    log_prior1=np.reshape(fun(grid_h1M200.flatten()),grid_h1M200.shape)
+    fun=scipy.interpolate.interp1d(x,y2)
+    log_prior2=np.reshape(fun(grid_h2M200.flatten()),grid_h2M200.shape)
+
+    warnings.warn('applying prior')
+
+    log_prob = log_prob+log_prior1+log_prior2
+
+    return log_prob
 
 def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,normalisation_const=None):
 
@@ -867,8 +902,8 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             # log_prob = results_pickle*214.524/2.577
             warnings.warn('log_prob.shape %s' % str(log_prob.shape))
 
-            m200_imin = 10
-            m200_imax = 30 #log_prob.shape[3]
+            m200_imin = 0
+            m200_imax = log_prob.shape[3]
             grid_h1M200 = grid_pickle['grid_h1M200'][0,0,:,0]
             grid_h2M200 = grid_pickle['grid_h2M200'][0,0,0,:]
             log_prob = log_prob[:,:,m200_imin:m200_imax,m200_imin:m200_imax]
@@ -901,6 +936,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             else:
 
                 prior_trick=False
+                use_prior=True
                 if prior_trick:
                     if grid_pickle['grid_h1M200'][0,0,0,0] < 1e12:
                        div=1e14
@@ -928,6 +964,20 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                                 pdf_prob = np.exp(log_prob - log_prob.max()) 
                                 pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                                 log_prob_2D = np.log(pdf_prob_2D)
+                elif use_prior:
+
+                    log_prob = apply_prior(log_prob,grid_pickle['grid_h1M200'],grid_pickle['grid_h2M200'])
+                    pdf_prob = np.exp(log_prob - log_prob.max()) 
+                    pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
+                    log_prob_2D = np.log(pdf_prob_2D)
+                    if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                        import pdb; pdb.set_trace()
+                        logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                        logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                        min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                        log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                        log_prob_2D[np.isnan(log_prob_2D)] = min_element
+
                 else:
 
                     pdf_prob = np.exp(log_prob - log_prob.max()) 
@@ -1565,8 +1615,8 @@ def plotdata_all():
     # select_best=graphstools.get_triangulation(pairs,halo1,halo2,halos)
 
     ids=select_best
-    # import pdb; pdb.set_trace()
-    # ids=range(len(pairs))
+    # ids=np.arange(0,len(pairs),11)
+    # ids=[11]
     # ids.remove(0)
     # ids.remove(10)
     # ids.remove(11)
@@ -1715,8 +1765,8 @@ def triangle_plots():
     pairs = tabletools.loadTable(filename_pairs)
     n_pairs = len(halo1)
 
-    id_file_first = args.first_result_file
-    id_file_last = id_file_first + args.n_results_files
+    id_file_first = args.first
+    id_file_last = id_file_first + args.num
 
     filename_grid='%s/results.grid.%s.pp2' % (args.results_dir,os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits',''))
     grid=tabletools.loadPickle(filename_grid)
@@ -1733,7 +1783,9 @@ def triangle_plots():
     select = mass > 13.
     # select = pairs['eyeball_class'] == 3
 
-    for ida in range(id_file_first,id_file_last):
+    list_of_ids = range(id_file_first,id_file_last)
+    list_of_ids = range(0,66,11)
+    for ida in list_of_ids:
 
         if ~select[ida]:
             continue
@@ -1743,7 +1795,11 @@ def triangle_plots():
         print "%d mean_mass=%2.2f halo1_mass=%2.2f halo2_mass=%2.2f z=%2.2f" % (ida,mass[ida],halo1['m200'][ida], halo2['m200'][ida] , halo2[ida]['z'])
         filename_result = '%s/results.prob.%04d.%04d.%s.pp2' % (args.results_dir,ida,ida+1,os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits',''))
         if os.path.isfile(filename_result):
-            res=tabletools.loadPickle(filename_result,log=0)
+            results_pickle = tabletools.loadPickle(filename_result,log=0)
+            res = results_pickle['log_post']
+            log_prob_2D = results_pickle['log_post_2D']
+            res = apply_prior(res,grid['grid_h1M200'],grid['grid_h2M200'])
+
         else:
             print 'missing' , filename_result
             continue

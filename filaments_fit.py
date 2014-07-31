@@ -32,6 +32,7 @@ cospars = cosmology.cosmoparams()
 prob_z = None
 
 N_BURNIN = 1000
+prior_dict = None
 
 def fit_2hf():
 
@@ -124,6 +125,16 @@ def fit_2hf():
             result_dict = {'id' : id_pair}
             tabletools.savePickle(filename_results_prob,prob_result,append=True)
             continue
+
+        # if config['null_halos']:
+   
+        #     if prior_dict==None:
+        #         filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
+        #         prior_dict = tabletools.loadPickle(filename_prior)
+
+            # shears_info['g1'] = 
+            # shears_info['g2'] = 
+            # pass
        
 
         fitobj = filaments_model_2hf.modelfit()
@@ -159,8 +170,6 @@ def fit_2hf():
             fitobj.inv_sq_sigma_g = fitobj.shear_w
             logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
                     
-        fitobj.m200_sigma = None if ('m200_sigma' not in config) else config['m200_sigma']
-
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair_in_catalog]
