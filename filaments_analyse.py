@@ -421,10 +421,10 @@ def figure_fields_cfhtlens():
     select = halos['m200_fit'] > 5e13
     halos = halos[select]
 
-    # select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
-    # pairs=pairs[select]
-    # halo1=halo1[select]
-    # halo2=halo2[select]
+    select = pairs['analysis'] == 1
+    pairs=pairs[select]
+    halo1=halo1[select]
+    halo2=halo2[select]
 
     # select = (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e14)
     # pairs=pairs[select]
@@ -487,9 +487,10 @@ def figure_fields_cfhtlens():
             r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
             circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
             ax.add_artist(circle)
-            ax.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
+            # ax.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
         for i in range(len(halos)):
-            ax.text(halos['ra'][i],halos['dec'][i],' %d %2.1e'% (i,halos['m200_fit'][i]),fontsize=10)
+            pass
+            # ax.text(halos['ra'][i],halos['dec'][i],' %d %2.1e'% (i,halos['m200_fit'][i]),fontsize=10)
 
         ax.set_xlim(box_w[0],box_w[1])
         ax.set_ylim(box_w[2],box_w[3])
@@ -784,31 +785,35 @@ def get_prob_prod_gridsearch(ids):
 
     return prod_pdf, grid_pickle, n_usable_results
     
-prior_dict=None
-def apply_prior(log_prob,grid_h1M200,grid_h2M200):
+def apply_prior(log_prob,grid_h1M200,grid_h2M200,ids=None):
 
-    global prior_dict 
-    if prior_dict==None:
-        filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
-        prior_dict = tabletools.loadPickle(filename_prior)
 
+    filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
+    prior_dict = tabletools.loadPickle(filename_prior,log=0)
+    pairs = tabletools.loadTable(config['filename_pairs'],log=0)
+    halos_use = np.concatenate([pairs[ids]['ih1'],pairs[ids]['ih2']])
+    prior_ids = prior_dict['halos_like'][halos_use]
+    norm1 = prior_ids-np.kron( np.ones([1,prior_ids.shape[1]]) , prior_ids.max(axis=1)[:,None] )
+    norm2 = np.exp(norm1)/np.kron( np.ones([1,prior_ids.shape[1]]) , np.sum(np.exp(norm1),axis=1)[:,None] )
+    norm3 = np.sum(norm2,axis=0)
     import scipy.interpolate
     x=prior_dict['grid_M200']/1e14
-    y=prior_dict['prior']
+    # y=prior_dict['prior']
+    y = np.log(norm3/np.sum(norm3))
     # y=x*0-1
 
-    min_m200_h1 = 1.
+    min_m200_h1 = 0.5
     min_m200_h2 = 0.5
     max_m200_h1 = 10
     max_m200_h2 = 10
     y1 = y.copy()
     y2 = y.copy()
-    y1[x<min_m200_h1] = y.min()*10000
-    y2[x<min_m200_h2] = y.min()*10000
-    y1[x>max_m200_h1] = y.min()*10000
-    y2[x>max_m200_h2] = y.min()*10000
+    y1[x<min_m200_h1] = y.min()*1000
+    y2[x<min_m200_h2] = y.min()*1000
+    y1[x>max_m200_h1] = y.min()*1000
+    y2[x>max_m200_h2] = y.min()*1000
 
-    pl.plot(x,np.exp(y2-y2.max()))
+    # pl.plot(x,np.exp(y2-y2.max())); pl.show()
 
     fun=scipy.interpolate.interp1d(x,y1)
     log_prior1=np.reshape(fun(grid_h1M200.flatten()),grid_h1M200.shape)
@@ -827,10 +832,14 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
     pairs = tabletools.loadTable(filename_pairs)
+    halos = tabletools.loadTable(config['filename_halos'])
+    prior_dict = tabletools.loadPickle(filename_prior,log=0)
+
 
     
     import scipy.interpolate
@@ -937,6 +946,8 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
                 prior_trick=False
                 use_prior=True
+                use_ml=False
+                use_expectation=False
                 if prior_trick:
                     if grid_pickle['grid_h1M200'][0,0,0,0] < 1e12:
                        div=1e14
@@ -966,7 +977,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                                 log_prob_2D = np.log(pdf_prob_2D)
                 elif use_prior:
 
-                    log_prob = apply_prior(log_prob,grid_pickle['grid_h1M200'],grid_pickle['grid_h2M200'])
+                    log_prob = apply_prior(log_prob,grid_pickle['grid_h1M200'],grid_pickle['grid_h2M200'],ids)
                     pdf_prob = np.exp(log_prob - log_prob.max()) 
                     pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                     log_prob_2D = np.log(pdf_prob_2D)
@@ -977,6 +988,49 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                         min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
                         log_prob_2D[np.isinf(log_prob_2D)] = min_element
                         log_prob_2D[np.isnan(log_prob_2D)] = min_element
+                elif use_ml:
+
+                    this_h1_m200 = halos['m200_fit'][pairs['ih1'][nf]]
+                    this_h2_m200 = halos['m200_fit'][pairs['ih2'][nf]]
+
+                    best_h1m200_index = np.argmin(np.abs(grid_h1M200-this_h1_m200/1e14))  + 1
+                    best_h2m200_index = np.argmin(np.abs(grid_h2M200-this_h2_m200/1e14))  + 1
+                    print '%4d %4d %5.2f %5.2f'  % (best_h1m200_index , best_h2m200_index , grid_h1M200[best_h1m200_index] , grid_h2M200[best_h2m200_index])
+                    log_prob_2D = log_prob[:,:,best_h1m200_index,best_h2m200_index]
+                    if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                        import pdb; pdb.set_trace()
+                        logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                        logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                        min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                        log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                        log_prob_2D[np.isnan(log_prob_2D)] = min_element
+
+                elif use_expectation:
+
+                    halo_like1=prior_dict['halos_like'][pairs['ih1'][nf],:]
+                    halo_like2=prior_dict['halos_like'][pairs['ih2'][nf],:]
+                    halo_like1 = np.exp(halo_like1-halo_like1.max())
+                    halo_like2 = np.exp(halo_like2-halo_like2.max())
+                    halo_like1 = halo_like1/np.sum(halo_like1)
+                    halo_like2 = halo_like2/np.sum(halo_like2)
+
+                    this_h1_m200 = np.sum(halo_like1*prior_dict['grid_M200'])
+                    this_h2_m200 = np.sum(halo_like2*prior_dict['grid_M200'])
+
+                    best_h1m200_index = np.argmin(np.abs(grid_h1M200-this_h1_m200/1e14))
+                    best_h2m200_index = np.argmin(np.abs(grid_h2M200-this_h2_m200/1e14))
+                    print '%4d %4d %5.2f %5.2f'  % (best_h1m200_index , best_h2m200_index , grid_h1M200[best_h1m200_index] , grid_h2M200[best_h2m200_index])
+
+                    log_prob_2D = log_prob[:,:,best_h1m200_index,best_h2m200_index]
+                    if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
+                        import pdb; pdb.set_trace()
+                        logger.info('n_nans: %d' % len(np.isnan(log_prob_2D)))
+                        logger.info('n_infs: %d' % len(np.isinf(log_prob_2D)))
+                        min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
+                        log_prob_2D[np.isinf(log_prob_2D)] = min_element
+                        log_prob_2D[np.isnan(log_prob_2D)] = min_element
+
+
 
                 else:
 
@@ -1614,8 +1668,37 @@ def plotdata_all():
     select_best=graphstools.get_best_neighbour(pairs,halo1,halo2)
     # select_best=graphstools.get_triangulation(pairs,halo1,halo2,halos)
 
+    # main
     ids=select_best
-    # ids=np.arange(0,len(pairs),11)
+    # 445 216 : 
+    # 30 434
+    # 341 33
+    # 83 82
+    # 126 11
+    # 60 318 90
+    # 68 147
+    # 128 118
+    # 6 58
+    ids.remove([445])
+    ids.remove([30])
+    ids.remove([341])
+    ids.remove([82])
+    ids.remove([126])
+    ids.remove([60])
+    ids.remove([68])
+    ids.remove([128])
+    ids.remove([58])
+    ids.remove([318])
+    
+    # clone2
+    # missing=[293-48,301-48,319-48,329-48]
+    # ids=np.append(np.arange(288,336),missing)
+    # ids=np.arange(288,384) # 013 - good
+
+    # clone1
+    # missing=[15+48,16+48,17+48,19+48,22+48,26+48,28+48,29+48,33+48,29+48,34+48,41+48,43+48,45+48]
+    # ids=np.append(np.arange(0,48),missing)
+    # ids= np.arange(0,52)
     # ids=[11]
     # ids.remove(0)
     # ids.remove(10)
@@ -1652,6 +1735,7 @@ def plotdata_all():
     pairs['analysis'] = 0
     pairs['analysis'][list_ids_used] = 1
     tabletools.saveTable(filename_pairs,pairs)
+    print 'set analysis to 1 for %d pairs' % sum(pairs['analysis']==1)
 
     print 'class 0' , sum(pairs[list_ids_used]['eyeball_class']==0)
     print 'class 1' , sum(pairs[list_ids_used]['eyeball_class']==1)
@@ -1671,14 +1755,20 @@ def plotdata_all():
     max0, max1 = np.unravel_index(prod_pdf.argmax(), prod_pdf.shape)
     print grid_dict['grid_kappa0'][max0,max1], grid_dict['grid_radius'][max0,max1]
     max_radius = grid_dict['grid_radius'][0,max1]
+    max_kappa0 = grid_dict['grid_kappa0'][max0,0]
     contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
     xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
     ylabel=r'radius $\mathrm{Mpc}/h$'
+    if config['kappa_is_K']:
+            xlabel=r' $\Delta\Sigma$ /   $ \mathrm{mean}(\Delta\Sigma_{200})$ '
+            ylabel=r' $ r_c / \mathrm{mean}(r_{200}) $'
+
     
     pl.figure()
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
     pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
     pl.axhline(max_radius,color='r')
+    pl.axvline(max_kappa0,color='r')
     pl.xlabel(xlabel)
     pl.ylabel(ylabel)
     pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)

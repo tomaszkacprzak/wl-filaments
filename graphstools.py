@@ -83,8 +83,14 @@ def get_best_neighbour(pairs,halo1,halo2):
     Dtot = np.sqrt(pairs['Dxy']**2 + pairs['Dlos']**2)
     # select_cut = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 4) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 0) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) )  # 001-lrgs 
     # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 009-lrgs
-    select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo 2.02 35
-    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 13) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo 2.05 37
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo 2.02 35
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
+
+    # main result
+    select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
+
+    # random
+    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6)  ) 
 
     # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 1000) & (Dtot > 0) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 0) & ((halo1['m200_sig'] > 0) | (halo2['m200_sig'] > 0)) ) # 010-lrgs-topo 2.05 37
     # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 2) | (halo2['m200_sig'] > 2)) ) # 010-lrgs-topo
@@ -135,7 +141,6 @@ def get_best_neighbour(pairs,halo1,halo2):
             str_class = sum(pairs[select_list]['eyeball_class']==0), sum(pairs[select_list]['eyeball_class']==1), sum(pairs[select_list]['eyeball_class']==2)
             print '% 3d\t% 5.2f\t% 5.2f\t%20s\t%20s\t%30s\t%40s\t%40s\t%20s' % (ip,vp['ra1'],vp['dec1'],str_ids,str_nodes,str_mass,str_qs,str_ds,str_class)
 
-    select_cut2 = ( (halo1['m200_fit'] > 1e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 11) & (Dtot > 5) & (pairs['Dlos'] > 3) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 0) | (halo2['m200_sig'] > 0)) & (halo2['m200_sig'] > 0) )  # 001-lrgs 
 
     # for ip in select_list: 
         # if select_cut2[ip]==False: select_list.remove(ip)

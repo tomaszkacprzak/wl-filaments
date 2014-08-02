@@ -38,11 +38,11 @@ def get_clone():
     pairs_table_clone = pairs_table[select].copy()
     halo1_table_clone = halo1_table[select].copy()
     halo2_table_clone = halo2_table[select].copy()
-    for irep in range(config['n_clones']):
+    for irep in range(1,config['n_clones']):
         pairs_table_clone = np.concatenate([pairs_table_clone,pairs_table[select].copy()])
         halo1_table_clone = np.concatenate([halo1_table_clone,halo1_table[select].copy()])
         halo2_table_clone = np.concatenate([halo2_table_clone,halo2_table[select].copy()])
-        logger.info('% 3d cloned % 3d pairs, total % 3d' %(irep,len(pairs_table),len(pairs_table_clone)))
+        logger.info('% 3d cloned % 3d pairs, total % 3d' %(irep,sum(select),len(pairs_table_clone)))
 
     pairs_table = pairs_table_clone
     halo1_table = halo1_table_clone
@@ -82,6 +82,9 @@ def get_clone():
         fitobj.shear_g1 =  shears_info['g1']
         fitobj.shear_g2 =  shears_info['g2']
         fitobj.shear_w =  shears_info['weight']
+        fitobj.Dlos = pairs_table[id_pair]['Dlos']        
+        fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
+        fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
         fitobj.use_boost = config['use_boost']
         fitobj.R_start = config['R_start']
 

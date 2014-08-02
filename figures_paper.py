@@ -158,7 +158,7 @@ def figure_model():
 
     sigma_g_add =  0.
 
-    id_pair = 2
+    id_pair = 216
     shears_info = tabletools.loadPickle(filename_shears,id_pair)
 
     import filaments_model_2hf
@@ -206,10 +206,16 @@ def figure_model():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    param_radius = 0.5
-    param_kappa0 = 0.3
-    param_masses = 14
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses,])
+    fitobj.R_start = config['R_start']
+    fitobj.Dlos = pairs_table[id_pair]['Dlos']        
+    fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
+    fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
+    fitobj.use_boost = config['use_boost']
+
+    param_radius = 0.9
+    param_kappa0 = 0.4
+    param_masses = 3
+    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
 
 
     nx = sum(np.isclose(fitobj.shear_u_mpc,fitobj.shear_u_mpc[0]))
@@ -245,7 +251,7 @@ def figure_model():
     unit='Mpc'
 
     line_width=0.003
-    quiver_scale = 0.55
+    quiver_scale = 1.2
     nuse = 4
 
     shear_u_mpc = shear_u_mpc[::nuse,::nuse]
@@ -255,7 +261,7 @@ def figure_model():
     emag = emag[::nuse,::nuse]
     ephi = ephi[::nuse,::nuse]
 
-    hc = 6.85
+    hc = 8.42
     rad = 1.1 # mpc
     mask = (np.sqrt((shear_u_mpc-hc)**2 + shear_v_mpc**2) > rad) * (np.sqrt((shear_u_mpc+hc)**2 + shear_v_mpc**2) > rad) 
     shear_u_mpc = shear_u_mpc[mask]
@@ -266,18 +272,25 @@ def figure_model():
     ephi = ephi[mask]
     
 
-    pos=6.75-np.pi/4.
+    pos=hc*1.04-np.pi/4.
     pl.plot([-pos,pos],[ param_radius, param_radius],c='k')
     pl.plot([-pos,pos],[-param_radius,-param_radius],c='k')
 
     import matplotlib
-    quiv=pl.quiver(shear_u_mpc,shear_v_mpc,emag*np.cos(ephi),emag*np.sin(ephi),linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',color='k',label='original',scale=quiver_scale , width = line_width)  
+    nz = pl.matplotlib.colors.Normalize()
+    nz.autoscale(emag)
+    quiv=pl.quiver(shear_u_mpc,shear_v_mpc,emag*np.cos(ephi),emag*np.sin(ephi),linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',label='original',scale=quiver_scale , width = line_width)  
+    # quiv=pl.quiver(shear_u_mpc,shear_v_mpc,emag*np.cos(ephi),emag*np.sin(ephi),linewidths=0.001,headwidth=0., headlength=0., headaxislength=0., pivot='mid',label='original',scale=quiver_scale , width = line_width, color=pl.matplotlib.cm.jet(nz(emag)))  
+    # cax,_ = pl.matplotlib.colorbar.make_axes(pl.gca())
+    # cb = pl.matplotlib.colorbar.ColorbarBase(cax, cmap=pl.matplotlib.cm.jet, norm=nz)
+    # pl.colorbar(quiv)
+
     # pl.gca().add_patch(matplotlib.patches.Rectangle((5.5,2.3),5,10,color='w'))
     # qk = pl.quiverkey(quiv, 0.72, 0.8, 0.005, r'$g=0.005$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':20})
     pl.gca().add_patch(matplotlib.patches.Rectangle((-2.5,-4),5,1.1,color='w'))
-    pl.gca().add_patch(matplotlib.patches.Circle((-6.85,0),1,edgecolor='k',facecolor='w',lw=1))
-    pl.gca().add_patch(matplotlib.patches.Circle(( 6.85,0),1,edgecolor='k',facecolor='w',lw=1))
-    qk = pl.quiverkey(quiv, 0.47, 0.225, 0.005, r'$g=0.005$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':14})
+    pl.gca().add_patch(matplotlib.patches.Circle((-hc,0),1,edgecolor='k',facecolor='w',lw=1))
+    pl.gca().add_patch(matplotlib.patches.Circle(( hc,0),1,edgecolor='k',facecolor='w',lw=1))
+    qk = pl.quiverkey(quiv, 0.47, 0.26, 0.01, r'$g=0.01$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':14})
 
 
     pl.axis('equal')
@@ -302,12 +315,10 @@ def figure_fields():
     box_w3 = [329.5,336,-2,5.5]
     box_w4 = [131.5,137.5,-6.5,-0.5]
 
-           
-    # select = (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
-
-    # pairs=pairs[select]
-    # halo1=halo1[select]
-    # halo2=halo2[select]
+    select = pairs['analysis']==1
+    pairs=pairs[select]
+    halo1=halo1[select]
+    halo2=halo2[select]
     n_pairs_used = len(pairs)
 
     print 'using %d pairs' % len(halo2)
@@ -344,7 +355,7 @@ def figure_fields():
 
     # ax1.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d', vmin=minz, vmax=maxz)
     # ax1.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
-    ax1.text(box_w1[0]+0.2,box_w1[2]+0.2,'W1')
+    ax1.text(box_w1[1]-0.2,box_w1[2]+0.2,'W1')
     ax1.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
     ax1.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
     for i in range(len(pairs)): 
@@ -362,10 +373,11 @@ def figure_fields():
 
     ax1.set_xlim(box_w1[0],box_w1[1])
     ax1.set_ylim(box_w1[2],box_w1[3])
+    ax1.invert_xaxis()
 
     # ax2.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d',vmin=minz, vmax=maxz)
     # ax2.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
-    ax2.text(box_w2[0]+0.2,box_w2[2]+0.2,'W3')
+    ax2.text(box_w2[1]-0.2,box_w2[2]+0.2,'W3')
     ax2.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
     ax2.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
     for i in range(len(pairs)): 
@@ -384,8 +396,9 @@ def figure_fields():
 
     ax2.set_xlim(box_w2[0],box_w2[1])
     ax2.set_ylim(box_w2[2],box_w2[3])
+    ax2.invert_xaxis()
 
-    ax3.text(box_w3[0]+0.2,box_w3[2]+0.2,'W4')
+    ax3.text(box_w3[1]-0.2,box_w3[2]+0.2,'W4')
     # ax3.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d',vmin=minz, vmax=maxz)
     # ax3.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
     cax=ax3.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
@@ -403,10 +416,9 @@ def figure_fields():
         rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
         ax3.add_patch(rect)
 
-
-
     ax3.set_xlim(box_w3[0],box_w3[1])
     ax3.set_ylim(box_w3[2],box_w3[3])
+    ax3.invert_xaxis()
     
     # ax4.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d')
     # cax=ax4.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s')
@@ -469,21 +481,15 @@ def figure_contours():
     # bins_snr_centers = [ 3 , 6]
     bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
 
-    thres = 1.
-    print 'BF n_clean '        ,   sum( (pairs['manual_remove']==0) & (pairs['BF1']>thres) & (pairs['BF2']>thres) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==3) )  )
-    print 'BF n_contaminating ',   sum( (pairs['manual_remove']==0) & (pairs['BF1']>thres) & (pairs['BF2']>thres) & ( (pairs['eyeball_class']==2) | (pairs['eyeball_class']==0) )  )
-
-    mass= (10**pairs['m200_h1_fit']+10**pairs['m200_h2_fit'])/2.
-    select = (pairs['BF1']>thres) & (pairs['BF2']>thres) & (pairs['manual_remove']==0)
-    # select = (pairs['BF1']>thres) & (pairs['BF2']>thres) & (pairs['eyeball_class']==1)
-    # select = pairs['eyeball_class'] ==1
-    ids=np.arange(n_pairs)[select]
+    ids=np.nonzero(pairs['analysis']==1)[0]
+    args.first=0
+    args.num=-1
     prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids)
 
     print 'used %d pairs' % n_pairs_used
 
     for ic in list_ids_used:
-        print 'ipair=%d ih1=%d ih2=%d m200_h1=%2.2f m200_h2=%2.2f' % (ic, pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'])
+        print 'ipair=% 5d ih1=% 5d ih2=% 5d m200_h1=%5.2e m200_h2=%5.2e' % (ic, pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'])
 
     res_dict = { 'prob' : prod_pdf , 'params' : grid_dict, 'n_obj' : n_pairs_used }
 
@@ -492,40 +498,47 @@ def figure_contours():
     max0, max1 = np.unravel_index(prod_pdf.argmax(), prod_pdf.shape)
     print grid_dict['grid_kappa0'][max0,max1], grid_dict['grid_radius'][max0,max1]
     max_radius = grid_dict['grid_radius'][0,max1]
-    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3])
     xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
     ylabel=r'radius $\mathrm{Mpc}/h$'
+    if config['kappa_is_K']:
+            # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
+            # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
+            # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
+            xlabel=r'$ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{filament}} /  \Delta\Sigma_{200}^{\mathrm{halos}}  $'
+            ylabel=r'$ R_{c}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
+
     
     pl.figure()
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
     pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
     pl.axhline(max_radius,color='r')
-    pl.xlabel(xlabel)
-    pl.ylabel(ylabel)
-    pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    pl.xlabel(xlabel,fontsize=24)
+    pl.ylabel(ylabel,fontsize=24)
+    # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
     pl.axis('tight')
 
     # paper plots in ugly colormap
     pl.figure()
-    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels[::2],colors='b')
-    fmt = {}; strs = [ r'$1\sigma$', r'$3\sigma$', r'$5\sigma$'] ; 
-    for l,s in zip( cp.levels, strs ): 
-        fmt[l] = s
-    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=20)
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='b')
+    fmt = {}; strs = [ r'$68\%$', r'$95\%$', r'$99\%$'] ; 
+    # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
+    for l,s in zip( cp.levels, strs ): fmt[l] = s
+    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
-    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'] )
-
-    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
-    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
-    pl.xlabel(xlabel)
-    pl.ylabel(ylabel)
+    pl.xlabel(xlabel,fontsize=20)
+    pl.ylabel(ylabel,fontsize=20)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
     pl.axis('tight')
-    pl.ylim([0,4])
+    pl.ylim([0,3])
+    pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
 
     # plot 1d - just kappa0
     prob_kappa0 = np.sum(prod_pdf,axis=1)
@@ -560,86 +573,49 @@ def table_individual():
     global halos ,filename_halos_cfhtlens ,filename_cluscat ,filename_fields ,bossdr10 ,pairs ,halo1 ,halo2 ,cluscat ,fieldscat ,filename_cluscat_durret ,cluscat_durret
 
     # candidates
-    select= (pairs['BF1']>1) & (pairs['BF2']>1) & (pairs['manual_remove']==0)
+    select= pairs['analysis']==1
     print 'candidates' , len(pairs[select])
 
-    import pdb; pdb.set_trace()
     for ic,vc in enumerate(pairs[select]):
 
-        import scipy.special
-        sigmas=scipy.special.erfinv(1.-vc['MLRT1'])*np.sqrt(2.)
-        print 'ic=%03d ra_1=% 10.5f dec_1=% 10.5f ra_2=% 10.5f dec_2=% 10.5f z_1=%2.4f z_2=%2.4f R_los=%2.2f MLRT1=%10.4f sigmas=%2.2f BF1=%10.2f BF2=%10.2f R_pair=%10.f M_1=%2.2f M_2=%2.2f ML_radius=%2.2f ML_kappa0=%2.2f' % (
+        h1= halos[vc['ih1']]
+        h2= halos[vc['ih2']]
+
+        print 'ic=%03d ra_1=% 10.5f dec_1=% 10.5f ra_2=% 10.5f dec_2=% 10.5f z_1=%2.4f z_2=%2.4f R_los=%2.2f R_pair=%10.f M1_fit=%2.2f M1_sig=%2.2f M2_fit=%2.2f M2_sig=%2.2f' % (
                     vc['ipair'],
                     vc['ra1'],
                     vc['dec1'],
                     vc['ra2'],
                     vc['dec2'],
-                    halo1['z'][vc['ipair']],
-                    halo2['z'][vc['ipair']],
+                    h1['z'],
+                    h2['z'],
                     vc['drloss'],
-                    vc['MLRT1'],
-                    sigmas,
-                    vc['BF1'],
-                    vc['BF2'],
                     vc['R_pair'],
-                    vc['m200_h1_fit'],
-                    vc['m200_h2_fit'],
-                    vc['ML_radius'],
-                    vc['ML_kappa0']
+                    h1['m200_fit']/1e14,
+                    h1['m200_sig'],
+                    h2['m200_fit']/1e14,
+                    h2['m200_sig'],
                     )
 
     for ic,vc in enumerate(pairs[select]):
 
-        import scipy.special
-        sigmas=scipy.special.erfinv(1.-vc['MLRT1'])*np.sqrt(2.)
-        print '$% 4d$ & $% 12.3f$ & $% 12.3f$ & $% 12.3f$ & $% 12.3f$ & $%2.2f$ & $% 12.3f$ & $%12.3f $ & $%2.2f$ & $%12.4f$ & $%12.2f$ & $%12.2f$ & $%12.2f$ & $%2.2f$ & $%2.2f$ & $%2.2f$ & $%2.2f$ \\\\' % (
-                    # vc['ipair'],
+        h1= halos[vc['ih1']]
+        h2= halos[vc['ih2']]
+
+        print '$% 4d$ & $% 12.3f$ & $% 12.3f$ & $% 12.3f$ & $% 12.3f$ & $%2.4f$ & $%2.4f$ & $%12.3f $ & $%12.3f$ & $%6.1f$ & $%6.1f$ & $%6.1f$ & $%6.1f$  \\\\' % (
                     ic+1,
                     vc['ra1'],
                     vc['dec1'],
                     vc['ra2'],
                     vc['dec2'],
-                    vc['R_pair'],
                     halo1['z'][vc['ipair']],
                     halo2['z'][vc['ipair']],
-                    vc['drloss'],
-                    vc['MLRT1'],
-                    sigmas,
-                    vc['BF1'],
-                    vc['BF2'],
-                    vc['m200_h1_fit'],
-                    vc['m200_h2_fit'],
-                    vc['ML_radius'],
-                    vc['ML_kappa0']
-                    )
-
-
-    # significant
-    cl = 1- 0.954499736
-    select= (pairs['BF1']>1) & (pairs['BF2']>3) & (pairs['MLRT1']<cl) & (pairs['manual_remove']==0)
-    print  'significant' , len(pairs[select])
-
-    for ic,vc in enumerate(pairs[select]):
-
-        import scipy.special
-        sigmas=scipy.special.erfinv(1.-vc['MLRT1'])*np.sqrt(2.)
-        print 'ic=%03d ra_1=% 10.5f dec_1=% 10.5f ra_2=% 10.5f dec_2=% 10.5f z_1=%2.4f z_2=%2.4f MLRT1=%10.4f sigmas=%2.2f BF1=%10.2f BF2=%10.2f R_pair=%10.f M_1=%2.2f M_2=%2.2f ML_radius=%2.2f ML_kappa0=%2.2f' % (
-                    vc['ipair'],
-                    vc['ra1'],
-                    vc['dec1'],
-                    vc['ra2'],
-                    vc['dec2'],
-                    halo1['z'][vc['ipair']],
-                    halo2['z'][vc['ipair']],
-                    vc['MLRT1'],
-                    sigmas,
-                    vc['BF1'],
-                    vc['BF2'],
-                    vc['R_pair'],
-                    vc['m200_h1_fit'],
-                    vc['m200_h2_fit'],
-                    vc['ML_radius'],
-                    vc['ML_kappa0']
+                    vc['Dxy'],
+                    vc['Dlos'],
+                    h1['m200_fit']/1e14,
+                    h1['m200_sig'],
+                    h2['m200_fit']/1e14,
+                    h2['m200_sig'],
                     )
 
 
@@ -676,8 +652,8 @@ def figure_vary_bf():
     thres = 1.
     print 'BF n_clean '        ,   sum( (pairs['manual_remove']==0) & (pairs['BF1']>thres) & (pairs['BF2']>thres) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==3) )  )
     print 'BF n_contaminating ',   sum( (pairs['manual_remove']==0) & (pairs['BF1']>thres) & (pairs['BF2']>thres) & ( (pairs['eyeball_class']==2) | (pairs['eyeball_class']==0) )  )
-
-    # mass= (10**pairs['m200_h1_fit']+10**pairs['m200_h2_fit'])/2.
+ 
+   # mass= (10**pairs['m200_h1_fit']+10**pairs['m200_h2_fit'])/2.
     # select = (pairs['BF1']>thres) & (pairs['BF2']>thres) & (pairs['manual_remove']==0)
 
     # levels = [1,1.1,1.2,1.3,1.4,1.5,2.0,3.0,4.0,]

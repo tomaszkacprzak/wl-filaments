@@ -284,18 +284,12 @@ def select_halos_LRG():
     logger.info('saved %s' , filename_fig)
 
 
-def select_halos_random():
+def randomise_halos():
 
-    range_z=map(float,config['range_z'])
-    range_M=map(float,config['range_M'])
     filename_halos=config['filename_halos']
+    halocat = np.array(pyfits.getdata(filename_halos))
 
-    logger.info('selecting halos in range_z (%2.2f,%2.2f) and range_M (%2.2e,%2.2e)' % (range_z[0],range_z[1],range_M[0],range_M[1]))
-
-    filename_halos_cfhtlens = config['filename_BOSS_lrgs']
-    halocat = np.array(pyfits.getdata(filename_halos_cfhtlens))
-
-    sample = np.random.uniform(0,len(halocat),config['n_random_pairs'])
+    sample = np.random.uniform(0,len(halocat),config['n_random_halos'])
     sample = sample.astype('i4')
 
     halocat = halocat[sample]
@@ -313,7 +307,7 @@ def select_halos_random():
 
     cfhtlens_coords = np.concatenate([shearcat[ra_field][:,None],shearcat[de_field][:,None]],axis=1)
 
-    perm = np.random.permutation(len(shearcat))[:config['n_random_pairs']]
+    perm = np.random.permutation(len(shearcat))[:config['n_random_halos']]
     ra = shearcat[ra_field][perm]
     dec = shearcat[de_field][perm]
 
@@ -351,29 +345,17 @@ def select_halos_random():
 
     logger.info('selected on proximity to CFHTLens, remaining number of halos: %d' % len(halocat))
 
-    index=range(0,len(halocat))
-    halocat = tabletools.ensureColumn(rec=halocat, name='id', arr=index, dtype='i8')
-    halocat = tabletools.ensureColumn(rec=halocat, name='m200' )
-    halocat = tabletools.ensureColumn(rec=halocat, name='snr'  )
+    halocat['index']=range(0,len(halocat))
     fix_case( halocat )
-    # halocat.dtype.names = ('field', 'index', 'ra', 'dec', 'z', 'snr', 'id')
 
-    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='index',dtype='i4')
-    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_fit',dtype='f4')
-    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_sig',dtype='f4')
-    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_errhi',dtype='f4')
-    halocat = tabletools.ensureColumn(rec=halocat,arr=range(len(halocat)),name='m200_errlo',dtype='f4')
-    halocat['m200_fit'] = 1e14
-    halocat['m200_sig'] = 5
-        
-    tabletools.saveTable(filename_halos,halocat)
-    logger.info('wrote %s' % filename_halos)
+    filename_halos_random = filename_halos.replace('.fits','.random.fits')
+    tabletools.saveTable(filename_halos_random,halocat)
+    logger.info('wrote %s' % filename_halos_random)
 
-    pl.figure()
-    pl.hist(halocat['z'],histtype='step',bins=200)
-    filename_fig = 'figs/hist.cfhtlens.lrgs_redshifts.png'
-    pl.savefig(filename_fig)
-    logger.info('saved %s' , filename_fig)
+    print "============================================"
+    print " change filename_halos to filename_halos.random.fits"
+    print "============================================"
+
 
 def fit_halos():
     
@@ -766,16 +748,28 @@ def merge_legion():
             halos[ih]['m200_sig'] = res['ml'][5]
             halos[ih]['m200_errhi'] = res['ml'][6]
             halos[ih]['m200_errlo'] = res['ml'][7]
-            halos_like[ih,:] = res['log_post']
-            grid_M200 = res['grid_M200']
+            log_post = res['log_post'].copy()
+            grid_M200 = res['grid_M200'].copy()
+
+            frac_diff = np.diff(log_post[1:]) / np.diff(log_post[:-1])
+            # frac_diff=np.append(0,np.diff(log_post,n=2))
+            frac_diff=np.append(frac_diff,1)
+            frac_diff=np.append(1,frac_diff)
+            frac_diff=np.abs(frac_diff-1)
+            select = frac_diff < 0.1
+            import scipy.interpolate
+            f = scipy.interpolate.interp1d(grid_M200[select],log_post[select])
+            log_post[~select] = f(grid_M200[~select])
+            # pl.plot(np.exp(log_post-log_post.max())); pl.plot(np.exp(res['log_post']-res['log_post'].max())); pl.show()
+
+            halos_like[ih,:]=log_post
 
             # ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]]
     
     pyfits.writeto(config['filename_halos'],halos,clobber=True)
     logger.info('saved %s' , config['filename_halos'])
 
-
-    
+   
     prior_prob= np.sum(np.exp(halos_like - halos_like.max()),axis=0)
     downsample=1
     h,b = np.histogram(halos['m200_fit']/1e14,bins=grid_M200[::downsample*100]/1e14,normed=True)
@@ -784,12 +778,7 @@ def merge_legion():
     filename_fig = 'halos.prior.png'
     pl.savefig(filename_fig)
     logger.info('saved %s',filename_fig)
-    pl.show()
     pl.close()
-
-    import pdb; pdb.set_trace()
-
-
 
     filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
     prior_dict = {'halos_like':halos_like,'grid_M200':grid_M200[::downsample],'prior':np.log(prior_prob[::downsample])}
@@ -891,7 +880,7 @@ def add_closest_cluster():
 
 def main():
 
-    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster']
+    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster','randomise_halos']
 
     description = 'halo_stamps'
     parser = argparse.ArgumentParser(description=description, add_help=True)
