@@ -263,7 +263,7 @@ class modelfit():
             filament_kappa0 = params[0]*DeltaSigma_at_R200 / 1e14
             filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
             # filament_radius = params[1]
-            if self.n_model_evals % 5==0:
+            if self.n_model_evals % 1000==0:
                 log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200 ))
         else:   # standard model
             filament_kappa0 = params[0]
