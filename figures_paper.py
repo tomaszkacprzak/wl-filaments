@@ -52,7 +52,7 @@ def figure_density():
 
     import nfw
     nh1 = nfw.NfwHalo()
-    nh1.z_cluster= 0.2
+    nh1.z_cluster= 0.3
     nh1.M_200= 3.4e14
     nh1.concentr = nh1.get_concentr()
     nh1.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh1.z_cluster)
@@ -111,7 +111,7 @@ def figure_density():
         print '% 4d m1=%2.2e m2=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f ' % (ip,nh1.M_200,nh2.M_200,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius)
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h1g1[0], h1_DeltaSigma[0], h1_Sigma_crit, h1_kappa[0])
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h2g1[0], h2_DeltaSigma[0], h2_Sigma_crit, h2_kappa[0])
-        print '---- change: %2.2f' % (filament_kappa0/filament_kappa0_old)
+        print '---- change: %2.2f' % (filament_kappa0_old/filament_kappa0)
 
 
     
@@ -290,7 +290,7 @@ def figure_model():
     fitobj.use_boost = config['use_boost']
 
     param_radius = 0.75
-    param_kappa0 = 0.4
+    param_kappa0 = 3
     param_masses = 3
     shear_model_g1 , shear_model_g2 , limit_mask , model_DeltaSigma, model_kappa = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
 
@@ -318,7 +318,9 @@ def figure_model():
     pl.subplots_adjust(bottom=0.15)
 
     cmap = pl.get_cmap('Blues')
-    pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap)
 
     # import pdb; pdb.set_trace()
     ephi=0.5*np.arctan2(shear_model_g2,shear_model_g1)              
@@ -388,7 +390,8 @@ def figure_model():
     
     cbaxes = pl.gcf().add_axes([0.91, 0.2, 0.02, 0.63]) 
     # cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
-    cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
+    # cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
+    cbar = pl.colorbar(pcm,cax=cbaxes)
     pl.figtext(0.935,0.2,r'$\Delta\Sigma$')
 
     print 'fitobj.nh2.R_200' , fitobj.nh2.R_200
