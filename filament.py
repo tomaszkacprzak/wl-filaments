@@ -325,7 +325,7 @@ def test_shear_profile():
 
     kappa0 = 50
     radius_mpc = 1
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    model_pz_1 , model_pz_2 ,_,_,_ = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
     # def filament_model_with_pz(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z, grid_z_centers , prob_z,  redshift_offset=0.2):    pl.sublot(1,2,1)
 
     pl.figure()
@@ -348,7 +348,7 @@ def test_shear_profile():
 
     kappa0 = 1
     radius_mpc = 1
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    model_pz_1 , model_pz_2,_,_,_ = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
     truncation = 10
     truncation_radius = truncation * radius_mpc
     trunc= np.cos(np.pi*shear_v_mpc/truncation_radius/2)**2
@@ -359,7 +359,7 @@ def test_shear_profile():
 
     kappa0 = 1
     radius_mpc = 1
-    model_pz_1 , model_pz_2 = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
+    model_pz_1 , model_pz_2,_,_,_ = f.filament_model_with_pz( shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc, f.pair_z, f.grid_z_centers , f.prob_z)
     pl.plot(shear_v_mpc,-model_pz_1,'m+',ms=10)
     print min(model_pz_1)
 

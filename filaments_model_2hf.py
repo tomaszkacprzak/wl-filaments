@@ -261,8 +261,8 @@ class modelfit():
             h2g1 , h2g2 , h2_DeltaSigma , h2_Sigma_crit, h2_kappa  = self.nh1.get_shears_with_pz_fast(np.array([theta2_x,theta2_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
             DeltaSigma_at_R200 = (np.abs(h1_DeltaSigma[0])+np.abs(h2_DeltaSigma[0]))/2.
             filament_kappa0 = params[0]*DeltaSigma_at_R200 / 1e14
-            filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
-            # filament_radius = params[1]
+            # filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
+            filament_radius = params[1]
             if self.n_model_evals % 1000==0:
                 log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200 ))
         else:   # standard model

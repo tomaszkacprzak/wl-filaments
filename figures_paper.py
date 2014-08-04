@@ -314,10 +314,10 @@ def figure_model():
     # pl.pcolormesh( shear_u_mpc , shear_v_mpc , shear_model_g2)
     
     # pl.figure(figsize=(27.3/3.,10/3.))
-    pl.figure(figsize=(26/3.,10/3.))
+    pl.figure(figsize=(28/3.,10/3.))
     pl.subplots_adjust(bottom=0.15)
 
-    cmap = pl.get_cmap('YlOrBr')
+    cmap = pl.get_cmap('Blues')
     pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
 
     # import pdb; pdb.set_trace()
@@ -370,10 +370,10 @@ def figure_model():
 
     # pl.gca().add_patch(matplotlib.patches.Rectangle((5.5,2.3),5,10,color='w'))
     # qk = pl.quiverkey(quiv, 0.72, 0.8, 0.005, r'$g=0.005$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':20})
-    pl.gca().add_patch(matplotlib.patches.Rectangle((-2.5,-4),5,1.1,facecolor='white', edgecolor='black'))
+    pl.gca().add_patch(matplotlib.patches.Rectangle((-2.5,-3.7),5,1.1,facecolor='white', edgecolor='black'))
     pl.gca().add_patch(matplotlib.patches.Circle((-hc,0),1,edgecolor='k',facecolor='none',lw=1))
     pl.gca().add_patch(matplotlib.patches.Circle(( hc,0),1,edgecolor='k',facecolor='none',lw=1))
-    qk = pl.quiverkey(quiv, 0.47, 0.26, 0.01, r'$g=0.01$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':14})
+    qk = pl.quiverkey(quiv, 0.475, 0.22, 0.01, r'$g=0.01$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':14})
 
     pl.xlabel(unit)
     pl.ylabel(unit)
@@ -383,8 +383,13 @@ def figure_model():
     pl.axis('tight')
     pl.gca().tick_params('both', length=0, width=2, which='major')
 
-    cbaxes = pl.gcf().add_axes([0.4, 0.8, 0.23, 0.05]) 
-    cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
+    # cbaxes = pl.gcf().add_axes([0.4, 0.8, 0.23, 0.05]) 
+    # cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
+    
+    cbaxes = pl.gcf().add_axes([0.91, 0.2, 0.02, 0.63]) 
+    # cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
+    cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
+    pl.figtext(0.935,0.2,r'$\Delta\Sigma$')
 
     print 'fitobj.nh2.R_200' , fitobj.nh2.R_200
 
