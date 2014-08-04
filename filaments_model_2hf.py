@@ -238,7 +238,6 @@ class modelfit():
         params[1] filament_radius [Mpc]
         """
 
-        self.n_model_evals +=1
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
         halo1_M200 = params[2] * 1e14
@@ -288,6 +287,8 @@ class modelfit():
         model_DeltaSigma = h1_Delta_Sigma + h2_Delta_Sigma + f_Delta_Sigma
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
+
+        self.n_model_evals +=1
 
         return  model_g1 , model_g2 , limit_mask , model_DeltaSigma, model_kappa
 

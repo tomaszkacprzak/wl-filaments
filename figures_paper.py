@@ -242,6 +242,7 @@ def figure_model():
     import filament
     import nfw
     fitobj = filaments_model_2hf.modelfit()
+    fitobj.kappa_is_K = config['kappa_is_K']
     fitobj.get_bcc_pz(config['filename_pz'])
 
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
@@ -290,7 +291,7 @@ def figure_model():
     fitobj.use_boost = config['use_boost']
 
     param_radius = 0.75
-    param_kappa0 = 3
+    param_kappa0 = 1.2
     param_masses = 3
     shear_model_g1 , shear_model_g2 , limit_mask , model_DeltaSigma, model_kappa = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
 
@@ -318,9 +319,9 @@ def figure_model():
     pl.subplots_adjust(bottom=0.15)
 
     cmap = pl.get_cmap('Blues')
-    # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
     # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
-    pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap)
+    # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap)
 
     # import pdb; pdb.set_trace()
     ephi=0.5*np.arctan2(shear_model_g2,shear_model_g1)              
@@ -390,8 +391,8 @@ def figure_model():
     
     cbaxes = pl.gcf().add_axes([0.91, 0.2, 0.02, 0.63]) 
     # cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
-    # cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
-    cbar = pl.colorbar(pcm,cax=cbaxes)
+    cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
+    # cbar = pl.colorbar(pcm,cax=cbaxes)
     pl.figtext(0.935,0.2,r'$\Delta\Sigma$')
 
     print 'fitobj.nh2.R_200' , fitobj.nh2.R_200
