@@ -150,7 +150,7 @@ class modelfit():
         
     def plot_model(self,p):
 
-        model_g1 , model_g2, limit_mask = self.draw_model(p)
+        model_g1 , model_g2, limit_mask , _ , _  = self.draw_model(p)
         self.plot_residual(model_g1 , model_g2, limit_mask)        
 
     def get_halo_signal(self):
@@ -198,7 +198,7 @@ class modelfit():
         pair_z = np.mean([self.halo1_z, self.halo2_z])
 
         # fg1 , fg2 = self.filam.filament_model_with_pz_kron(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
-        fg1 , fg2 = self.filam.filament_model_with_pz(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
+        fg1 , fg2, DeltaSigma , SigmaCrit , kappa = self.filam.filament_model_with_pz(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
         # fg1 , fg2 = self.filam.fast_filament_model_with_pz(self.shear_u_mpc, self.shear_v_mpc ,  filament_u1_mpc ,  filament_u2_mpc ,  filament_kappa0 ,  filament_radius ,  pair_z ,  self.grid_z_centers , self.prob_z)
 
 
@@ -207,12 +207,12 @@ class modelfit():
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
 
-        return  model_g1 , model_g2 , limit_mask
+        return  model_g1 , model_g2 , limit_mask , DeltaSigma , kappa 
 
     def log_posterior(self,theta):
 
 
-        model_g1 , model_g2, limit_mask = self.draw_model(theta)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta)
 
 
         likelihood = self.log_likelihood(model_g1,model_g2,limit_mask)
@@ -283,7 +283,7 @@ class modelfit():
     def null_log_likelihood(self):
 
         theta_null = [0,1]
-        model_g1 , model_g2, limit_mask = self.draw_model(theta_null)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta_null)
         null_log_like = self.log_likelihood(model_g1,model_g2,limit_mask)
         # null_log_post =  self.log_posterior(theta_null)
         
@@ -373,7 +373,7 @@ class modelfit():
         
         log.info('maximum likelihood solution kappa0=% 5.2e radius=% 5.2e log_like=% 5.2e',vmax_kappa0,vmax_radius, vmax_post )
 
-        best_model_g1, best_model_g2, limit_mask = self.draw_model( [vmax_kappa0 , vmax_radius] )
+        best_model_g1, best_model_g2, limit_mask , _ , _ = self.draw_model( [vmax_kappa0 , vmax_radius] )
 
         return  vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_kappa0 , vmax_radius
 

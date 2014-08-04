@@ -40,6 +40,83 @@ cluscat  = None
 fieldscat  = None
 cluscat_durret = None
 
+def figure_density():
+    
+    global halos ,filename_halos_cfhtlens ,filename_cluscat ,filename_fields ,bossdr10 ,pairs ,halo1 ,halo2 ,cluscat ,fieldscat ,filename_cluscat_durret ,cluscat_durret
+
+    pickle = tabletools.loadPickle(config['filename_pz'])
+    prob_z =  pickle['prob_z']
+    grid_z_centers = pickle['bins_z']
+    grid_z_edges = plotstools.get_bins_edges(grid_z_centers)
+    redshift_offset = 0.2
+
+    import nfw
+    nh1 = nfw.NfwHalo()
+    nh1.z_cluster= 0.2
+    nh1.M_200= 3.4e14
+    nh1.concentr = nh1.get_concentr()
+    nh1.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh1.z_cluster)
+    nh1.R_200 = nh1.r_s*nh1.concentr      
+    nh1.theta_cx = 0
+    nh1.theta_cy = 0
+    h1_r200_arcmin = nh1.R_200/cosmology.get_ang_diam_dist(nh1.z_cluster)/np.pi*180*60
+    theta1_x=nh1.theta_cx+h1_r200_arcmin
+    h1g1 , h1g2 , h1_DeltaSigma, Sigma_crit, kappa = nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x,theta1_x]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
+
+    print h1g1 , h1g2  
+    print h1_DeltaSigma 
+    print Sigma_crit 
+    print kappa
+    print h1g1*Sigma_crit
+
+    param0 = 0.4
+    param1 = 0.75
+
+    for ip,vp in enumerate(pairs):
+
+        if vp['analysis']!=1:
+            continue
+        
+        nh1 = nfw.NfwHalo()
+        nh1.z_cluster= halo1['z'][ip]
+        nh1.M_200    = halo1['m200_fit'][ip]
+        nh1.concentr = nh1.get_concentr()
+        nh1.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh1.z_cluster)
+        nh1.R_200 = nh1.r_s*nh1.concentr      
+        nh1.theta_cx = 0
+        nh1.theta_cy = 0
+        h1_r200_arcmin = nh1.R_200/cosmology.get_ang_diam_dist(nh1.z_cluster)/np.pi*180*60
+        theta1_x=nh1.theta_cx+h1_r200_arcmin
+        h1g1 , h1g2 , h1_DeltaSigma, h1_Sigma_crit, h1_kappa = nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x,theta1_x]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
+
+        nh2 = nfw.NfwHalo()
+        nh2.z_cluster = halo2['z'][ip]
+        nh2.M_200     = halo2['m200_fit'][ip]
+        nh2.concentr = nh2.get_concentr()
+        nh2.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh2.z_cluster)
+        nh2.R_200 = nh2.r_s*nh2.concentr      
+        nh2.theta_cx = 0
+        nh2.theta_cy = 0
+        h1_r200_arcmin = nh2.R_200/cosmology.get_ang_diam_dist(nh2.z_cluster)/np.pi*180*60
+        theta1_x=nh2.theta_cx+h1_r200_arcmin
+        h2g1 , h2g2 , h2_DeltaSigma, h2_Sigma_crit, h2_kappa = nh2.get_shears_with_pz_fast(np.array([theta1_x,theta1_x,theta1_x]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
+        
+        DeltaSigma_at_R200 = (np.abs(h1_DeltaSigma[0])+np.abs(h2_DeltaSigma[0]))/2.
+        filament_kappa0 = param0 * DeltaSigma_at_R200 / 1e14
+        filament_radius = param1 * (nh1.R_200+nh2.R_200)/2.
+
+        DeltaSigma_at_R200_bug = (np.abs(h2g1[0]*h2_Sigma_crit)+np.abs(h1g1[0]*h1_Sigma_crit))/2.
+        filament_kappa0_old = param0 * DeltaSigma_at_R200_bug / 1e14
+
+        print '% 4d m1=%2.2e m2=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f ' % (ip,nh1.M_200,nh2.M_200,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius)
+        print '---- %5.3f %5.3e %5.3e %5.3f' % (h1g1[0], h1_DeltaSigma[0], h1_Sigma_crit, h1_kappa[0])
+        print '---- %5.3f %5.3e %5.3e %5.3f' % (h2g1[0], h2_DeltaSigma[0], h2_Sigma_crit, h2_kappa[0])
+        print '---- change: %2.2f' % (filament_kappa0/filament_kappa0_old)
+
+
+    
+
+
 def figures_individual():
 
     import filaments_analyse
@@ -206,16 +283,16 @@ def figure_model():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    fitobj.R_start = config['R_start']
+    fitobj.R_start = 1
     fitobj.Dlos = pairs_table[id_pair]['Dlos']        
     fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
     fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
     fitobj.use_boost = config['use_boost']
 
-    param_radius = 0.9
+    param_radius = 0.75
     param_kappa0 = 0.4
     param_masses = 3
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
+    shear_model_g1 , shear_model_g2 , limit_mask , model_DeltaSigma, model_kappa = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
 
 
     nx = sum(np.isclose(fitobj.shear_u_mpc,fitobj.shear_u_mpc[0]))
@@ -226,6 +303,8 @@ def figure_model():
     shear_model_g1= np.reshape(shear_model_g1,[nx,ny])
     shear_model_g2= np.reshape(shear_model_g2,[nx,ny])
     limit_mask=np.reshape(limit_mask,[nx,ny])
+    model_kappa=np.reshape(model_kappa,[nx,ny])
+    model_DeltaSigma=np.reshape(model_DeltaSigma,[nx,ny])
 
     # import pdb; pdb.set_trace()
     # pl.figure()
@@ -237,6 +316,9 @@ def figure_model():
     # pl.figure(figsize=(27.3/3.,10/3.))
     pl.figure(figsize=(26/3.,10/3.))
     pl.subplots_adjust(bottom=0.15)
+
+    cmap = pl.get_cmap('YlOrBr')
+    pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
 
     # import pdb; pdb.set_trace()
     ephi=0.5*np.arctan2(shear_model_g2,shear_model_g1)              
@@ -253,13 +335,14 @@ def figure_model():
     line_width=0.003
     quiver_scale = 1.2
     nuse = 4
-
+   
     shear_u_mpc = shear_u_mpc[::nuse,::nuse]
     shear_v_mpc = shear_v_mpc[::nuse,::nuse]
     shear_model_g1 = shear_model_g1[::nuse,::nuse]
     shear_model_g2 = shear_model_g2[::nuse,::nuse]
     emag = emag[::nuse,::nuse]
     ephi = ephi[::nuse,::nuse]
+
 
     hc = 8.42
     rad = 1.1 # mpc
@@ -272,7 +355,7 @@ def figure_model():
     ephi = ephi[mask]
     
 
-    pos=hc*1.04-np.pi/4.
+    pos=hc*1.015-np.pi/4.
     pl.plot([-pos,pos],[ param_radius, param_radius],c='k')
     pl.plot([-pos,pos],[-param_radius,-param_radius],c='k')
 
@@ -287,17 +370,21 @@ def figure_model():
 
     # pl.gca().add_patch(matplotlib.patches.Rectangle((5.5,2.3),5,10,color='w'))
     # qk = pl.quiverkey(quiv, 0.72, 0.8, 0.005, r'$g=0.005$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':20})
-    pl.gca().add_patch(matplotlib.patches.Rectangle((-2.5,-4),5,1.1,color='w'))
-    pl.gca().add_patch(matplotlib.patches.Circle((-hc,0),1,edgecolor='k',facecolor='w',lw=1))
-    pl.gca().add_patch(matplotlib.patches.Circle(( hc,0),1,edgecolor='k',facecolor='w',lw=1))
+    pl.gca().add_patch(matplotlib.patches.Rectangle((-2.5,-4),5,1.1,facecolor='white', edgecolor='black'))
+    pl.gca().add_patch(matplotlib.patches.Circle((-hc,0),1,edgecolor='k',facecolor='none',lw=1))
+    pl.gca().add_patch(matplotlib.patches.Circle(( hc,0),1,edgecolor='k',facecolor='none',lw=1))
     qk = pl.quiverkey(quiv, 0.47, 0.26, 0.01, r'$g=0.01$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':14})
 
-
-    pl.axis('equal')
-    pl.xlim([min(shear_u_mpc.flatten())-0.5,max(shear_u_mpc.flatten())+0.5])
-    pl.ylim([min(shear_v_mpc.flatten())-0.5,max(shear_v_mpc.flatten())+0.5])
     pl.xlabel(unit)
     pl.ylabel(unit)
+
+    pl.xlim([min(shear_u_mpc.flatten())-0.5,max(shear_u_mpc.flatten())+0.5])
+    pl.ylim([min(shear_v_mpc.flatten())-0.5,max(shear_v_mpc.flatten())+0.5])
+    pl.axis('tight')
+    pl.gca().tick_params('both', length=0, width=2, which='major')
+
+    cbaxes = pl.gcf().add_axes([0.4, 0.8, 0.23, 0.05]) 
+    cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
 
     print 'fitobj.nh2.R_200' , fitobj.nh2.R_200
 
@@ -456,7 +543,6 @@ def figure_contours():
 
     import filaments_analyse
     filaments_analyse.config=config
-    args.results_dir='results'
     filaments_analyse.args=args
 
 
@@ -498,6 +584,7 @@ def figure_contours():
     max0, max1 = np.unravel_index(prod_pdf.argmax(), prod_pdf.shape)
     print grid_dict['grid_kappa0'][max0,max1], grid_dict['grid_radius'][max0,max1]
     max_radius = grid_dict['grid_radius'][0,max1]
+    max_kappa0 = grid_dict['grid_kappa0'][max0,0]
     contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3])
     xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
     ylabel=r'radius $\mathrm{Mpc}/h$'
@@ -513,6 +600,7 @@ def figure_contours():
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
     pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
     pl.axhline(max_radius,color='r')
+    pl.axvline(max_kappa0,color='r')
     pl.xlabel(xlabel,fontsize=24)
     pl.ylabel(ylabel,fontsize=24)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
@@ -524,7 +612,8 @@ def figure_contours():
     fmt = {}; strs = [ r'$68\%$', r'$95\%$', r'$99\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
     for l,s in zip( cp.levels, strs ): fmt[l] = s
-    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12)
+    manual_locations = [(1.1,0.5),(1.5,0.5),(2,0.5)]
+    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
@@ -536,8 +625,15 @@ def figure_contours():
     pl.xlabel(xlabel,fontsize=20)
     pl.ylabel(ylabel,fontsize=20)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    # pl.plot(max_kappa0,max_radius,'b+',markersize=20,lw=50)
+    pl.scatter(max_kappa0,max_radius,200,c='b',marker='+')
     pl.axis('tight')
-    pl.ylim([0,3])
+    pl.yticks([1,2,3,4])
+    # pl.ylim([0,3])
+    pl.ylim([0,4])
+    pl.xticks([0.0,0.2,0.4,0.6,0.8,1.])
+    # pl.xlim([0,0.8])
+    pl.xlim([0,1])
     pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
 
     # plot 1d - just kappa0
@@ -565,6 +661,20 @@ def figure_contours():
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_radius,n_pairs_used))
     pl.xlabel(xlabel)
 
+
+    id_kappa0=max0
+    at_kappa0=grid_dict['grid_kappa0'][id_kappa0,0]
+    print 'using kappa0=' , at_kappa0
+    radius_at_kappa=prod_pdf[id_kappa0,:].copy()
+    radius_at_kappa/=np.sum(radius_at_kappa)
+    radius_grid = grid_dict['grid_radius'][id_kappa0,:]
+    max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(radius_grid,radius_at_kappa)
+    print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+
+    pl.figure()
+    pl.plot(radius_grid,radius_at_kappa)
+    # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_kappa0,n_pairs_used))
+    pl.xlabel(xlabel)
 
     pl.show()
 
@@ -619,128 +729,18 @@ def table_individual():
                     )
 
 
-def figure_vary_bf():
-
-
-    import filaments_analyse
-    filaments_analyse.config=config
-    args.results_dir='results'
-    filaments_analyse.args=args
-
-
-    filename_shears = config['filename_shears']                                  # args.filename_shears 
-    filename_pairs = config['filename_pairs']
-    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
-    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
-    # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
-
-    halo1 = tabletools.loadTable(filename_halos1)
-    halo2 = tabletools.loadTable(filename_halos2)
-    pairs = tabletools.loadTable(filename_pairs)
-    n_pairs = len(halo1)
-    print 'n_pairs' , n_pairs
-
-    if 'cfhtlens' in filename_pairs:
-        bins_snr_edges = [5,20]
-        mass_param_name = 'snr'
-    else:
-        bins_snr_edges = [1e14,1e15]
-        mass_param_name = 'm200'
-    # bins_snr_centers = [ 3 , 6]
-    bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
-
-    thres = 1.
-    print 'BF n_clean '        ,   sum( (pairs['manual_remove']==0) & (pairs['BF1']>thres) & (pairs['BF2']>thres) & ( (pairs['eyeball_class']==1) | (pairs['eyeball_class']==3) )  )
-    print 'BF n_contaminating ',   sum( (pairs['manual_remove']==0) & (pairs['BF1']>thres) & (pairs['BF2']>thres) & ( (pairs['eyeball_class']==2) | (pairs['eyeball_class']==0) )  )
- 
-   # mass= (10**pairs['m200_h1_fit']+10**pairs['m200_h2_fit'])/2.
-    # select = (pairs['BF1']>thres) & (pairs['BF2']>thres) & (pairs['manual_remove']==0)
-
-    # levels = [1,1.1,1.2,1.3,1.4,1.5,2.0,3.0,4.0,]
-    levels = [1.0,2.0,3.0,4.0,]
-    list_ml_kappa0 = []
-    list_ml_radius = []
-    for ilvl,vlvl in enumerate(levels) :
-
-        select = (pairs['BF1']>vlvl) & (pairs['BF2']>vlvl) & (pairs['manual_remove']==0)
-        ids=np.arange(n_pairs)[select]
-        prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids)
-
-        print 'used %d pairs' % n_pairs_used     
-        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3,4,5])
-
-        prob_kappa0 = np.sum(prod_pdf,axis=1)
-        prob_radius = np.sum(prod_pdf,axis=0)
-        grid_kappa0 = grid_dict['grid_kappa0'][:,0] 
-        grid_radius = grid_dict['grid_radius'][0,:] 
-        max_kappa0 , err_kappa0_hi , err_kappa0_lo = mathstools.estimate_confidence_interval(grid_kappa0,prob_kappa0)
-        print 'kappa0 %2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_kappa0 , err_kappa0_hi , err_kappa0_lo, max_kappa0/err_kappa0_lo)
-
-        max_radius , err_radius_hi , err_radius_lo = mathstools.estimate_confidence_interval(grid_radius,prob_radius)
-        print 'radius %2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_radius , err_radius_hi , err_radius_lo, max_radius/err_radius_lo)
-
-        list_ml_kappa0.append([max_kappa0 , err_kappa0_hi , err_kappa0_lo, n_pairs_used])
-        list_ml_radius.append([max_radius , err_radius_hi , err_radius_lo , n_pairs_used])
-
-        pl.figure(figsize=(10,10))
-        cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
-        pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
-        pl.title('n=%d kappa0=%2.4f +/- (%2.4f,%2.4f) radius=%2.2f +/- (%2.2f,%2.2f)' % (n_pairs_used,max_kappa0,err_kappa0_hi,err_kappa0_lo,max_radius,err_radius_hi,err_radius_lo))
-        pl.axis('tight')
-        # pl.show()
-
-    arr_ml_kappa0=np.array(list_ml_kappa0)
-    arr_ml_radius=np.array(list_ml_radius)
-
-    xlim = [0.75,4.25]
-    fig, ax1 = pl.subplots()
-
-    ax1.errorbar(levels,arr_ml_kappa0[:,0]-0.05,yerr=arr_ml_kappa0[:,2],color='b',fmt='.')
-    ax1.set_xlabel('Bayes Factor threshold')
-    ax1.set_ylabel(r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$',color='b')
-    for tl in ax1.get_yticklabels():    tl.set_color('b')
-    # ax1.axis["left"].label.set_color('blue')
-    # ax1.axis["right"].label.set_color('red')
-
-    ax2=ax1.twiny()
-    ax2.plot(levels,arr_ml_kappa0[:,0]*0)
-    ax2.set_xticks(levels)
-    ax2.set_xticklabels(list(arr_ml_kappa0[:,3].astype('i4')))
-    ax2.set_xlabel('number of included filaments')
-    ax2.set_ylabel('',color='b')
-
-
-    ax3=ax1.twinx()
-    ax3.errorbar(np.array(levels)+0.05,arr_ml_radius[:,0],yerr=arr_ml_radius[:,2],color='r',fmt='.')
-    # ax3.spines['left'].set_color('blue')
-    # ax3.spines['right'].set_color('red')
-    ax3.set_ylabel('radius Mpc/h',color='r')
-    for tl in ax3.get_yticklabels():    tl.set_color('r')
-
-    ax1.set_xlim(xlim)
-    ax2.set_xlim(xlim)
-    ax3.set_xlim(xlim)
-    pl.show()
-    
-    pl.figure()
-    pl.errorbar(levels,arr_ml_radius[:,0],yerr=arr_ml_radius[:,2])
-
-
-    pl.show()
-    import pdb; pdb.set_trace()
-
-
 
 def main():
 
 
-    valid_actions = ['figure_fields','figure_model','figure_contours','table_individual','figures_individual' , 'figure_vary_bf']
+    valid_actions = ['figure_fields','figure_model','figure_contours','table_individual','figures_individual'  , 'figure_density']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
     parser.add_argument('-v', '--verbosity', type=int, action='store', default=2, choices=(0, 1, 2, 3 ), help='integer verbosity level: min=0, max=3 [default=2]')
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
+    parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data'), len(remove_list), len(set(remove_list)
 

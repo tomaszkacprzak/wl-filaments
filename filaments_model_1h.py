@@ -157,15 +157,15 @@ class modelfit():
         self.nh.concentr = self.get_concentr(halo_M200,self.halo_z)
         self.nh.R_200 = self.nh.r_s*self.nh.concentr
 
-        model_g1 , model_g2 , _ , _  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        model_g1 , model_g2 , Delta_Sigma , Sigma_Crit, kappa  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
 
-        return  model_g1 , model_g2 , limit_mask
+        return  model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa
 
     def log_posterior(self,theta):
 
-        model_g1 , model_g2, limit_mask = self.draw_model(theta)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta)
 
         likelihood = self.log_likelihood(model_g1,model_g2,limit_mask)
         prior = self.log_prior(theta)
@@ -227,7 +227,7 @@ class modelfit():
     def null_log_likelihood(self,h1M200,h2M200):
 
         theta_null = [0,1,h1M200,h2M200]
-        model_g1 , model_g2, limit_mask = self.draw_model(theta_null)
+        model_g1 , model_g2, limit_mask , _ , _  = self.draw_model(theta_null)
         null_log_like = self.log_likelihood(model_g1,model_g2,limit_mask)
         # null_log_post =  self.log_posterior(theta_null)
         

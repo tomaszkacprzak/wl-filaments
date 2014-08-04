@@ -146,15 +146,13 @@ class NfwHalo:
         if self.M_200 >= 0:
             gamma_1=-mod_gamma*np.cos(2*theta); # not sure how to justify minus sign..
             gamma_2=-mod_gamma*np.sin(2*theta);
-            Delta_Sigma_1 = gamma_1*Sigma_crit
-            Delta_Sigma_2 = gamma_2*Sigma_crit
         else:
             gamma_2=-mod_gamma*np.cos(2*theta); # not sure how to justify minus sign..
             gamma_1=-mod_gamma*np.sin(2*theta);
-            Delta_Sigma_2 = gamma_1*Sigma_crit
-            Delta_Sigma_1 = gamma_2*Sigma_crit
             
-        return gamma_1 , gamma_2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit , kappa
+        Delta_Sigma = kappa*Sigma_crit
+
+        return gamma_1 , gamma_2 , Delta_Sigma, Sigma_crit , kappa
 
     def get_shears_with_pz(self,theta_x,theta_y , grid_z_centers , prob_z,  redshift_offset=0.2):
 
@@ -164,7 +162,7 @@ class NfwHalo:
 
         for ib, vb in enumerate(grid_z_centers):
             if vb < (self.z_cluster+redshift_offset): continue
-            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,vb)
+            [h1g1 , h1g2 , Delta_Sigma , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,vb)
             weight = prob_z[ib]
             list_h1g1.append(h1g1*weight) 
             list_h1g2.append(h1g2*weight) 
@@ -179,14 +177,13 @@ class NfwHalo:
 
         if self.z_source != None:
 
-            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,self.z_source)
+            [h1g1 , h1g2 , Delta_Sigma , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,self.z_source)
 
         else:
 
-            [h1g1 , h1g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,None)
+            [h1g1 , h1g2 , Delta_Sigma , Sigma_crit, kappa]= self.get_shears(theta_x,theta_y,None)
 
-
-        return h1g1, h1g2 , Delta_Sigma_1 , Delta_Sigma_2
+        return h1g1, h1g2 , Delta_Sigma, Sigma_crit, kappa
 
     def set_mean_inv_sigma_crit(self,grid_z_centers,prob_z,pair_z):
 
@@ -195,6 +192,15 @@ class NfwHalo:
         prob_z_limit[grid_z_centers < pair_z + self.redshift_offset] = 0
         prob_z_limit /= sum(prob_z_limit)
         self.mean_inv_sigma_crit = sum(prob_z_limit / sigma_crit)
+
+    def get_concentr(self):
+
+        # Duffy et al 2008 from King and Mead 2011
+        # concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
+        concentr = 5.72/(1.+self.z_cluster)**0.71 * (np.abs(self.M_200) / 1e14)**(-0.081)
+
+        return concentr
+
 
 
 

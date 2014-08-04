@@ -189,7 +189,7 @@ class modelfit():
         
     def plot_model(self,p):
 
-        model_g1 , model_g2, limit_mask = self.draw_model(p)
+        model_g1 , model_g2, limit_mask , _ , _  = self.draw_model(p)
         self.plot_residual(model_g1 , model_g2, limit_mask)        
 
     def get_halo_signal(self):
@@ -255,9 +255,9 @@ class modelfit():
         filament_u1_mpc = self.halo1_u_mpc + self.nh1.R_200
         filament_u2_mpc = self.halo2_u_mpc - self.nh2.R_200
 
-        h1g1 , h1g2  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        h2g1 , h2g2  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        fg1 , fg2 = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
+        h1g1 , h1g2 , _ , _ , _ = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        h2g1 , h2g2 , _ , _ , _ = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        fg1 , fg2 , _ , _ , _ = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
 
         model_g1 = h1g1 + h2g1 + fg1
         model_g2 = h1g2 + h2g2 + fg2
@@ -269,7 +269,7 @@ class modelfit():
     def log_posterior(self,theta):
 
 
-        model_g1 , model_g2, limit_mask = self.draw_model(theta)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta)
 
 
         likelihood = self.log_likelihood(model_g1,model_g2,limit_mask)
@@ -345,7 +345,7 @@ class modelfit():
     def null_log_likelihood(self,h1M200,h2M200):
 
         theta_null = [0,1,h1M200,h2M200]
-        model_g1 , model_g2, limit_mask = self.draw_model(theta_null)
+        model_g1 , model_g2, limit_mask , _ , _  = self.draw_model(theta_null)
         null_log_like = self.log_likelihood(model_g1,model_g2,limit_mask)
         # null_log_post =  self.log_posterior(theta_null)
         
@@ -494,7 +494,7 @@ class modelfit():
         
         log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , 10.**vmax_h1M200 , 10.**vmax_h2M200 )
 
-        best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
+        best_model_g1, best_model_g2, limit_mask , _ , _  = self.draw_model( vmax_params )
 
         return  vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params
 
@@ -509,7 +509,7 @@ class modelfit():
         vmax_h2M200 = vmax_params[3]
         vmax_params = vmax_params[:]
 
-        best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
+        best_model_g1, best_model_g2, limit_mask , _ , _  = self.draw_model( vmax_params )
 
         log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , 10.**vmax_h1M200 , 10.**vmax_h2M200 )
 
@@ -644,7 +644,7 @@ def self_fit():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0., 2., 14.5, 14.5])
+    shear_model_g1, shear_model_g2, limit_mask , _ , _  = fitobj.draw_model([0., 2., 14.5, 14.5])
     fitobj.plot_shears(shear_model_g1, shear_model_g2,quiver_scale=0.5)
     pl.show()
 

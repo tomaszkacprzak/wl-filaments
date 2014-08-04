@@ -41,7 +41,7 @@ class filament:
         # select = ((shear_u_mpc > (u1_mpc) ) + (shear_u_mpc < (u2_mpc)  ))
         # dens[select] *= 0.
 
-        length = np.abs(u1_mpc) + np.abs(u2_mpc)
+        length = (np.abs(u1_mpc) + np.abs(u2_mpc))/2.
 
         sig = 0.25 # mpc
 
@@ -201,7 +201,7 @@ class filament:
             g1 = np.zeros_like(kappa)
             g2 = -kappa
 
-        return g1 , g2
+        return g1 , g2 , dens , 1./self.mean_inv_sigma_crit , kappa
 
     def filament_model_with_pz_new(self,shear_u_mpc,shear_v_mpc,u1_mpc,u2_mpc,kappa0,radius_mpc,pair_z, grid_z_centers , prob_z, redshift_offset=0.2 ):
 
@@ -473,7 +473,7 @@ def get_2d_fiament_shear():
     # n1 = nfw.NfwHalo()
     # n1.theta_cx = 9               # center of the halo in arcmin
     # n1.theta_cy = 0
-    # gamma_1 , gamma_2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit , kappa =n1.get_shears(X,Y,1.)   
+    # gamma_1 , gamma_2 , Delta_Sigma , Sigma_crit , kappa =n1.get_shears(X,Y,1.)   
     # pl.figure()
     # from matplotlib.colors import LogNorm
     # pl.pcolormesh(X,Y,kappa,norm = LogNorm())

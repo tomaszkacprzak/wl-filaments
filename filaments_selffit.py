@@ -140,7 +140,7 @@ def get_clone():
         mock_m200_h1 = pairs_table['m200_h1_fit'][id_pair_in_catalog]/1e14
         mock_m200_h2 = pairs_table['m200_h2_fit'][id_pair_in_catalog]/1e14
 
-        shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([mock_kappa0, mock_radius, mock_m200_h1, mock_m200_h2])
+        shear_model_g1, shear_model_g2, limit_mask , _ , _  = fitobj.draw_model([mock_kappa0, mock_radius, mock_m200_h1, mock_m200_h2])
 
         if id_pair < 100:
             nuv = [pairs_table[id_pair]['nu'],pairs_table[id_pair]['nv']]
@@ -267,7 +267,7 @@ def self_fit():
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
     fitobj.shear_v_arcmin =  shears_info['v_arcmin']
 
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([fixed_kappa, fixed_radius, fixed_m200, fixed_m200])
+    shear_model_g1, shear_model_g2, limit_mask , _ , _ = fitobj.draw_model([fixed_kappa, fixed_radius, fixed_m200, fixed_m200])
 
     fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(shears_info['g1']))*sigma_g_add
     fitobj.shear_g2 =  shear_model_g2 + np.random.randn(len(shears_info['g2']))*sigma_g_add

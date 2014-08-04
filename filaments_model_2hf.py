@@ -15,7 +15,7 @@ log.addHandler(stream_handler)
 log.propagate = False
 
 redshift_offset = 0.2
-weak_limit = 0.05
+weak_limit = 0.1
 
 dtype_stats = {'names' : ['id',
                             'kappa0_signif',
@@ -194,7 +194,7 @@ class modelfit():
         
     def plot_model(self,p):
 
-        model_g1 , model_g2, limit_mask = self.draw_model(p)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(p)
         self.plot_residual(model_g1 , model_g2, limit_mask)        
 
     def get_halo_signal(self):
@@ -257,11 +257,10 @@ class modelfit():
             h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
             theta2_x=self.nh2.theta_cx+h2_r200_arcmin
-            h1g1 , h1g2 , h1_DeltaSigma_1 , h1_DeltaSigma_2  = self.nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
-            h2g1 , h2g2 , h2_DeltaSigma_1 , h2_DeltaSigma_2  = self.nh1.get_shears_with_pz_fast(np.array([theta2_x,theta2_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
-            DeltaSigma1_at_R200 = np.abs(h1_DeltaSigma_1[0])
-            DeltaSigma2_at_R200 = np.abs(h2_DeltaSigma_2[0])
-            filament_kappa0 = params[0]*(DeltaSigma1_at_R200+DeltaSigma2_at_R200)/2. / 1e14
+            h1g1 , h1g2 , h1_DeltaSigma , h1_Sigma_crit, h1_kappa  = self.nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
+            h2g1 , h2g2 , h2_DeltaSigma , h2_Sigma_crit, h2_kappa  = self.nh1.get_shears_with_pz_fast(np.array([theta2_x,theta2_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
+            DeltaSigma_at_R200 = (np.abs(h1_DeltaSigma[0])+np.abs(h2_DeltaSigma[0]))/2.
+            filament_kappa0 = params[0]*DeltaSigma_at_R200 / 1e14
             filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
             # filament_radius = params[1]
             if self.n_model_evals % 1000==0:
@@ -278,22 +277,24 @@ class modelfit():
         filament_u1_mpc = self.halo1_u_mpc - self.R_start #*self.nh1.R_200
         filament_u2_mpc = self.halo2_u_mpc + self.R_start #*self.nh2.R_200
 
-        h1g1 , h1g2 , _ , _  = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        h2g1 , h2g2 , _ , _  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
-        fg1 , fg2 = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
+        h1g1 , h1g2 , h1_Delta_Sigma, h1_Sigma_crit, h1_kappa = self.nh1.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        h2g1 , h2g2 , h2_Delta_Sigma, h2_Sigma_crit, h2_kappa  = self.nh2.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)
+        fg1  , fg2  , f_Delta_Sigma, f_Sigma_crit, f_kappa = self.filam.filament_model_with_pz(shear_u_mpc=self.shear_u_mpc, shear_v_mpc=self.shear_v_mpc , u1_mpc=filament_u1_mpc , u2_mpc=filament_u2_mpc ,  kappa0=filament_kappa0 ,  radius_mpc=filament_radius ,  pair_z=pair_z ,  grid_z_centers=self.grid_z_centers , prob_z=self.prob_z)
 
 
         model_g1 = h1g1 + h2g1 + fg1
         model_g2 = h1g2 + h2g2 + fg2
+        model_kappa = h1_kappa + h2_kappa + f_kappa
+        model_DeltaSigma = h1_Delta_Sigma + h2_Delta_Sigma + f_Delta_Sigma
 
         limit_mask = np.abs(model_g1 + 1j*model_g2) < weak_limit
 
-        return  model_g1 , model_g2 , limit_mask
+        return  model_g1 , model_g2 , limit_mask , model_DeltaSigma, model_kappa
 
     def log_posterior(self,theta):
 
 
-        model_g1 , model_g2, limit_mask = self.draw_model(theta)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta)
 
 
         likelihood = self.log_likelihood(model_g1,model_g2,limit_mask)
@@ -368,7 +369,7 @@ class modelfit():
     def null_log_likelihood(self,h1M200,h2M200):
 
         theta_null = [0,1,h1M200,h2M200]
-        model_g1 , model_g2, limit_mask = self.draw_model(theta_null)
+        model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta_null)
         null_log_like = self.log_likelihood(model_g1,model_g2,limit_mask)
         # null_log_post =  self.log_posterior(theta_null)
         
@@ -622,7 +623,7 @@ class modelfit():
         
         log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , vmax_h1M200 , vmax_h2M200 )
 
-        best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
+        best_model_g1, best_model_g2, limit_mask , _ , _ = self.draw_model( vmax_params )
 
         return  vmax_post , best_model_g1, best_model_g2 , limit_mask,  vmax_params
 
@@ -638,7 +639,7 @@ class modelfit():
         vmax_params = vmax_params[:]
         import pdb; pdb.set_trace()
 
-        best_model_g1, best_model_g2, limit_mask = self.draw_model( vmax_params )
+        best_model_g1, best_model_g2, limit_mask , _ , _ = self.draw_model( vmax_params )
 
         log.info('ML solution log_like=% 5.2e kappa0=% 5.2f radius=% 5.2f h1M200=% 5.2e h2M200=% 5.2e', vmax_post , vmax_kappa0 , vmax_radius , 10.**vmax_h1M200 , 10.**vmax_h2M200 )
 
@@ -773,7 +774,7 @@ def self_fit():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0., 2., 14.5, 14.5])
+    shear_model_g1, shear_model_g2, limit_mask , _ , _ = fitobj.draw_model([0., 2., 14.5, 14.5])
     fitobj.plot_shears(shear_model_g1, shear_model_g2,quiver_scale=0.5)
     pl.show()
 
@@ -948,7 +949,7 @@ def test_overlap():
     fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin + 10
     fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin + 5     # add mis-centering
     fitobj.nh2.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0.0, 0.5, 14., 14,])
+    shear_model_g1, shear_model_g2, limit_mask , _ , _  = fitobj.draw_model([0.0, 0.5, 14., 14,])
     fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin - 5     # remobe miscentering
     fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin - 10
 
@@ -994,7 +995,7 @@ def test_overlap():
     fitobj2.nh2.theta_cy = fitobj2.halo2_v_arcmin 
     fitobj2.nh2.set_mean_inv_sigma_crit(fitobj2.grid_z_centers,fitobj2.prob_z,fitobj2.pair_z)
 
-    shear_model_g1_neighbour, shear_model_g2_neighbour, limit_mask = fitobj2.draw_model([0.0, 0.5, 10, 10,])
+    shear_model_g1_neighbour, shear_model_g2_neighbour, limit_mask , _ , _  = fitobj2.draw_model([0.0, 0.5, 10, 10,])
 
 
     pl.figure()

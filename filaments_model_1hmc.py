@@ -78,7 +78,7 @@ class modelfit():
 
     def plot_model(self,p,show=False):
 
-        model_g1 , model_g2 = self.draw_model(p)
+        model_g1 , model_g2 , _ , _ = self.draw_model(p)
         self.plot_residual(model_g1 , model_g2)        
 
 
@@ -110,7 +110,7 @@ class modelfit():
 
     def log_posterior(self,theta):
 
-        model_g1 , model_g2 = self.draw_model(theta)
+        model_g1 , model_g2 , _ , _ = self.draw_model(theta)
         likelihood = self.log_likelihood(model_g1,model_g2)
         prior = self.log_prior(theta)
         if not np.isfinite(prior):

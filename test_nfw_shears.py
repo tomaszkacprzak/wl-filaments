@@ -61,7 +61,7 @@ def main():
     fitobj.nh.theta_cy = fitobj.halo_v_arcmin 
     fitobj.nh.M_200 = M_200
 
-    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask =  fitobj.draw_model([true_M200_log])  
+    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask , _ , _  =  fitobj.draw_model([true_M200_log])  
     fitobj.plot_shears(fitobj.shear_g1,fitobj.shear_g2,limit_mask,unit='arcmin',quiver_scale=1)
 
 
@@ -92,7 +92,7 @@ def main():
     print 'theta_x', theta_x[0]
     print 'theta_y', theta_y[0]
 
-    [g1 , g2 , Delta_Sigma_1, Delta_Sigma_2 , Sigma_crit, kappa]=nh.get_shears(theta_x , theta_y, zsource)
+    [g1 , g2 , Delta_Sigma, Sigma_crit, kappa]=nh.get_shears(theta_x , theta_y, zsource)
 
     data = np.concatenate( [g1 ,  g2 , theta_x , theta_y], axis=1 )
     np.savetxt('test_nfw_data_gravlenspy.txt',data)

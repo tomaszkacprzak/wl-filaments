@@ -494,6 +494,8 @@ def figure_fields_cfhtlens():
 
         ax.set_xlim(box_w[0],box_w[1])
         ax.set_ylim(box_w[2],box_w[3])
+        ax.invert_xaxis()
+
 
     plot_field(ax1,box_w1)
     plot_field(ax2,box_w2)
@@ -1679,6 +1681,7 @@ def plotdata_all():
     # 68 147
     # 128 118
     # 6 58
+    # 259 427
     ids.remove([445])
     ids.remove([30])
     ids.remove([341])
@@ -1689,6 +1692,7 @@ def plotdata_all():
     ids.remove([128])
     ids.remove([58])
     ids.remove([318])
+    ids.remove([427])
     
     # clone2
     # missing=[293-48,301-48,319-48,329-48]
@@ -1704,6 +1708,10 @@ def plotdata_all():
     # ids.remove(10)
     # ids.remove(11)
     # ids.remove(13)
+
+    # random
+    # ids= np.random.permutation(90)[:38]
+
 
     print len(ids)
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
@@ -1813,6 +1821,21 @@ def plotdata_all():
     pl.plot(kappa_grid,kappa_at_radius)
     pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_radius,n_pairs_used))
     pl.xlabel(xlabel)
+
+    id_kappa0=max0
+    at_kappa0=grid_dict['grid_kappa0'][id_kappa0,0]
+    print 'using kappa0=' , at_kappa0
+    radius_at_kappa=prod_pdf[id_kappa0,:].copy()
+    radius_at_kappa/=np.sum(radius_at_kappa)
+    radius_grid = grid_dict['grid_radius'][id_kappa0,:]
+    max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(radius_grid,radius_at_kappa)
+    print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+
+    pl.figure()
+    pl.plot(radius_grid,radius_at_kappa)
+    # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_kappa0,n_pairs_used))
+    pl.xlabel(xlabel)
+
 
 
     pl.show()
@@ -2221,7 +2244,7 @@ def snr_analysis():
 
     fitobj.shear_u_arcmin =  shears_info['u_arcmin']
 
-    shear_model_g1, shear_model_g2, limit_mask = fitobj.draw_model([0.3, 0.5, 10., 10,])
+    shear_model_g1, shear_model_g2, limit_mask , _ , _  = fitobj.draw_model([0.3, 0.5, 10., 10,])
     pl.figure()
     pl.scatter( fitobj.shear_u_mpc , fitobj.shear_v_mpc , c=shear_model_g1)   
     pl.colorbar()
