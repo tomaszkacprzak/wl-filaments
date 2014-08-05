@@ -229,9 +229,10 @@ def fit_2hf():
         fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
         fitobj.use_boost = config['use_boost']
 
-        g1_closeby , g2_closeby = get_closeby_shear(fitobj.shear_u_arcmin, fitobj.shear_v_arcmin, pairs_table[id_pair])
-        fitobj.shear_g1 -= g1_closeby
-        fitobj.shear_g2 -= g2_closeby
+        if config['remove_closeby']:
+            g1_closeby , g2_closeby = get_closeby_shear(fitobj.shear_u_arcmin, fitobj.shear_v_arcmin, pairs_table[id_pair])
+            fitobj.shear_g1 -= g1_closeby
+            fitobj.shear_g2 -= g2_closeby
 
 
         # choose a method to add and account for noise
