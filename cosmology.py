@@ -99,13 +99,18 @@ def get_ang_diam_dist(z1, z2=0.):
     return ang_diam_dist
 
 
-def get_gnomonic_projection(ra_rad, de_rad , ra_center_rad, de_center_rad):
+def get_gnomonic_projection(ra, de , ra_center, de_center, unit='rad'):
 # http://mathworld.wolfram.com/GnomonicProjection.html
+    
+    ra_rad , de_rad = to_radians(ra,unit=unit), to_radians(de,unit=unit)
+    ra_center_rad , de_center_rad = to_radians(ra_center,unit=unit), to_radians(de_center,unit=unit)
 
     cos_c = np.sin(de_center_rad)*np.sin(de_rad) + np.cos(de_center_rad) * np.cos(de_rad) * np.cos(ra_rad  - ra_center_rad)
-    x = np.cos(de_rad)*np.sin(ra_rad - ra_center_rad)
-    y = np.cos(de_center_rad) * np.sin(de_rad) - np.sin(de_center_rad)*np.cos(de_rad)*np.cos(ra_rad-ra_center_rad) 
-    y = y/cos_c
+    x_rad = np.cos(de_rad)*np.sin(ra_rad - ra_center_rad)
+    y_rad = np.cos(de_center_rad) * np.sin(de_rad) - np.sin(de_center_rad)*np.cos(de_rad)*np.cos(ra_rad-ra_center_rad) 
+    y_rad = y_rad/cos_c
+
+    x , y = from_radians(x_rad,unit=unit), from_radians(y_rad,unit=unit)
 
     return x,y
 

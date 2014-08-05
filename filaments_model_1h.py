@@ -145,8 +145,7 @@ class modelfit():
 
     def draw_model(self,params):
         """
-        params[0] filament_kappa
-        params[1] filament_radius [Mpc]
+        params[0] m200 m_solar
         """
 
         self.n_model_evals +=1

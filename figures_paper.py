@@ -69,8 +69,15 @@ def figure_density():
     print kappa
     print h1g1*Sigma_crit
 
-    param0 = 0.4
+    param0_old = 0.4
     param1 = 0.75
+    param0 = 0.9
+    param0_prop = 1.5
+
+    list_new = []
+    list_old = []
+    list_pro = []
+    list_m200 = []
 
     for ip,vp in enumerate(pairs):
 
@@ -83,11 +90,12 @@ def figure_density():
         nh1.concentr = nh1.get_concentr()
         nh1.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh1.z_cluster)
         nh1.R_200 = nh1.r_s*nh1.concentr      
-        nh1.theta_cx = 0
-        nh1.theta_cy = 0
+        nh1.theta_cx = vp['u1_arcmin']
+        nh1.theta_cy = vp['v1_arcmin']
         h1_r200_arcmin = nh1.R_200/cosmology.get_ang_diam_dist(nh1.z_cluster)/np.pi*180*60
         theta1_x=nh1.theta_cx+h1_r200_arcmin
         h1g1 , h1g2 , h1_DeltaSigma, h1_Sigma_crit, h1_kappa = nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x,theta1_x]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
+        h1g1m , h1g2m , h1_DeltaSigmam, h1_Sigma_critm, h1_kappam = nh1.get_shears_with_pz_fast(np.array([1e-5,1e-5,1e-5]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
 
         nh2 = nfw.NfwHalo()
         nh2.z_cluster = halo2['z'][ip]
@@ -95,25 +103,37 @@ def figure_density():
         nh2.concentr = nh2.get_concentr()
         nh2.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh2.z_cluster)
         nh2.R_200 = nh2.r_s*nh2.concentr      
-        nh2.theta_cx = 0
-        nh2.theta_cy = 0
+        nh2.theta_cx = vp['u2_arcmin']
+        nh2.theta_cy = vp['v2_arcmin']
         h1_r200_arcmin = nh2.R_200/cosmology.get_ang_diam_dist(nh2.z_cluster)/np.pi*180*60
         theta1_x=nh2.theta_cx+h1_r200_arcmin
         h2g1 , h2g2 , h2_DeltaSigma, h2_Sigma_crit, h2_kappa = nh2.get_shears_with_pz_fast(np.array([theta1_x,theta1_x,theta1_x]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
+        h2g1m , h2g2m , h2_DeltaSigmam, h2_Sigma_critm, h2_kappam = nh2.get_shears_with_pz_fast(np.array([1e-5,1e-5,1e-5]) , np.array([0,0,0]) , grid_z_centers , prob_z, redshift_offset)
         
         DeltaSigma_at_R200 = (np.abs(h1_DeltaSigma[0])+np.abs(h2_DeltaSigma[0]))/2.
         filament_kappa0 = param0 * DeltaSigma_at_R200 / 1e14
         filament_radius = param1 * (nh1.R_200+nh2.R_200)/2.
 
         DeltaSigma_at_R200_bug = (np.abs(h2g1[0]*h2_Sigma_crit)+np.abs(h1g1[0]*h1_Sigma_crit))/2.
-        filament_kappa0_old = param0 * DeltaSigma_at_R200_bug / 1e14
+        filament_kappa0_old = param0_old * DeltaSigma_at_R200_bug / 1e14
+
+        filament_kappa0_prop = param0_prop * (-1)*(h1g1m[0]+h2g1m[0]) * h2_Sigma_critm / 1e14
 
         print '% 4d m1=%2.2e m2=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f ' % (ip,nh1.M_200,nh2.M_200,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius)
+        print '---- DSmid=%2.2e kappa0=%2.2f' % ((h1_DeltaSigmam[0]+h2_DeltaSigmam[0]),filament_kappa0)
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h1g1[0], h1_DeltaSigma[0], h1_Sigma_crit, h1_kappa[0])
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h2g1[0], h2_DeltaSigma[0], h2_Sigma_crit, h2_kappa[0])
         print '---- change: %2.2f' % (filament_kappa0_old/filament_kappa0)
 
+        list_m200.append((nh2.M_200+nh1.M_200)/2.)
+        list_old.append(filament_kappa0_old)        
+        list_new.append(filament_kappa0)
+        list_pro.append(filament_kappa0_prop)        
 
+    pl.plot(list_m200,list_old,'r.')
+    pl.plot(list_m200,list_new,'g.')
+    pl.plot(list_m200,list_pro,'b.')
+    pl.show()
     
 
 
@@ -307,7 +327,7 @@ def figure_model():
     model_kappa=np.reshape(model_kappa,[nx,ny])
     model_DeltaSigma=np.reshape(model_DeltaSigma,[nx,ny])
 
-    # import pdb; pdb.set_trace()
+  
     # pl.figure()
     # pl.pcolormesh( shear_u_mpc , shear_v_mpc , shear_model_g1)   
         

@@ -16,6 +16,7 @@ import cPickle as pickle
 import filaments_model_1h
 import filaments_model_1f
 import filaments_model_2hf
+import nfw
 import shutil
 
 
@@ -33,6 +34,79 @@ prob_z = None
 
 N_BURNIN = 1000
 prior_dict = None
+
+def get_closeby_shear(shear_ra_arcmin,shear_de_arcmin,pair):
+
+    filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
+    filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
+    filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+    filename_halos  = config['filename_halos']                                  # args.filename_shears 
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+    halos_table = tabletools.loadTable(filename_halos)
+
+    limit_deg=2
+    shear_g1_removed , shear_g2_removed = np.zeros_like(shear_ra_arcmin) , np.zeros_like(shear_ra_arcmin)
+    n_close = 0
+
+    for ih,vh in enumerate(halos_table):
+
+        if (ih == pair['ih1']) | (ih == pair['ih2']):
+            continue
+
+        if (vh['m200_fit']<1e13):
+            continue
+
+        x , y = cosmology.get_gnomonic_projection(vh['ra'], vh['dec'] , pair['ra_mid'], pair['dec_mid'] , unit='deg')
+        dist_sky_deg1 = cosmology.get_angular_separation(x,y,pair['u1_arcmin']/60.,0,unit='deg')
+        dist_sky_deg2 = cosmology.get_angular_separation(x,y,pair['u2_arcmin']/60.,0,unit='deg')
+
+        if ((dist_sky_deg1 > limit_deg) | (dist_sky_deg2 > limit_deg)):
+            continue
+        else:
+            logger.info('closeby halo % 5d\tdist_sky1=%7.2f\tdist_sky2=%7.2f\tm200=%2.2e sig=%2.2f' , ih , dist_sky_deg1 , dist_sky_deg2 , vh['m200_fit'] , vh['m200_sig'])
+
+            fitobj = filaments_model_1h.modelfit()
+            fitobj.shear_u_arcmin =  shear_ra_arcmin
+            fitobj.shear_v_arcmin =  shear_de_arcmin
+            fitobj.halo_u_arcmin = x*60.
+            fitobj.halo_v_arcmin = y*60.
+            fitobj.halo_z = vh['z']
+            fitobj.get_bcc_pz(config['filename_pz'])
+
+            fitobj.nh = nfw.NfwHalo()
+            fitobj.nh.z_cluster= fitobj.halo_z
+            fitobj.nh.theta_cx = fitobj.halo_u_arcmin
+            fitobj.nh.theta_cy = fitobj.halo_v_arcmin 
+            fitobj.nh.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.halo_z)
+
+            model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([vh['m200_fit']])
+
+            shear_g1_removed , shear_g2_removed = shear_g1_removed + model_g1, shear_g2_removed + model_g2
+
+            n_close +=1 
+
+
+    # pl.figure()
+    # pl.scatter(shear_ra_arcmin,shear_de_arcmin,c=shear_g1_removed,lw=0)
+    # # pl.hist(shear_g1-shear_g1_removed,100); pl.show()
+    # pl.colorbar()
+    # pl.scatter(pair['u1_arcmin'],pair['v1_arcmin'],s=100)
+    # pl.scatter(pair['u2_arcmin'],pair['v2_arcmin'],s=100)
+    # # pl.xlim([pair['u2_arcmin'],pair['u1_arcmin']])
+
+    # pl.show()
+
+    logger.info('n_close=%d' , n_close)
+
+
+    return shear_g1_removed, shear_g2_removed
+    
+
+
 
 def fit_2hf():
 
@@ -154,6 +228,10 @@ def fit_2hf():
         fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
         fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
         fitobj.use_boost = config['use_boost']
+
+        g1_closeby , g2_closeby = get_closeby_shear(fitobj.shear_u_arcmin, fitobj.shear_v_arcmin, pairs_table[id_pair])
+        fitobj.shear_g1 -= g1_closeby
+        fitobj.shear_g2 -= g2_closeby
 
 
         # choose a method to add and account for noise

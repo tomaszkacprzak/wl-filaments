@@ -913,6 +913,7 @@ def test_overlap():
 
     fitobj = modelfit()
     fitobj.get_bcc_pz(config['filename_pz'])
+    fitobj.use_boost = True
 
     fitobj.shear_v_arcmin =  shears_info['v_arcmin'][::4]
     fitobj.shear_u_arcmin =  shears_info['u_arcmin'][::4]
@@ -1047,7 +1048,6 @@ def test_overlap():
 
     filename_results_prob = 'results/results.prob.%04d.%04d.' % (0, 1) +   os.path.basename(filename_shears).replace('.fits','.pp2')
     tabletools.savePickle(filename_results_prob,log_post.astype(np.float32),append=False)
-
 
 if __name__=='__main__':
 

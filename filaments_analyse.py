@@ -459,8 +459,8 @@ def figure_fields_cfhtlens():
 
     def plot_field(ax,box_w):
 
-        ax.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
-        ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
+        # ax.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
+        # ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
         for i in range(len(pairs)): 
             ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
             ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['analysis'][i]],lw=2)
@@ -481,14 +481,22 @@ def figure_fields_cfhtlens():
                 rect = matplotlib.patches.Rectangle((x1,x2), l1, l2, facecolor=None, edgecolor='Black', linewidth=1.0 , fill=None)
             ax.add_patch(rect)
         for h in range(len(cluscat)):
+            pass
             # r200_mpc = cluscat['r200'][h]
-            r200_mpc = 1
-            z = cluscat['z'][h]
-            r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
-            circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
-            ax.add_artist(circle)
+            # r200_mpc = 1
+            # z = cluscat['z'][h]
+            # r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+            # circle=pl.Circle((cluscat['ra'][h],cluscat['dec'][h]),r200_deg,color='b',fill=False)
+            # ax.add_artist(circle)
             # ax.text(cluscat['ra'][h],cluscat['dec'][h],'%2.2f'%(cluscat['z'][h]),fontsize=10)
-        for i in range(len(halos)):
+        for h in range(len(halos)):
+            if halos['m200_sig'][h] < 1: continue
+            r200_mpc = 10
+            z = halos['z'][h]
+            r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+            circle=pl.Circle((halos['ra'][h],halos['dec'][h]),r200_deg,color='b',fill=False)
+            ax.add_artist(circle)
+
             pass
             # ax.text(halos['ra'][i],halos['dec'][i],' %d %2.1e'% (i,halos['m200_fit'][i]),fontsize=10)
 
@@ -1507,6 +1515,9 @@ def plot_single_pairs():
 
     for ids in range(len(pairs)):
 
+        if pairs['analysis'][ids]!=1:
+            continue
+
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = get_prob_prod_gridsearch_2D([ids])
 
         Dtot = np.sqrt(pairs[ids]['Dxy']**2+pairs[ids]['Dlos']**2)
@@ -1682,17 +1693,26 @@ def plotdata_all():
     # 128 118
     # 6 58
     # 259 427
-    ids.remove([445])
-    ids.remove([30])
-    ids.remove([341])
-    ids.remove([82])
-    ids.remove([126])
-    ids.remove([60])
-    ids.remove([68])
-    ids.remove([128])
-    ids.remove([58])
-    ids.remove([318])
-    ids.remove([427])
+    # -r5: remove 445, 30, 341, 82, 126, 60, 68, 128, 58, 318, 427
+    # remove_list = [30 , 445, 341, 82, 126, 90, 60, 68, 128, 58, 427]
+    # remove_list = [97 , 118, 364, 26 , 254 , 31 , 345, 394, 237, 123, 259, 357, 317, 359, 11 , 118, 234, 283, 40, 64, 434, 249, 431, 410, 453, 312, 121 ]
+    # remove_list = [275 , 236 , 364, 26, 128, 254, 31, 258, 153, 237 , 58, 123, 457, 259, 317, 359, 228, 305, 60, 90, 109, 445, 216, 37, 283, 40, 64, 434, 82, 341, 68, 147, 431, 410, 70, 453, 312, 171 ] # max list
+    # remove_list = [81, 97 , 118, 364, 26, 128, 254, 31, 345, 394, 237, 58, 123, 457, 259, 317, 359 , 11, 305, 109, 318, 60, 90, 305, 445, 216, 118, 234, 283, 40, 64, 434, 82, 341, 68, 147, 56, 431, 410, 453, 312, 121  ] # optimal list
+    # remove_list = [128 , 118, 216, 6, 318, 60, 90, 30, 82]
+    # remove_interloper = [ 4, 31, 11, 216, 44, 21, 445, 341, 147, 431, 427, 105]
+    remove_list=[]
+    remove_interloper=[]
+    for ri in (remove_list+remove_interloper):
+        if ri in ids: 
+            ids.remove([ri])
+        else:
+            print 'not in pairs' , ri
+    # for ri in remove_interloper:
+    #     if ri in ids: 
+    #         ids.remove([ri])
+    #     else:
+    #         print 'not in pairs' , ri
+
     
     # clone2
     # missing=[293-48,301-48,319-48,329-48]
@@ -1729,7 +1749,7 @@ def plotdata_all():
             mark = '   *' 
         else:
             mark = ''
-        print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class']) + mark
+        # print 'ipair=% 3d\tih1=% 4d\tih2=% 4d\tm200_h1=%2.2e\tm200_h2=%2.2e\tsig1=%2.2f\tsig2=%2.2f\tDxy=%2.2f\tDlos=%2.2f\tDtot=%2.2f\tz=%2.2f\tclass=%d' % (pairs[ic]['ipair'], pairs[ic]['ih1'] , pairs[ic]['ih2'], pairs[ic]['m200_h1_fit'], pairs[ic]['m200_h2_fit'],halo1['m200_sig'][ic],halo2['m200_sig'][ic],pairs['Dxy'][ic],pairs['Dlos'][ic],Dtot,pairs[ic]['z'],pairs[ic]['eyeball_class']) + mark
 
     print '======================================================'
     print 'used %d pairs' % n_pairs_used
