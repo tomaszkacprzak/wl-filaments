@@ -406,7 +406,8 @@ def figure_fields_cfhtlens():
 
     halos = tabletools.loadTable(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
-    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
+    filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/CFHTLS_wide_clusters_Durret2011/wide.fits'
+    # filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/Clusters/Clusters.fits'
     filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'
     bossdr10 = pyfits.getdata(filename_halos_cfhtlens)
     pairs = tabletools.loadTable(config['filename_pairs'])
@@ -414,8 +415,8 @@ def figure_fields_cfhtlens():
     halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
     cluscat = tabletools.loadTable(filename_cluscat)
     fieldscat = tabletools.loadTable(filename_fields)
-    select = (cluscat['m200'] > np.log10(4e13)) * (cluscat['z'] < 2)
-    cluscat = cluscat[select]
+    # select = (cluscat['m200'] > np.log10(4e13)) * (cluscat['z'] < 2)
+    # cluscat = cluscat[select]
     cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
 
     select = halos['m200_fit'] > 5e13
@@ -456,10 +457,9 @@ def figure_fields_cfhtlens():
 
     minz=0.2
     maxz=0.8
-
     def plot_field(ax,box_w):
 
-        # ax.scatter(cluscat['ra'],cluscat['dec'],s=50,c=cluscat['z'],marker='d', vmin=minz, vmax=maxz)
+        # ax.scatter(cluscat['ra'],cluscat['de'],s=50,c=cluscat['zphot'],marker='d', vmin=minz, vmax=maxz)
         # ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
         for i in range(len(pairs)): 
             ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
@@ -492,10 +492,10 @@ def figure_fields_cfhtlens():
         for h in range(len(halos)):
             if halos['m200_sig'][h] < 1: continue
             r200_mpc = 10
-            z = halos['z'][h]
-            r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
-            circle=pl.Circle((halos['ra'][h],halos['dec'][h]),r200_deg,color='b',fill=False)
-            ax.add_artist(circle)
+            # z = halos['z'][h]
+            # r200_deg = r200_mpc/cosmology.get_ang_diam_dist(z) * 180 / np.pi
+            # circle=pl.Circle((halos['ra'][h],halos['dec'][h]),r200_deg,color='b',fill=False)
+            # ax.add_artist(circle)
 
             pass
             # ax.text(halos['ra'][i],halos['dec'][i],' %d %2.1e'% (i,halos['m200_fit'][i]),fontsize=10)
@@ -842,15 +842,11 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     filename_halos = config['filename_pairs']
     filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
     filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
-    filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
 
     halo1 = tabletools.loadTable(filename_halos1)
     halo2 = tabletools.loadTable(filename_halos2)
     pairs = tabletools.loadTable(filename_pairs)
     halos = tabletools.loadTable(config['filename_halos'])
-    prior_dict = tabletools.loadPickle(filename_prior,log=0)
-
-
     
     import scipy.interpolate
     n_per_file = 1
@@ -955,7 +951,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             else:
 
                 prior_trick=False
-                use_prior=True
+                use_prior=False
                 use_ml=False
                 use_expectation=False
                 if prior_trick:
@@ -1016,6 +1012,9 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                         log_prob_2D[np.isnan(log_prob_2D)] = min_element
 
                 elif use_expectation:
+
+                    filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
+                    prior_dict = tabletools.loadPickle(filename_prior,log=0)
 
                     halo_like1=prior_dict['halos_like'][pairs['ih1'][nf],:]
                     halo_like2=prior_dict['halos_like'][pairs['ih2'][nf],:]
@@ -1700,7 +1699,26 @@ def plotdata_all():
     # remove_list = [81, 97 , 118, 364, 26, 128, 254, 31, 345, 394, 237, 58, 123, 457, 259, 317, 359 , 11, 305, 109, 318, 60, 90, 305, 445, 216, 118, 234, 283, 40, 64, 434, 82, 341, 68, 147, 56, 431, 410, 453, 312, 121  ] # optimal list
     # remove_list = [128 , 118, 216, 6, 318, 60, 90, 30, 82]
     # remove_interloper = [ 4, 31, 11, 216, 44, 21, 445, 341, 147, 431, 427, 105]
-    remove_list=[]
+
+    # 40 283
+    # 288 11
+    # 81 426
+    # 145 134
+    # 317
+    # 97 275
+    # 318 60
+    # 71 176
+    # 81 426
+    # 228 11
+    # 21 254
+    # 236 118
+    # 180 37
+    # 146 33
+    # 111 123
+
+    # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
+    # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
+    remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
     remove_interloper=[]
     for ri in (remove_list+remove_interloper):
         if ri in ids: 
@@ -1721,8 +1739,13 @@ def plotdata_all():
 
     # clone1
     # missing=[15+48,16+48,17+48,19+48,22+48,26+48,28+48,29+48,33+48,29+48,34+48,41+48,43+48,45+48]
-    # ids=np.append(np.arange(0,48),missing)
-    # ids= np.arange(0,52)
+    # ids= np.nonzero(pairs['ra1']<300)[0]; 
+    # ids=ids.tolist()
+    # for idh in ids:
+    #     if not (((pairs[idh]['ih1']) == (pairs[idh]['ih2']-1)) | ((pairs[idh]['ih2']) == (pairs[idh]['ih1']-1))):
+    #         print 'removing' , pairs[idh]['ih1'], pairs[idh]['ih2']
+    #         ids.remove(idh)
+    # ids= ids[np.arange(0,90)
     # ids=[11]
     # ids.remove(0)
     # ids.remove(10)
@@ -1781,6 +1804,7 @@ def plotdata_all():
     # single 2d plot
 
     max0, max1 = np.unravel_index(prod_pdf.argmax(), prod_pdf.shape)
+    print 'maximum likelihood solution'
     print grid_dict['grid_kappa0'][max0,max1], grid_dict['grid_radius'][max0,max1]
     max_radius = grid_dict['grid_radius'][0,max1]
     max_kappa0 = grid_dict['grid_kappa0'][max0,0]
@@ -1826,11 +1850,27 @@ def plotdata_all():
     prob_kappa0 = np.sum(prod_pdf,axis=1)
     grid_kappa0 = grid_dict['grid_kappa0'][:,0] 
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_kappa0,prob_kappa0)
+    print 'kappa0 using radius marginalised'
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+
+    pl.figure()
+    pl.plot(grid_kappa0,prob_kappa0)
+    pl.xlabel('kappa0 using radius marginalised')
+
+
+    prob_radius = np.sum(prod_pdf,axis=0)
+    grid_radius = grid_dict['grid_radius'][0,:] 
+    max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_radius,prob_radius)
+    print 'radius using kappa0 marginalised'
+    print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+
+    pl.figure()
+    pl.plot(grid_radius,prob_radius)
+    pl.xlabel('radius using kappa0 marginalised')
 
     id_radius=max1
     at_radius=grid_dict['grid_radius'][0,id_radius]
-    print 'using radius=' , at_radius
+    print 'max kappa0 using radius=' , at_radius
     kappa_at_radius=prod_pdf[:,id_radius].copy()
     kappa_at_radius/=np.sum(kappa_at_radius)
     kappa_grid = grid_dict['grid_kappa0'][:,id_radius]
@@ -1844,7 +1884,7 @@ def plotdata_all():
 
     id_kappa0=max0
     at_kappa0=grid_dict['grid_kappa0'][id_kappa0,0]
-    print 'using kappa0=' , at_kappa0
+    print 'max radius using kappa0=' , at_kappa0
     radius_at_kappa=prod_pdf[id_kappa0,:].copy()
     radius_at_kappa/=np.sum(radius_at_kappa)
     radius_grid = grid_dict['grid_radius'][id_kappa0,:]
@@ -1856,7 +1896,10 @@ def plotdata_all():
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_kappa0,n_pairs_used))
     pl.xlabel(xlabel)
 
-
+    print 'median Dsky'    , np.median(pairs[ids]['Dxy'])
+    print 'median m200 h1' , np.median(pairs[ids]['m200_h1_fit'])
+    print 'median m200 h2' , np.median(pairs[ids]['m200_h2_fit'])
+    print 'median z' , np.median(pairs[ids]['z'])
 
     pl.show()
 

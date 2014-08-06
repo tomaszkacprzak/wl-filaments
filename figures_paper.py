@@ -130,9 +130,11 @@ def figure_density():
         list_new.append(filament_kappa0)
         list_pro.append(filament_kappa0_prop)        
 
-    pl.plot(list_m200,list_old,'r.')
+    # pl.plot(list_m200,list_old,'r.')
     pl.plot(list_m200,list_new,'g.')
-    pl.plot(list_m200,list_pro,'b.')
+    pl.xlabel('mean m200')
+    pl.ylabel(r'mean \Delta\Sigma')
+    # pl.plot(list_m200,list_pro,'b.')
     pl.show()
     
 

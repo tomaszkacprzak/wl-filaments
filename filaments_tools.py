@@ -641,6 +641,64 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pair
     
     return (pairs_table, vh1, vh2)
 
+def get_pairs_resampling():
+
+    halos = tabletools.loadTable(config['filename_halos'])
+    list_conn1 = range(0,len(halos),2)
+    list_conn2 = range(1,len(halos),2)
+
+    ih1 = halos[list_conn1]['id']
+    ih2 = halos[list_conn2]['id']
+    vh1 = halos[list_conn1]
+    vh2 = halos[list_conn2]
+
+    halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(  vh1['ra'] ,  vh1['dec']  )
+    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(  vh2['ra'] ,  vh2['dec']  )
+
+    d_xy  = (vh1['DA'] + vh2['DA'])/2. * cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)
+    d_los = cosmology.get_ang_diam_dist( vh1['z'] , vh2['z'] )
+
+    logger.info('neighbour selected min/max d_xy  (%2.2f,%2.2f)'  % (min(d_xy), max(d_xy)) )
+    logger.info('neighbour selected min/max d_los (%2.2f,%2.2f)'  % (min(d_los), max(d_los)) )
+
+    ra_mid  = (vh1['ra']  + vh2['ra'] )/2.
+    dec_mid = (vh1['dec'] + vh2['dec'])/2.
+    z = (vh1['z'] + vh2['z'])/2.
+    R_pair = d_xy
+    drloss = d_los
+    dz=  np.abs(vh1['z'] - vh2['z'])
+    n_gal = dz*0 
+    DA = cosmology.get_ang_diam_dist(z)
+ 
+    ipair = np.arange(len(ih1))
+    pairs_table = np.zeros(len(ipair),dtype=dtype_pairs)
+    pairs_table['ipair'] = ipair
+    pairs_table['ih1'] = ih1
+    pairs_table['ih2'] = ih2
+    pairs_table['n_gal'] = 0
+    pairs_table['DA'] = DA
+    pairs_table['Dlos'] = d_los
+    pairs_table['Dxy'] = d_xy
+    pairs_table['R_pair'] = d_xy
+    pairs_table['ra_mid'] = ra_mid
+    pairs_table['dec_mid'] = dec_mid
+    pairs_table['z'] = z
+    pairs_table['ra1'] = vh1['ra']
+    pairs_table['dec1'] = vh1['dec']
+    pairs_table['ra2'] = vh2['ra']
+    pairs_table['dec2'] = vh2['dec']
+
+    for ip in range(len(pairs_table)):
+        pairs_table['m200_h1_fit'][ip] = vh1['m200_fit'][ip]
+        pairs_table['m200_h2_fit'][ip] = vh2['m200_fit'][ip]
+        print 'halos: % 5d\t% 5d mass= %2.2e %2.2e dx=% 6.2f' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h2_fit'][ip],pairs_table['DA'][ip])
+
+    tabletools.saveTable(config['filename_pairs'],pairs_table)   
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos1.fits'), vh1)    
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos2.fits'), vh2)    
+
+
+
 def get_pairs_topo():
 
     

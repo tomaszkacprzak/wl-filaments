@@ -356,6 +356,93 @@ def randomise_halos():
     print " change filename_halos to filename_halos.random.fits"
     print "============================================"
 
+def randomise_halos2():
+
+    filename_halos=config['filename_halos']
+    halocat = np.array(pyfits.getdata(filename_halos))
+    range_M = map(float,config['range_M'])
+    select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
+    halocat=halocat[select]
+
+
+    sample = np.random.uniform(0,len(halocat),config['n_random_halos']*config['n_resampling'])
+    sample = sample.astype('i4')
+
+    halocat = halocat[sample]
+    halocat['z'] = np.linspace(0.25,0.4,len(halocat))
+    Dsky_deg = 1
+    min_deg_sep = 2
+
+    # select on proximity to CFHTLens
+    logger.info('loading shears')
+    filename_cfhtlens_shears =  config['filename_cfhtlens_shears']
+    shearcat = tabletools.loadTable(filename_cfhtlens_shears)    
+    perm = np.random.permutation(len(shearcat))[:100000]
+    shearcat = shearcat[perm]
+    if 'ALPHA_J2000' in shearcat.dtype.names:
+        ra_field = 'ALPHA_J2000'
+        de_field = 'DELTA_J2000'
+    elif 'ra' in shearcat.dtype.names:
+        ra_field = 'ra'
+        de_field = 'dec'
+
+    shear_ra=shearcat[ra_field].copy()
+    shear_de=shearcat[de_field].copy()
+    del(shearcat)
+
+    mid_points = []
+    logger.info('n_halos=%d',len(halocat))
+
+    for ir in range(config['n_resampling']):
+        ra_unused = shear_ra.copy()
+        de_unused = shear_de.copy()
+        logger.info('resampling %d' % ir)
+
+        for ih in range(0,config['n_random_halos'],2):
+
+            perm = np.random.choice(len(ra_unused),1)
+
+            mid_ra = ra_unused[perm] + np.random.randn()*0.01
+            mid_de = de_unused[perm] + np.random.randn()*0.01
+
+            rand_vec = Dsky_deg/2. * np.exp(1j*np.random.uniform(low=0, high=2*np.pi))
+
+            halocat['ra'][ih]    = mid_ra + rand_vec.real
+            halocat['dec'][ih]   = mid_de + rand_vec.imag
+            halocat['ra'][ih+1]  = mid_ra - rand_vec.real
+            halocat['dec'][ih+1] = mid_de - rand_vec.imag
+
+            select = cosmology.get_angular_separation(mid_ra,mid_de,ra_unused,de_unused,unit='deg') > min_deg_sep
+            ra_unused=ra_unused[select]
+            de_unused=de_unused[select]
+
+            logger.info('-- % 5d perm % 6d added mid point % 6.2f % 6.2f n_gals_left=% 6d' , ih, perm, mid_ra, mid_de , len(ra_unused))
+            # logger.info('---h1 %2.4f %2.4f' , halocat['ra'][ih], halocat['dec'][ih])
+            # logger.info('---h2 %2.4f %2.4f' , halocat['ra'][ih+1], halocat['dec'][ih+1])
+            # logger.info('---remaining shear cat len %d' , len(ra_unused))
+   
+    pl.figure(figsize=(30,20))
+    pl.scatter(halocat['ra']        , halocat['dec']        , 70 , marker='o', c= halocat['z'] )
+    # pl.scatter(shearcat[ra_field][perm3],shearcat[de_field][perm3] , 0.1  , marker='o', c='b')
+    filename_fig = 'figs/scatter.lrgs_in_cfhtlens.pdf'
+    pl.savefig(filename_fig)
+    logger.info('saved %s' % filename_fig)
+    pl.show()
+    pl.close()
+
+    logger.info('selected on proximity to CFHTLens, remaining number of halos: %d' % len(halocat))
+
+    halocat['index']=range(0,len(halocat))
+    halocat['id']=range(0,len(halocat))
+
+
+    filename_halos_random = filename_halos.replace('.fits','.random.fits')
+    tabletools.saveTable(filename_halos_random,halocat)
+    logger.info('wrote %s' % filename_halos_random)
+
+    print "============================================"
+    print " change filename_halos to filename_halos.random.fits"
+    print "============================================"
 
 def fit_halos():
     
@@ -880,7 +967,7 @@ def add_closest_cluster():
 
 def main():
 
-    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster','randomise_halos']
+    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster','randomise_halos','randomise_halos2']
 
     description = 'halo_stamps'
     parser = argparse.ArgumentParser(description=description, add_help=True)
