@@ -951,7 +951,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             else:
 
                 prior_trick=False
-                use_prior=False
+                use_prior=True
                 use_ml=False
                 use_expectation=False
                 if prior_trick:
@@ -1716,9 +1716,9 @@ def plotdata_all():
     # 146 33
     # 111 123
 
-    # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
+    remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
-    remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
+    # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
     remove_interloper=[]
     for ri in (remove_list+remove_interloper):
         if ri in ids: 
