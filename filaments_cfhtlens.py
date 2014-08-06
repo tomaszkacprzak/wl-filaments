@@ -1,8 +1,6 @@
 import os
-import matplotlib as mpl 
 if os.environ['USER'] == 'ucabtok': os.environ['MPLCONFIGDIR']='.'
-print 'using matplotlib backend' , pl.get_backend()
-
+import matplotlib as mpl 
 if 'DISPLAY' not in os.environ:
     mpl.use('agg')
 print 'using backend %s' % mpl.get_backend()
