@@ -419,7 +419,7 @@ def figure_fields_cfhtlens():
     # cluscat = cluscat[select]
     cluscat.dtype.names = [n.lower() for n in cluscat.dtype.names]
 
-    select = halos['m200_fit'] > 5e13
+    select = halos['m200_fit'] > 1e12
     halos = halos[select]
 
     select = pairs['analysis'] == 1
@@ -460,7 +460,7 @@ def figure_fields_cfhtlens():
     def plot_field(ax,box_w):
 
         # ax.scatter(cluscat['ra'],cluscat['de'],s=50,c=cluscat['zphot'],marker='d', vmin=minz, vmax=maxz)
-        # ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
+        ax.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
         for i in range(len(pairs)): 
             ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=pairs_colors[pairs['eyeball_class'][i]],lw=5)
             ax.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c=clean_colors[pairs['analysis'][i]],lw=2)
@@ -1680,8 +1680,11 @@ def plotdata_all():
     select_best=graphstools.get_best_neighbour(pairs,halo1,halo2)
     # select_best=graphstools.get_triangulation(pairs,halo1,halo2,halos)
 
-    # main
     ids=select_best
+    print 'all ids before removing overlaps' , len(ids)
+    print ids
+
+    # main
     # 445 216 : 
     # 30 434
     # 341 33

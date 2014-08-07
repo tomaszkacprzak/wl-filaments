@@ -918,14 +918,19 @@ def test_overlap():
     halo1_table = tabletools.loadTable(filename_halo1)
     halo2_table = tabletools.loadTable(filename_halo2)
 
-    sigma_g_add =  0.1
+    sigma_g_add =  0.01
 
     id_pair = 2
     shears_info = tabletools.loadPickle(filename_shears,id_pair)
 
     fitobj = modelfit()
     fitobj.get_bcc_pz(config['filename_pz'])
-    fitobj.use_boost = True
+    fitobj.kappa_is_K = config['kappa_is_K']
+    fitobj.R_start = config['R_start']
+    fitobj.Dlos = pairs_table[id_pair]['Dlos']        
+    fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
+    fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
+    fitobj.use_boost = config['use_boost']
 
     fitobj.shear_v_arcmin =  shears_info['v_arcmin'][::4]
     fitobj.shear_u_arcmin =  shears_info['u_arcmin'][::4]
@@ -967,10 +972,16 @@ def test_overlap():
     fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin - 5     # remobe miscentering
     fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin - 10
 
-
     # second fitobj
     fitobj2 = modelfit()
     fitobj2.get_bcc_pz(config['filename_pz'])
+    fitobj2.use_boost = True
+    fitobj2.kappa_is_K = config['kappa_is_K']
+    fitobj2.R_start = config['R_start']
+    fitobj2.Dlos = pairs_table[id_pair]['Dlos']        
+    fitobj2.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
+    fitobj2.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
+    fitobj2.use_boost = config['use_boost']
 
     fitobj2.shear_v_arcmin =  shears_info['v_arcmin'][::4]
     fitobj2.shear_u_arcmin =  shears_info['u_arcmin'][::4]

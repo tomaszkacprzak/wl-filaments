@@ -130,13 +130,22 @@ def figure_density():
         list_new.append(filament_kappa0)
         list_pro.append(filament_kappa0_prop)        
 
+    list_m200 = np.array(list_m200)
+    list_new = np.array(list_new)
+    import fitting
+    a,b,Cab = fitting.get_line_fit(list_m200/1e14,list_new,np.ones_like(list_new))
+    print 'line fit a' ,  a
+    print 'line fit b' ,  b
+    print 'line fit C' ,  Cab
+
     # pl.plot(list_m200,list_old,'r.')
-    pl.plot(list_m200,list_new,'g.')
+    pl.plot(list_m200/1e14,list_new,'g.')
+    pl.plot(list_m200/1e14,b*list_m200/1e14+a)
     pl.xlabel('mean m200')
     pl.ylabel(r'mean \Delta\Sigma')
     # pl.plot(list_m200,list_pro,'b.')
     pl.show()
-    
+
 
 
 def figures_individual():
@@ -616,7 +625,7 @@ def figure_contours():
     print grid_dict['grid_kappa0'][max0,max1], grid_dict['grid_radius'][max0,max1]
     max_radius = grid_dict['grid_radius'][0,max1]
     max_kappa0 = grid_dict['grid_kappa0'][max0,0]
-    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2,3])
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2])
     xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
     ylabel=r'radius $\mathrm{Mpc}/h$'
     if config['kappa_is_K']:
@@ -640,15 +649,15 @@ def figure_contours():
     # paper plots in ugly colormap
     pl.figure()
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='b')
-    fmt = {}; strs = [ r'$68\%$', r'$95\%$', r'$99\%$'] ; 
+    fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
     for l,s in zip( cp.levels, strs ): fmt[l] = s
-    manual_locations = [(1.1,0.5),(1.5,0.5),(2,0.5)]
+    manual_locations = [(1.1,0.5),(1.5,0.5)]
     pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
-    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
@@ -662,9 +671,9 @@ def figure_contours():
     pl.yticks([1,2,3,4])
     # pl.ylim([0,3])
     pl.ylim([0,4])
-    pl.xticks([0.0,0.2,0.4,0.6,0.8,1.])
+    pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
-    pl.xlim([0,1])
+    pl.xlim([0,2])
     pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
 
     # plot 1d - just kappa0

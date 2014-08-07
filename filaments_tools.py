@@ -697,7 +697,7 @@ def get_pairs_resampling():
     tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos1.fits'), vh1)    
     tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos2.fits'), vh2)    
 
-
+    import pdb; pdb.set_trace()
 
 def get_pairs_topo():
 

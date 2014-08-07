@@ -393,6 +393,7 @@ def randomise_halos2():
     mid_points = []
     logger.info('n_halos=%d',len(halocat))
 
+    ia=0
     for ir in range(config['n_resampling']):
         ra_unused = shear_ra.copy()
         de_unused = shear_de.copy()
@@ -407,10 +408,11 @@ def randomise_halos2():
 
             rand_vec = Dsky_deg/2. * np.exp(1j*np.random.uniform(low=0, high=2*np.pi))
 
-            halocat['ra'][ih]    = mid_ra + rand_vec.real
-            halocat['dec'][ih]   = mid_de + rand_vec.imag
-            halocat['ra'][ih+1]  = mid_ra - rand_vec.real
-            halocat['dec'][ih+1] = mid_de - rand_vec.imag
+            halocat['ra'][ia]    = mid_ra + rand_vec.real
+            halocat['dec'][ia]   = mid_de + rand_vec.imag
+            halocat['ra'][ia+1]  = mid_ra - rand_vec.real
+            halocat['dec'][ia+1] = mid_de - rand_vec.imag
+            ia+=2
 
             select = cosmology.get_angular_separation(mid_ra,mid_de,ra_unused,de_unused,unit='deg') > min_deg_sep
             ra_unused=ra_unused[select]
@@ -443,6 +445,8 @@ def randomise_halos2():
     print "============================================"
     print " change filename_halos to filename_halos.random.fits"
     print "============================================"
+
+    import pdb; pdb.set_trace()
 
 def fit_halos():
     

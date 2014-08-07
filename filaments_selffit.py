@@ -3,6 +3,7 @@ import numpy as np
 import pylab as pl
 import warnings
 import filaments_model_2hf
+import filaments_analyse
 
 warnings.simplefilter('once')
 
@@ -13,6 +14,227 @@ stream_handler = logging.StreamHandler(sys.stdout)
 stream_handler.setFormatter(log_formatter)
 logger.addHandler(stream_handler)
 logger.propagate = False
+
+nx = 25
+ny = 25
+grid_x = np.linspace(-12,12,nx)
+grid_y = np.linspace(-12,12,ny)
+filament_ds = 0.3
+filament_radius = 1
+
+def plot_overlap():
+
+    filaments_analyse.config=config
+    filaments_analyse.args=args
+    X,Y = np.meshgrid(grid_x,grid_y,indexing='ij')
+    D = np.ones_like(X)
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+
+
+    n_result=0
+    for ix,x_pos in enumerate(grid_x):
+        for iy,y_pos in enumerate(grid_y):
+
+            filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
+
+            grid_pickle = tabletools.loadPickle(filename_grid)
+            grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
+            grid_radius = grid_pickle['grid_radius'][:,:,0,0]
+            filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, n_result, n_result+1 , name_data)
+            results_pickle = tabletools.loadPickle(filename_pickle,log=1)
+            log_prob = results_pickle['log_post'][:,:,0,0]
+           
+            max0, max1 = np.unravel_index(log_prob.argmax(), log_prob.shape)
+            D[ix,iy]=filament_ds-grid_kappa0[max0,max1]
+
+
+            n_result+=1
+
+    pl.figure()
+    pl.pcolormesh(X,Y,D)
+    pl.colorbar()
+    pl.show()
+
+    import pdb; pdb.set_trace()
+
+
+
+
+
+
+
+
+def test_overlap():
+
+    filename_pairs =  config['filename_pairs']                                   # pairs_bcc.fits'
+    filename_halo1 =  config['filename_pairs'].replace('.fits' , '.halos1.fits') # pairs_bcc.halos1.fits'
+    filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+    filename_shears_overlap = filename_shears.replace('.pp2','.overlap.pp2')
+    filename_pairs_overlap = filename_pairs.replace('.fits','.overlap.fits')
+    filename_halo1_overlap = filename_halo1.replace('.halos1.fits','.overlap.halos1.fits')
+    filename_halo2_overlap = filename_halo2.replace('.halos2.fits','.overlap.halos2.fits')
+
+    if os.path.isfile(filename_shears_overlap):
+        os.remove(filename_shears_overlap)
+        logger.warning('overwriting file %s' , filename_shears_overlap)
+
+    pairs_table = tabletools.loadTable(filename_pairs)
+    halo1_table = tabletools.loadTable(filename_halo1)
+    halo2_table = tabletools.loadTable(filename_halo2)
+
+    sigma_g_add =  0.0001
+
+    id_pair = 3
+    shears_info = tabletools.loadPickle(filename_shears,id_pair)
+
+    overlapping_halo_m200 = 2 # x 1e14
+    overlapping_halo_z = 0.3
+    no_m200 = 1e-8
+
+    n_pairs = len(grid_x) * len(grid_y)
+
+    pairs_table_overlap = pairs_table[np.ones([n_pairs],dtype=np.int32)*id_pair]
+    halo1_table_overlap = halo1_table[np.ones([n_pairs],dtype=np.int32)*id_pair]
+    halo2_table_overlap = halo2_table[np.ones([n_pairs],dtype=np.int32)*id_pair]
+
+    pairs_table_overlap['ipair'] = range(len(pairs_table_overlap))
+
+    tabletools.saveTable(filename_pairs_overlap,pairs_table_overlap)
+    tabletools.saveTable(filename_halo1_overlap,halo1_table_overlap)
+    tabletools.saveTable(filename_halo2_overlap,halo2_table_overlap)
+
+    for x_pos in grid_x:
+        for y_pos in grid_y:
+
+            logger.info('dx = %2.2f dy = %2.2f' % (x_pos,y_pos))
+
+            fitobj = filaments_model_2hf.modelfit()
+            fitobj.get_bcc_pz(config['filename_pz'])
+            fitobj.kappa_is_K = False
+            fitobj.R_start = config['R_start']
+            fitobj.Dlos = pairs_table[id_pair]['Dlos']        
+            fitobj.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
+            fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
+            fitobj.use_boost = config['use_boost']
+
+            fitobj.shear_v_arcmin =  shears_info['v_arcmin']
+            fitobj.shear_u_arcmin =  shears_info['u_arcmin']
+            fitobj.shear_u_mpc =  shears_info['u_mpc']
+            fitobj.shear_v_mpc =  shears_info['v_mpc']
+
+            fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair]
+            fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair]
+            fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair]
+            fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair]
+            fitobj.halo1_z =  pairs_table['z'][id_pair]
+
+            fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
+            fitobj.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
+            fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
+            fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
+            fitobj.halo2_z =  pairs_table['z'][id_pair]
+
+            fitobj.pair_z  = (fitobj.halo1_z + fitobj.halo2_z) / 2.
+
+            fitobj.filam = filament.filament()
+            fitobj.filam.pair_z =fitobj.pair_z
+            fitobj.filam.grid_z_centers = fitobj.grid_z_centers
+            fitobj.filam.prob_z = fitobj.prob_z
+            fitobj.filam.set_mean_inv_sigma_crit(fitobj.filam.grid_z_centers,fitobj.filam.prob_z,fitobj.filam.pair_z)
+
+            fitobj.nh1 = nfw.NfwHalo()
+            fitobj.nh1.z_cluster= fitobj.halo1_z
+            fitobj.nh1.theta_cx = fitobj.halo1_u_arcmin
+            fitobj.nh1.theta_cy = fitobj.halo1_v_arcmin 
+            fitobj.nh1.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+
+            fitobj.nh2 = nfw.NfwHalo()
+            fitobj.nh2.z_cluster= fitobj.halo2_z
+            fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin
+            fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin
+            fitobj.nh2.set_mean_inv_sigma_crit(fitobj.grid_z_centers,fitobj.prob_z,fitobj.pair_z)
+            shear_model_g1, shear_model_g2, limit_mask , _ , _  = fitobj.draw_model([filament_ds, filament_radius, no_m200, no_m200])
+            fitobj.nh2.theta_cy = fitobj.halo2_v_arcmin
+            fitobj.nh2.theta_cx = fitobj.halo2_u_arcmin
+
+            # second fitobj ---------- overlapping halo
+            fitobj2 = filaments_model_2hf.modelfit()
+            fitobj2.get_bcc_pz(config['filename_pz'])
+            fitobj2.use_boost = True
+            fitobj2.kappa_is_K = False
+            fitobj2.R_start = config['R_start']
+            fitobj2.Dlos = pairs_table[id_pair]['Dlos']        
+            fitobj2.Dtot = np.sqrt(pairs_table[id_pair]['Dxy']**2+pairs_table[id_pair]['Dlos']**2)
+            fitobj2.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
+            fitobj2.use_boost = config['use_boost']
+
+            fitobj2.shear_v_arcmin =  shears_info['v_arcmin']
+            fitobj2.shear_u_arcmin =  shears_info['u_arcmin']
+            fitobj2.shear_u_mpc =  shears_info['u_mpc']
+            fitobj2.shear_v_mpc =  shears_info['v_mpc']
+
+            fitobj2.halo1_z =  overlapping_halo_z
+            fitobj2.halo1_u_arcmin = x_pos/cosmology.get_ang_diam_dist(overlapping_halo_z) * 180. / np.pi * 60.
+            fitobj2.halo1_v_arcmin = y_pos/cosmology.get_ang_diam_dist(overlapping_halo_z) * 180. / np.pi * 60.
+            fitobj2.halo1_u_mpc =  x_pos
+            fitobj2.halo1_v_mpc =  y_pos
+
+            fitobj2.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair]
+            fitobj2.halo2_v_arcmin =  pairs_table['v2_arcmin'][id_pair]
+            fitobj2.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair]
+            fitobj2.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair]
+            fitobj2.halo2_z =  pairs_table['z'][id_pair]
+
+
+            fitobj2.pair_z  = (fitobj2.halo1_z + fitobj2.halo2_z) / 2.
+
+            fitobj2.filam = filament.filament()
+            fitobj2.filam.pair_z =fitobj2.pair_z
+            fitobj2.filam.grid_z_centers = fitobj2.grid_z_centers
+            fitobj2.filam.prob_z = fitobj2.prob_z
+            fitobj2.filam.set_mean_inv_sigma_crit(fitobj2.filam.grid_z_centers,fitobj2.filam.prob_z,fitobj2.filam.pair_z)
+
+            fitobj2.nh1 = nfw.NfwHalo()
+            fitobj2.nh1.z_cluster= fitobj2.halo1_z
+            fitobj2.nh1.theta_cx = fitobj2.halo1_u_arcmin
+            fitobj2.nh1.theta_cy = fitobj2.halo1_v_arcmin 
+            fitobj2.nh1.set_mean_inv_sigma_crit(fitobj2.grid_z_centers,fitobj2.prob_z,fitobj2.pair_z)
+
+            fitobj2.nh2 = nfw.NfwHalo()
+            fitobj2.nh2.z_cluster= fitobj2.halo2_z
+            fitobj2.nh2.theta_cx = fitobj2.halo2_u_arcmin
+            fitobj2.nh2.theta_cy = fitobj2.halo2_v_arcmin 
+            fitobj2.nh2.set_mean_inv_sigma_crit(fitobj2.grid_z_centers,fitobj2.prob_z,fitobj2.pair_z)
+
+            shear_model_g1_neighbour, shear_model_g2_neighbour, limit_mask , _ , _  = fitobj2.draw_model([0.0, 0.5, overlapping_halo_m200, no_m200 ])
+
+            do_plot=False
+            if do_plot:
+
+                cmax  = np.max([ np.abs(shear_model_g1_neighbour.min()),np.abs(shear_model_g1_neighbour.min()) , np.abs(shear_model_g1_neighbour.max()),np.abs(shear_model_g1_neighbour.max()),np.abs(shear_model_g1.max()),np.abs(shear_model_g1.max()),np.abs(shear_model_g1.min()),np.abs(shear_model_g1.min())])
+                pl.figure(figsize=(20,10))
+                pl.scatter( fitobj.shear_u_mpc  , fitobj.shear_v_mpc  , s=100, c=shear_model_g1+shear_model_g1_neighbour, lw=0)
+                pl.clim(-cmax,cmax)
+                pl.colorbar()
+                pl.scatter( fitobj2.halo1_u_mpc , fitobj2.halo1_v_mpc , s=100, lw=0)
+                pl.scatter( fitobj.halo1_u_mpc , fitobj.halo1_v_mpc , s=100)
+                pl.scatter( fitobj.halo2_u_mpc , fitobj.halo2_v_mpc , s=100)
+                pl.axis('equal')
+
+                pl.show()
+
+            fitobj.shear_g1 =  shear_model_g1 + np.random.randn(len(fitobj.shear_u_arcmin))*sigma_g_add
+            fitobj.shear_g2 =  shear_model_g2 + np.random.randn(len(fitobj.shear_u_arcmin))*sigma_g_add
+            fitobj.sigma_g =  np.std(shear_model_g2,ddof=1)
+            fitobj.inv_sq_sigma_g = 1./sigma_g_add**2
+
+            shears_info['g1'] = fitobj.shear_g1
+            shears_info['g2'] = fitobj.shear_g2
+            shears_info['weight'] = fitobj.inv_sq_sigma_g
+
+            tabletools.savePickle(filename_shears_overlap,shears_info,append=True)          
+
 
 def get_clone():
 
@@ -316,7 +538,7 @@ def self_fit():
 def main():
 
 
-    valid_actions = ['get_clone']
+    valid_actions = ['get_clone','test_overlap','plot_overlap']
 
     description = 'filaments_selffit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
@@ -324,6 +546,7 @@ def main():
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
     parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
+    parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
     parser.add_argument('-n', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data'), len(remove_list), len(set(remove_list)
