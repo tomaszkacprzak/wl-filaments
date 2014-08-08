@@ -10,8 +10,12 @@ class cosmoparams:
 
     def __init__(self):
 
-        self.Omega_m = 0.271
-        self.Omega_Lambda = 0.729
+        self.Omega_m = 0.271      # CFHTLenS
+        self.Omega_Lambda = 0.729 # CFHTLenS
+ 
+        # self.Omega_m =  0.3175      # Planck
+        # self.Omega_Lambda = 0.6825  # Planck
+
         self.w = -1.
         self.Omega_k = 0.
         self.h = 1

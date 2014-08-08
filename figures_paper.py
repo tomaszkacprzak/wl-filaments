@@ -79,7 +79,7 @@ def figure_density():
     list_pro = []
     list_m200 = []
 
-    for ip,vp in enumerate(pairs):
+    for ip,vp in enumerate(pairs[pairs['analysis']==1]):
 
         if vp['analysis']!=1:
             continue
@@ -137,6 +137,7 @@ def figure_density():
     print 'line fit a' ,  a
     print 'line fit b' ,  b
     print 'line fit C' ,  Cab
+    print 'median Delta Sigma' , np.median(list_new)
 
     # pl.plot(list_m200,list_old,'r.')
     pl.plot(list_m200/1e14,list_new,'g.')
@@ -145,6 +146,8 @@ def figure_density():
     pl.ylabel(r'mean \Delta\Sigma')
     # pl.plot(list_m200,list_pro,'b.')
     pl.show()
+
+    import pdb; pdb.set_trace()
 
 
 
@@ -579,6 +582,90 @@ def figure_fields():
     # fig.close()
     import pdb; pdb.set_trace()
 
+def figure_random():
+
+    import filaments_analyse
+    filaments_analyse.config=config
+    filaments_analyse.args=args
+
+
+    filename_shears = config['filename_shears']                                  # args.filename_shears 
+    filename_pairs = config['filename_pairs']
+    filename_halos1 = filename_pairs.replace('.fits','.halos1.fits')
+    filename_halos2 = filename_pairs.replace('.fits','.halos2.fits')
+    # filename_pairs = config['filename_pairs'].replace('.fits','.addstats.fits')
+    name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
+
+    halo1 = tabletools.loadTable(filename_halos1)
+    halo2 = tabletools.loadTable(filename_halos2)
+    pairs = tabletools.loadTable(filename_pairs)
+    n_pairs = len(halo1)
+    print 'n_pairs' , n_pairs
+
+    if 'cfhtlens' in filename_pairs:
+        bins_snr_edges = [5,20]
+        mass_param_name = 'snr'
+    else:
+        bins_snr_edges = [1e14,1e15]
+        mass_param_name = 'm200'
+    # bins_snr_centers = [ 3 , 6]
+    bins_snr_centers = plotstools.get_bins_centers(bins_snr_edges)
+
+    ids=np.nonzero(pairs['analysis']==1)[0]
+    args.first=0
+    args.num=-1
+
+    n_pairs_use = 47
+
+    list_prod_2D = []
+
+    current_id = 0
+    for ir in range(32):
+
+        ids = []
+
+        while len(ids) < n_pairs_use:
+
+            filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, current_id, current_id+1 , name_data)
+            if os.path.isfile(filename_pickle):
+                ids.append(current_id)
+            current_id+=1
+
+        prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids)
+
+        print 'boot % 3d used %d pairs, current_id %d' % (ir,n_pairs_used,current_id)
+
+        list_prod_2D.append(prod_pdf)
+
+
+        # pl.figure()
+        # cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
+        # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+        # pl.axis('tight')
+        # pl.xlim([-0.1,0.2])
+        # pl.axvline(0,color='r')
+        # pl.show()
+
+
+    sum_pdf = np.zeros_like(prod_pdf)
+    for lp2D in list_prod_2D: sum_pdf += lp2D
+
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(lp2D,list_sigmas=[1,2,3])
+
+    pl.figure()
+    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],lp2D)
+    pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],lp2D,levels=contour_levels,colors='y')
+
+    # pl.figure()
+    # for ir in range(0,200,25): pl.plot(grid_dict['grid_kappa0'][:,ir],lp2D[:,ir],label='%2.2f'%grid_dict['grid_radius'][0,ir]); pl.title(grid_dict['grid_radius'][0,ir]); pl.legend()
+    # for ir in range(0,200,25): max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_dict['grid_kappa0'][:,ir],lp2D[:,ir]); print grid_dict['grid_radius'][0,ir] , max_par , err_hi , err_lo
+    # for ir in range(len(list_prod_2D)): 
+    #     list_prod_2D[ir].argmax(axis=)
+    pl.show()
+
+
+    import pdb; pdb.set_trace()
+
 def figure_contours():
 
     import filaments_analyse
@@ -773,7 +860,7 @@ def table_individual():
 def main():
 
 
-    valid_actions = ['figure_fields','figure_model','figure_contours','table_individual','figures_individual'  , 'figure_density']
+    valid_actions = ['figure_fields','figure_model','figure_contours','table_individual','figures_individual'  , 'figure_density' , 'figure_random']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)
@@ -781,8 +868,7 @@ def main():
     parser.add_argument('-c', '--filename_config', type=str, default='filaments_config.yaml' , action='store', help='filename of file containing config')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
     parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
-
-    # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data'), len(remove_list), len(set(remove_list)
+    parser.add_argument('-hr','--halo_removal', action='store', default='prior', choices=('flat','prior','ml','exp' , 'default'), help='which halo removal method to use' )
 
     global args
 

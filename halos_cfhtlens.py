@@ -364,14 +364,14 @@ def randomise_halos2():
     select = (halocat['m200_fit'] > range_M[0]) * (halocat['m200_fit'] < range_M[1])
     halocat=halocat[select]
 
+    pairs = tabletools.loadTable('pairs_cfhtlens_lrgs.fits')
+    pairs = pairs[pairs['analysis']==1]
 
     sample = np.random.uniform(0,len(halocat),config['n_random_halos']*config['n_resampling'])
     sample = sample.astype('i4')
 
     halocat = halocat[sample]
-    halocat['z'] = np.linspace(0.25,0.4,len(halocat))
-    Dsky_deg = 1
-    min_deg_sep = 2
+    min_deg_sep = 1.5
 
     # select on proximity to CFHTLens
     logger.info('loading shears')
@@ -406,19 +406,24 @@ def randomise_halos2():
             mid_ra = ra_unused[perm] + np.random.randn()*0.01
             mid_de = de_unused[perm] + np.random.randn()*0.01
 
+            random_id = np.random.choice(len(pairs))
+            vh = pairs[random_id]
+            Dsky_deg = cosmology.get_angular_separation(vh['ra1'],vh['dec1'],vh['ra2'],vh['dec2'],unit='deg')
+
             rand_vec = Dsky_deg/2. * np.exp(1j*np.random.uniform(low=0, high=2*np.pi))
 
             halocat['ra'][ia]    = mid_ra + rand_vec.real
             halocat['dec'][ia]   = mid_de + rand_vec.imag
             halocat['ra'][ia+1]  = mid_ra - rand_vec.real
             halocat['dec'][ia+1] = mid_de - rand_vec.imag
+            halocat['z'] = vh['z']
             ia+=2
 
             select = cosmology.get_angular_separation(mid_ra,mid_de,ra_unused,de_unused,unit='deg') > min_deg_sep
             ra_unused=ra_unused[select]
             de_unused=de_unused[select]
 
-            logger.info('-- % 5d perm % 6d added mid point % 6.2f % 6.2f n_gals_left=% 6d' , ih, perm, mid_ra, mid_de , len(ra_unused))
+            logger.info('-- % 5d\t perm % 6d\t added mid point %+8.2f %+8.2f\t n_gals_left=% 6d\t random_id=% 3d Dsky_deg=%8.2f' , ih, perm, mid_ra, mid_de , len(ra_unused) , random_id , Dsky_deg)
             # logger.info('---h1 %2.4f %2.4f' , halocat['ra'][ih], halocat['dec'][ih])
             # logger.info('---h2 %2.4f %2.4f' , halocat['ra'][ih+1], halocat['dec'][ih+1])
             # logger.info('---remaining shear cat len %d' , len(ra_unused))

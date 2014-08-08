@@ -27,25 +27,31 @@ def plot_overlap():
     filaments_analyse.config=config
     filaments_analyse.args=args
     X,Y = np.meshgrid(grid_x,grid_y,indexing='ij')
-    D = np.ones_like(X)
+    D = np.zeros_like(X)
     name_data = os.path.basename(config['filename_shears']).replace('.pp2','').replace('.fits','')
-
+    filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
+    grid_pickle = tabletools.loadPickle(filename_grid)
 
     n_result=0
     for ix,x_pos in enumerate(grid_x):
         for iy,y_pos in enumerate(grid_y):
 
-            filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
 
-            grid_pickle = tabletools.loadPickle(filename_grid)
             grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
             grid_radius = grid_pickle['grid_radius'][:,:,0,0]
             filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, n_result, n_result+1 , name_data)
-            results_pickle = tabletools.loadPickle(filename_pickle,log=1)
+            try:
+                results_pickle = tabletools.loadPickle(filename_pickle,log=0)
+            except:
+                n_result+=1
+                logger.info('missing %s' , filename_pickle)
+                continue
+            
             log_prob = results_pickle['log_post'][:,:,0,0]
-           
             max0, max1 = np.unravel_index(log_prob.argmax(), log_prob.shape)
-            D[ix,iy]=filament_ds-grid_kappa0[max0,max1]
+            D[ix,iy]=grid_kappa0[max0,max1]-filament_ds
+            print max0, max1
+
 
 
             n_result+=1
@@ -257,6 +263,7 @@ def get_clone():
 
     # make clone using only those pairs, which were used in main analysis
     select = pairs_table['analysis'] == 1
+    logger.info('using %d pairs that were selected for analysis' , sum(select))
     pairs_table_clone = pairs_table[select].copy()
     halo1_table_clone = halo1_table[select].copy()
     halo2_table_clone = halo2_table[select].copy()
@@ -405,8 +412,8 @@ def get_clone():
 
     pairs_table_clone['ipair']=np.arange(len(pairs_table_clone))
     tabletools.saveTable(filename_pairs.replace('.fits','.clone.fits'),pairs_table_clone)
-    tabletools.saveTable(filename_halo1.replace('.fits','.clone.fits'),halo1_table_clone)
-    tabletools.saveTable(filename_halo2.replace('.fits','.clone.fits'),halo2_table_clone)
+    tabletools.saveTable(filename_halo1.replace('.halos1.fits','.clone.halos1.fits'),halo1_table_clone)
+    tabletools.saveTable(filename_halo2.replace('.halos2.fits','.clone.halos2.fits'),halo2_table_clone)
     logger.warning('\n========================================\n \
                     now you have to change the config entry\n \
                     files to use clone files:\n \

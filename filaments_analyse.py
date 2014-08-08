@@ -808,9 +808,9 @@ def apply_prior(log_prob,grid_h1M200,grid_h2M200,ids=None):
     norm3 = np.sum(norm2,axis=0)
     import scipy.interpolate
     x=prior_dict['grid_M200']/1e14
-    # y=prior_dict['prior']
-    y = np.log(norm3/np.sum(norm3))
-    # y=x*0-1
+
+    if args.halo_removal == 'prior':  y = np.log(norm3/np.sum(norm3))      
+    if args.halo_removal == 'flat':   y=x*0-1
 
     min_m200_h1 = 0.5
     min_m200_h2 = 0.5
@@ -950,10 +950,13 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
             else:
 
-                prior_trick=False
-                use_prior=True
-                use_ml=False
-                use_expectation=False
+                use_prior=False; use_ml=False; use_expectation=False; use_default=False; prior_trick=False
+                if args.halo_removal == 'prior': use_prior=True
+                if args.halo_removal == 'flat': use_prior=True
+                if args.halo_removal == 'ml': use_ml=True
+                if args.halo_removal == 'exp': use_expectation=True
+                if args.halo_removal == 'default': use_default=True
+
                 if prior_trick:
                     if grid_pickle['grid_h1M200'][0,0,0,0] < 1e12:
                        div=1e14
@@ -1041,7 +1044,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
 
 
-                else:
+                elif use_default:
 
                     pdf_prob = np.exp(log_prob - log_prob.max()) 
                     pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
@@ -1053,6 +1056,9 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                         min_element = log_prob_2D[~np.isinf(log_prob_2D)].min()
                         log_prob_2D[np.isinf(log_prob_2D)] = min_element
                         log_prob_2D[np.isnan(log_prob_2D)] = min_element
+
+                else: 
+                    raise Exception('halo_removal not test correctly')
 
 
 
@@ -1756,7 +1762,7 @@ def plotdata_all():
     # ids.remove(13)
 
     # random
-    # ids= np.random.permutation(90)[:38]
+    # ids= np.random.permutation(1024)
 
 
     print len(ids)
@@ -2327,7 +2333,6 @@ def snr_analysis():
     n_datapoints = 32
     print np.sqrt(np.sum(shear_model_g1**2)/(sigma_g_add/np.sqrt(n_datapoints))**2)
 
-
     import pdb; pdb.set_trace()
     pl.show()
    
@@ -2346,6 +2351,7 @@ def main():
     parser.add_argument('-p', '--save_plots', action='store_true', help='if to save plots')
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
     parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
+    parser.add_argument('-hr','--halo_removal', action='store', default='prior', choices=('flat','prior','ml','exp' , 'default'), help='which halo removal method to use' )
 
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data'), len(remove_list), len(set(remove_list)
 

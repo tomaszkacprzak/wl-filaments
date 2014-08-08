@@ -251,7 +251,7 @@ class modelfit():
         self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
         self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr      
 
-        if self.kappa_is_K: # model where kappa is dependent on halo mass
+        if self.kappa_is_K == 'DS': # model where kappa is dependent on halo mass
             h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
@@ -264,7 +264,7 @@ class modelfit():
             # filament_radius = params[1]
             if self.n_model_evals % 1000==0:
                 log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200 ))
-        elif False : # model where kappa is dependent on halo mass
+        elif self.kappa_is_K == 'shear' : # model where kappa is dependent on halo mass
             h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
@@ -276,6 +276,24 @@ class modelfit():
             filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
             if self.n_model_evals % 1000==0:
                 log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200 ))
+        elif self.kappa_is_K == 'null' : # model where kappa is dependent on halo mass
+            h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
+            h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
+            theta1_x=self.nh1.theta_cx+h1_r200_arcmin
+            theta2_x=self.nh2.theta_cx+h2_r200_arcmin
+            h1g1 , h1g2 , h1_DeltaSigma , h1_Sigma_crit, h1_kappa  = self.nh1.get_shears_with_pz_fast(np.array([theta1_x,theta1_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
+            h2g1 , h2g2 , h2_DeltaSigma , h2_Sigma_crit, h2_kappa  = self.nh1.get_shears_with_pz_fast(np.array([theta2_x,theta2_x]) , np.array([0,0]) , self.grid_z_centers , self.prob_z, redshift_offset)
+            DeltaSigma_at_R200 = (np.abs(h1g1[0]*h1_Sigma_crit)+np.abs(h2g1[0]*h2_Sigma_crit))/2.
+            filament_kappa0 = params[0]*DeltaSigma_at_R200 / 1e14
+            filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
+            if self.n_model_evals % 1000==0:
+                log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200 ))
+            # remove the halos signal completely for random points null test
+            self.nh1.M_200= 1e-8
+            self.nh2.M_200= 1e-8
+            self.nh1.concentr = self.get_concentr(halo1_M200,self.halo1_z)
+            self.nh2.concentr = self.get_concentr(halo1_M200,self.halo1_z)
+
         else:   # standard model
             filament_kappa0 = params[0]
             filament_radius = params[1]
