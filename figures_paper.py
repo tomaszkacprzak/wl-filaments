@@ -70,7 +70,7 @@ def figure_density():
     print h1g1*Sigma_crit
 
     param0_old = 0.4
-    param1 = 0.75
+    param1 = 1
     param0 = 0.9
     param0_prop = 1.5
 
@@ -119,7 +119,7 @@ def figure_density():
 
         filament_kappa0_prop = param0_prop * (-1)*(h1g1m[0]+h2g1m[0]) * h2_Sigma_critm / 1e14
 
-        print '% 4d m1=%2.2e m2=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f ' % (ip,nh1.M_200,nh2.M_200,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius)
+        print '% 4d M1=%2.2e M2=%2.2e Mmid=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f ' % (ip,nh1.M_200,nh2.M_200, (nh1.M_200+nh2.M_200 )/2. ,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius)
         print '---- DSmid=%2.2e kappa0=%2.2f' % ((h1_DeltaSigmam[0]+h2_DeltaSigmam[0]),filament_kappa0)
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h1g1[0], h1_DeltaSigma[0], h1_Sigma_crit, h1_kappa[0])
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h2g1[0], h2_DeltaSigma[0], h2_Sigma_crit, h2_kappa[0])
@@ -325,7 +325,7 @@ def figure_model():
     fitobj.use_boost = config['use_boost']
 
     param_radius = 0.75
-    param_kappa0 = 1.2
+    param_kappa0 = 0.278
     param_masses = 3
     shear_model_g1 , shear_model_g2 , limit_mask , model_DeltaSigma, model_kappa = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
 
@@ -462,7 +462,7 @@ def figure_fields():
         return None
 
     import matplotlib.gridspec as gridspec
-    fig = pl.figure(figsize=(15,5))
+    fig = pl.figure(figsize=(18,6))
     fig.clf()
     fig.subplots_adjust(left=0.08,right=0.875)
     # gs = gridspec.GridSpec( 2, 2, width_ratios=[1,1], height_ratios=[2,1], wspace=0.25, hspace=0.25)
@@ -476,8 +476,8 @@ def figure_fields():
     ax2 = fig.add_subplot(gs[1])
     ax3 = fig.add_subplot(gs[2])
 
-    fig.text(0.5, 0.04, 'RA', ha='center', va='center')
-    fig.text(0.06, 0.5, 'Dec', ha='center', va='center', rotation='vertical')
+    fig.text(0.5, 0.04, 'RA', ha='center', va='center' , fontsize=24)
+    fig.text(0.03, 0.5, 'Dec', ha='center', va='center', rotation='vertical', fontsize=24)
 
     minz=0.3
     maxz=0.45
@@ -485,14 +485,14 @@ def figure_fields():
 
     # ax1.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d', vmin=minz, vmax=maxz)
     # ax1.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
-    ax1.text(box_w1[1]-0.2,box_w1[2]+0.2,'W1')
-    ax1.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
-    ax1.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz) #
+    ax1.text(box_w1[1]-0.2,box_w1[2]+0.2,'W1',fontsize=20)
     for i in range(len(pairs)): 
-        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r',lw=4,zorder=1)
         # ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         # ax1.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         # ax1.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    ax1.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' , vmin=minz, vmax=maxz , zorder=2) #
+    ax1.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' , vmin=minz, vmax=maxz , zorder=2) #
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
         x2=fieldscat[f]['de_min']
@@ -504,17 +504,21 @@ def figure_fields():
     ax1.set_xlim(box_w1[0],box_w1[1])
     ax1.set_ylim(box_w1[2],box_w1[3])
     ax1.invert_xaxis()
+    ax1.tick_params(axis='both', which='major', labelsize=22)
+    ax1.set_xticks([30,34,38])
+    ax1.set_yticks([-4,-7,-10])
+    ax1.tick_params(axis='both', which='major', labelsize=22)
 
     # ax2.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d',vmin=minz, vmax=maxz)
     # ax2.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
-    ax2.text(box_w2[1]-0.2,box_w2[2]+0.2,'W3')
-    ax2.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #
-    ax2.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) #      
+    ax2.text(box_w2[1]-0.2,box_w2[2]+0.2,'W3',fontsize=20)
     for i in range(len(pairs)): 
-        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r',lw=4,zorder=1)
         # ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         # ax2.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         # ax2.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    ax2.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz,zorder=2) #
+    ax2.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz,zorder=2) #      
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
         x2=fieldscat[f]['de_min']
@@ -527,17 +531,21 @@ def figure_fields():
     ax2.set_xlim(box_w2[0],box_w2[1])
     ax2.set_ylim(box_w2[2],box_w2[3])
     ax2.invert_xaxis()
+    ax2.tick_params(axis='both', which='major', labelsize=22)
+    ax2.set_xticks([209,214,219])
+    ax2.set_yticks([52,55,58])
+    ax2.tick_params(axis='both', which='major', labelsize=22)
 
-    ax3.text(box_w3[1]-0.2,box_w3[2]+0.2,'W4')
+    ax3.text(box_w3[1]-0.2,box_w3[2]+0.2,'W4',fontsize=20)
     # ax3.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d',vmin=minz, vmax=maxz)
     # ax3.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
-    cax=ax3.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
-    ax3.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz) 
     for i in range(len(pairs)): 
-        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r')
+        ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r',lw=4,zorder=1)
         # ax3.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
         # ax3.text(pairs['ra2'][i],pairs['dec2'][i],'%d'%pairs['ih2'][i],fontsize=10)
         # ax3.text((pairs['ra1'][i]+pairs['ra2'][i])/2.,(pairs['dec1'][i]+pairs['dec2'][i])/2.,'%d'%pairs[i]['ipair'],fontsize=10)
+    cax=ax3.scatter(pairs['ra1'],pairs['dec1'], halo_size , c=halo1['z'] , marker = 'o' ,vmin=minz, vmax=maxz,zorder=2) 
+    ax3.scatter(pairs['ra2'],pairs['dec2'], halo_size , c=halo2['z'] , marker = 'o' ,vmin=minz, vmax=maxz,zorder=2) 
     for f in range(len(fieldscat)):
         x1=fieldscat[f]['ra_min']
         x2=fieldscat[f]['de_min']
@@ -549,6 +557,9 @@ def figure_fields():
     ax3.set_xlim(box_w3[0],box_w3[1])
     ax3.set_ylim(box_w3[2],box_w3[3])
     ax3.invert_xaxis()
+    ax3.set_xticks([331,333,335])
+    ax3.set_yticks([-1,2,5])
+    ax3.tick_params(axis='both', which='major', labelsize=22)
     
     # ax4.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d')
     # cax=ax4.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s')
@@ -571,9 +582,14 @@ def figure_fields():
     # ax4.set_ylim(box_w4[2],box_w4[3])
 
     
-    cbar_ax = fig.add_axes([0.9, 0.15, 0.015, 0.7])
-    fig.colorbar(cax,cax=cbar_ax)
+    cbar_ax = fig.add_axes([0.9, 0.175, 0.015, 0.7])
+    cbar=fig.colorbar(cax,cax=cbar_ax)
+    cbar.ax.tick_params(labelsize=20) 
+    cbar.set_ticks([0.3,0.35,0.4,0.45])
+    # cbar.set_ticklabels([0.3,0.35,0.4])
+    pl.figtext(0.93,0.52,'z',fontsize=22)
     # fig.suptitle('%d pairs - class %d' % (n_pairs_used, classif))
+    pl.subplots_adjust(bottom=0.15)
 
     filename_fig = 'filament_map.png'
     # pl.savefig(filename_fig)
@@ -620,7 +636,14 @@ def figure_random():
     list_prod_2D = []
 
     current_id = 0
+
+    dic=tabletools.loadPickle('random.pp2')
+    sum_pdf = dic['sum_pdf']
+    grid_dict = dic['grid_dict']
+    list_prod_2D = dic['list_prod_2D']    
+
     for ir in range(32):
+        break
 
         ids = []
 
@@ -631,7 +654,8 @@ def figure_random():
                 ids.append(current_id)
             current_id+=1
 
-        prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids)
+        # prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids , plots=False)
+
 
         print 'boot % 3d used %d pairs, current_id %d' % (ir,n_pairs_used,current_id)
 
@@ -647,14 +671,57 @@ def figure_random():
         # pl.show()
 
 
-    sum_pdf = np.zeros_like(prod_pdf)
-    for lp2D in list_prod_2D: sum_pdf += lp2D
 
-    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(lp2D,list_sigmas=[1,2,3])
+    # sum_pdf = np.zeros_like(prod_pdf)
+    # for lp2D in list_prod_2D: sum_pdf += lp2D
+    # sum_pdf = sum_pdf / np.sum(sum_pdf.flatten())
 
+    contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(sum_pdf,list_sigmas=[1,2])
+
+
+    xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
+    ylabel=r'radius $\mathrm{Mpc}/h$'
+    if config['kappa_is_K']:
+            # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
+            # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
+            # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
+            xlabel=r'$ D^{f} = \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{200}^{\mathrm{halos}}  $'
+            ylabel=r'$ R^{f} = R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
+
+    # normal plot
     pl.figure()
-    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],lp2D)
-    pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],lp2D,levels=contour_levels,colors='y')
+    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf)
+    pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='y')
+     
+    # paper plots in ugly colormap
+    pl.figure()
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='b')
+    fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
+    # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
+    for l,s in zip( cp.levels, strs ): fmt[l] = s
+    manual_locations = [(1.1,0.5),(1.5,0.5)]
+    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12, manual=manual_locations)
+    # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,cmap=pl.cm.YlOrRd)
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
+    pl.xlabel(xlabel,fontsize=20)
+    pl.ylabel(ylabel,fontsize=20)
+    # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    # pl.plot(max_kappa0,max_radius,'b+',markersize=20,lw=50)
+    pl.axis('tight')
+    pl.yticks([1,2,3,4])
+    # pl.ylim([0,3])
+    pl.ylim([0,4])
+    pl.xticks([0.0,0.25,0.5,1.,2])
+    # pl.xlim([0,0.8])
+    pl.xlim([0,1])
+    pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
+
 
     # pl.figure()
     # for ir in range(0,200,25): pl.plot(grid_dict['grid_kappa0'][:,ir],lp2D[:,ir],label='%2.2f'%grid_dict['grid_radius'][0,ir]); pl.title(grid_dict['grid_radius'][0,ir]); pl.legend()
@@ -663,6 +730,8 @@ def figure_random():
     #     list_prod_2D[ir].argmax(axis=)
     pl.show()
 
+    dic={'sum_pdf':sum_pdf,'grid_dict':grid_dict,'list_prod_2D':list_prod_2D}
+    tabletools.savePickle('random.pp2',dic)
 
     import pdb; pdb.set_trace()
 
@@ -719,8 +788,8 @@ def figure_contours():
             # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
             # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
             # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
-            xlabel=r'$ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{filament}} /  \Delta\Sigma_{200}^{\mathrm{halos}}  $'
-            ylabel=r'$ R_{c}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
+            xlabel=r'$ D^{f} =  \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{200}^{\mathrm{halos}}  $'
+            ylabel=r'$ R^{f} =  R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
 
     
     pl.figure()
@@ -734,13 +803,13 @@ def figure_contours():
     pl.axis('tight')
 
     # paper plots in ugly colormap
-    pl.figure()
-    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='b')
+    pl.figure(figsize=(16,12))
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='b',linewidths=3)
     fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
     for l,s in zip( cp.levels, strs ): fmt[l] = s
     manual_locations = [(1.1,0.5),(1.5,0.5)]
-    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12, manual=manual_locations)
+    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=24, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
@@ -749,8 +818,8 @@ def figure_contours():
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
-    pl.xlabel(xlabel,fontsize=20)
-    pl.ylabel(ylabel,fontsize=20)
+    pl.xlabel(xlabel,fontsize=38)
+    pl.ylabel(ylabel,fontsize=38)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
     # pl.plot(max_kappa0,max_radius,'b+',markersize=20,lw=50)
     pl.scatter(max_kappa0,max_radius,200,c='b',marker='+')
@@ -761,6 +830,7 @@ def figure_contours():
     pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
     pl.xlim([0,2])
+    pl.tick_params(axis='both', which='major', labelsize=22)
     pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
 
     # plot 1d - just kappa0
@@ -783,10 +853,18 @@ def figure_contours():
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(kappa_grid,kappa_at_radius)
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
 
-    pl.figure()
-    pl.plot(kappa_grid,kappa_at_radius)
+    pl.figure(figsize=(8,6))
+    pl.plot(kappa_grid,kappa_at_radius,'b-',label=r'$R^{f}$=%2.2f'%at_radius,lw=4)
+    pl.plot(kappa_grid,prob_kappa0,'b--',label=r'$R^{f}$ marginalised',lw=4)
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_radius,n_pairs_used))
-    pl.xlabel(xlabel)
+    pl.xlabel(xlabel,fontsize=38)
+    pl.yticks([])
+    pl.xticks([0,0.5,1,1.5,2.0])
+    pl.xlim([0,2.])
+    pl.ylim([0,0.013])
+    pl.tick_params(axis='both', which='major', labelsize=22)
+    pl.legend(ncol=2,prop={'size':21},mode='expand')
+    pl.subplots_adjust(bottom=0.2)
 
 
     id_kappa0=max0
@@ -798,12 +876,21 @@ def figure_contours():
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(radius_grid,radius_at_kappa)
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
 
-    pl.figure()
-    pl.plot(radius_grid,radius_at_kappa)
+    pl.figure(figsize=(8,6))
+    pl.plot(radius_grid,radius_at_kappa,'b-',label=r'$D^{f}$=%2.2f'%at_kappa0,lw=4)
+    pl.plot(radius_grid,prob_radius,'b--',label=r'$D^{f}$ marginalised',lw=4)
+    pl.xlabel(ylabel,fontsize=38)
+    pl.yticks([])
+    pl.xticks([0,1,2,3,4])
+    pl.ylim([0,0.0175])
+    pl.legend(ncol=2)
+    pl.tick_params(axis='both', which='major', labelsize=22)
+    pl.legend(ncol=2,prop={'size':21},mode='expand')
+    pl.subplots_adjust(bottom=0.2)
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_kappa0,n_pairs_used))
-    pl.xlabel(xlabel)
-
     pl.show()
+
+    import pdb; pdb.set_trace()
 
 def table_individual():
 
@@ -855,12 +942,45 @@ def table_individual():
                     h2['m200_sig'],
                     )
 
+def figure_prior():
+
+    filename_prior = config['filename_halos'].replace('.fits','.prior.pp2')  
+    prior_dict = tabletools.loadPickle(filename_prior,log=0)
+    pairs = tabletools.loadTable(config['filename_pairs'],log=0)
+    ids = pairs['analysis'] == 1
+    halos_use = np.concatenate([pairs[ids]['ih1'],pairs[ids]['ih2']])
+    prior_ids = prior_dict['halos_like'][halos_use]
+    norm1 = prior_ids-np.kron( np.ones([1,prior_ids.shape[1]]) , prior_ids.max(axis=1)[:,None] )
+    norm2 = np.exp(norm1)/np.kron( np.ones([1,prior_ids.shape[1]]) , np.sum(np.exp(norm1),axis=1)[:,None] )
+    norm3 = np.sum(norm2,axis=0)
+    import scipy.interpolate
+    x=prior_dict['grid_M200']
+
+
+    pl.figure(figsize=(8,6))
+    pl.plot(x,norm3,lw=4)
+    pl.xlabel(r'$M_{200} \ \ \mathrm{M}_{\odot}$',fontsize=30)
+    # pl.xticks([1e14,2e14,3e14,4e14,5e14,6e14,7e14,8e14],[r'1^{'])
+    # pl.xticks([1,2,3,4,5,6,7,8])
+    pl.yticks([])
+    pl.xlim([1e13,8e14])
+    pl.ylim([0,0.18])
+    pl.xscale('log')
+    pl.fill_between(x, 0, norm3,alpha=0.2)
+    pl.tick_params(axis='both', which='major', labelsize=22)
+    pl.subplots_adjust(bottom=0.2)
+
+    # pl.xscale('log')
+    pl.show()
+
+    import pdb; pdb.set_trace()
+
 
 
 def main():
 
 
-    valid_actions = ['figure_fields','figure_model','figure_contours','table_individual','figures_individual'  , 'figure_density' , 'figure_random']
+    valid_actions = ['figure_fields','figure_model','figure_contours','table_individual','figures_individual'  , 'figure_density' , 'figure_random' , 'figure_prior']
 
     description = 'filaments_fit'
     parser = argparse.ArgumentParser(description=description, add_help=True)

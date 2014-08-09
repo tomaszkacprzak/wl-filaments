@@ -286,13 +286,13 @@ class modelfit():
             DeltaSigma_at_R200 = (np.abs(h1g1[0]*h1_Sigma_crit)+np.abs(h2g1[0]*h2_Sigma_crit))/2.
             filament_kappa0 = params[0]*DeltaSigma_at_R200 / 1e14
             filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
-            if self.n_model_evals % 1000==0:
-                log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200 ))
             # remove the halos signal completely for random points null test
             self.nh1.M_200= 1e-8
             self.nh2.M_200= 1e-8
             self.nh1.concentr = self.get_concentr(halo1_M200,self.halo1_z)
-            self.nh2.concentr = self.get_concentr(halo1_M200,self.halo1_z)
+            self.nh2.concentr = self.get_concentr(halo2_M200,self.halo2_z)
+            if self.n_model_evals % 1000==0:
+                log.info('p[0]=%5.2f p[1]=%5.2f kappa0=%5.2f radius=%5.2f r200_1=%5.2f r200_2=%5.2f m200_1=%5.2f m200_2=%5.2f' % ( params[0],params[1],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200,self.nh1.M_200,self.nh2.M_200 ))
 
         else:   # standard model
             filament_kappa0 = params[0]
