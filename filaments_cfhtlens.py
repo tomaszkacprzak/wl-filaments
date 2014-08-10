@@ -161,7 +161,7 @@ def main():
     parser.add_argument('-c', '--filename_config', default='cfhtlens.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
     parser.add_argument('-n', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
-    parser.add_argument('-a', '--action', default=-1 ,type=str, action='store', help='what to do? %s' % available_actions)
+    parser.add_argument('-a', '--action', default='main' ,type=str, action='store', help='what to do? %s' % available_actions)
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     args = parser.parse_args()
