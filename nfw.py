@@ -31,6 +31,9 @@ class NfwHalo:
     # calculate the hidden variables
     def update(self):
 
+        # get concentration
+        self.concentr = self.get_concentr()
+
         # cosmological critical density at redshift of the lens
         self.rho_crit_z_cluster = cosmoparams.rho_crit * (cosmoparams.Omega_m *(1+self.z_cluster)**3 + (1-cosmoparams.Omega_m))     
         # cosmological mean density at redshift of the lens

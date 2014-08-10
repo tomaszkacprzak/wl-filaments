@@ -802,6 +802,13 @@ def apply_prior(log_prob,grid_h1M200,grid_h2M200,ids=None):
     prior_dict = tabletools.loadPickle(filename_prior,log=0)
     pairs = tabletools.loadTable(config['filename_pairs'],log=0)
     halos_use = np.concatenate([pairs[ids]['ih1'],pairs[ids]['ih2']])
+
+    if 'use_random_halos' in config:
+        warnings.warn('using random halos')
+        pairs_main = tabletools.loadTable('pairs_cfhtlens_lrgs.fits',log=0)
+        pairs_main = pairs_main[pairs_main['analysis']==1]
+        halos_use = np.concatenate([pairs_main['ih1'],pairs_main['ih2']])
+
     prior_ids = prior_dict['halos_like'][halos_use]
     norm1 = prior_ids-np.kron( np.ones([1,prior_ids.shape[1]]) , prior_ids.max(axis=1)[:,None] )
     norm2 = np.exp(norm1)/np.kron( np.ones([1,prior_ids.shape[1]]) , np.sum(np.exp(norm1),axis=1)[:,None] )
@@ -869,7 +876,6 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     n_usable_results=0
 
     filename_grid = '%s/results.grid.%s.pp2' % (args.results_dir,name_data)
-    # filename_grid = 'results_local2scratch/results.grid.%s.pp2' % name_data
     grid_pickle = tabletools.loadPickle(filename_grid)
     grid_kappa0 = grid_pickle['grid_kappa0'][:,:,0,0]
     grid_radius = grid_pickle['grid_radius'][:,:,0,0]
@@ -913,6 +919,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             except:
                 log_prob = results_pickle
 
+            import pdb; pdb.set_trace()
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
             warnings.warn('log_prob.shape %s' % str(log_prob.shape))
@@ -1726,6 +1733,7 @@ def plotdata_all():
     # 111 123
 
     remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
+    # remove_list=[] # 011-kappaK rmcloseby
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
     remove_interloper=[]

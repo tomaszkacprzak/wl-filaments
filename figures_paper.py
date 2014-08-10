@@ -71,13 +71,23 @@ def figure_density():
 
     param0_old = 0.4
     param1 = 1
+    param1_min = 0.75
+    param1_max = 3.
     param0 = 0.9
+    param0_min = 0.5
+    param0_max = 1.5
     param0_prop = 1.5
 
     list_new = []
     list_old = []
     list_pro = []
     list_m200 = []
+    list_radius = []
+    list_min=[]
+    list_max=[]
+    list_r_min=[]
+    list_r_max=[]
+
 
     for ip,vp in enumerate(pairs[pairs['analysis']==1]):
 
@@ -113,37 +123,79 @@ def figure_density():
         DeltaSigma_at_R200 = (np.abs(h1_DeltaSigma[0])+np.abs(h2_DeltaSigma[0]))/2.
         filament_kappa0 = param0 * DeltaSigma_at_R200 / 1e14
         filament_radius = param1 * (nh1.R_200+nh2.R_200)/2.
+        filament_kappa0_min = param0_min * DeltaSigma_at_R200 / 1e14
+        filament_kappa0_max = param0_max * DeltaSigma_at_R200 / 1e14
+        filament_radius_min = param1_min * (nh1.R_200+nh2.R_200)/2.
+        filament_radius_max = param1_max * (nh1.R_200+nh2.R_200)/2.
 
         DeltaSigma_at_R200_bug = (np.abs(h2g1[0]*h2_Sigma_crit)+np.abs(h1g1[0]*h1_Sigma_crit))/2.
         filament_kappa0_old = param0_old * DeltaSigma_at_R200_bug / 1e14
 
         filament_kappa0_prop = param0_prop * (-1)*(h1g1m[0]+h2g1m[0]) * h2_Sigma_critm / 1e14
 
-        print '% 4d M1=%2.2e M2=%2.2e Mmid=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f ' % (ip,nh1.M_200,nh2.M_200, (nh1.M_200+nh2.M_200 )/2. ,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius)
+        radius_grid = np.linspace(-3,3,20000)
+        dr = radius_grid[1]-radius_grid[0]
+        Dtot = np.sqrt(vp['Dxy']**2+vp['Dlos']**2)
+        filament_mass_mid = np.sum(param0     * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1     * (nh1.R_200+nh2.R_200)/2. )**2) )* (Dtot-3) * 1e14
+        filament_mass_min = np.sum(param0_min * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1_min * (nh1.R_200+nh2.R_200)/2. )**2) )* (Dtot-3) * 1e14
+        filament_mass_max = np.sum(param0_max * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1_max * (nh1.R_200+nh2.R_200)/2. )**2) )* (Dtot-3) * 1e14
+
+        print '% 4d M1=%2.2e M2=%2.2e Mmid=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f Dtot=%2.2f' % (ip,nh1.M_200,nh2.M_200, (nh1.M_200+nh2.M_200 )/2. ,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius, Dtot)
         print '---- DSmid=%2.2e kappa0=%2.2f' % ((h1_DeltaSigmam[0]+h2_DeltaSigmam[0]),filament_kappa0)
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h1g1[0], h1_DeltaSigma[0], h1_Sigma_crit, h1_kappa[0])
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h2g1[0], h2_DeltaSigma[0], h2_Sigma_crit, h2_kappa[0])
         print '---- change: %2.2f' % (filament_kappa0_old/filament_kappa0)
+        print '---- mass: %2.2e +/- %2.2e %2.2e' % (filament_mass_mid,filament_mass_max,filament_mass_min)
+
+
 
         list_m200.append((nh2.M_200+nh1.M_200)/2.)
         list_old.append(filament_kappa0_old)        
         list_new.append(filament_kappa0)
+        list_min.append(filament_kappa0_min)
+        list_max.append(filament_kappa0_max)
         list_pro.append(filament_kappa0_prop)        
+        list_radius.append(filament_radius)
+        list_r_min.append(filament_radius_min)
+        list_r_max.append(filament_radius_max)
 
     list_m200 = np.array(list_m200)
     list_new = np.array(list_new)
     import fitting
     a,b,Cab = fitting.get_line_fit(list_m200/1e14,list_new,np.ones_like(list_new))
-    print 'line fit a' ,  a
-    print 'line fit b' ,  b
-    print 'line fit C' ,  Cab
+    amin,bmin,Cab = fitting.get_line_fit(list_m200/1e14,list_min,np.ones_like(list_new))
+    amax,bmax,Cab = fitting.get_line_fit(list_m200/1e14,list_max,np.ones_like(list_new))
+    print 'line fit DS a' ,  a
+    print 'line fit DS b' ,  b
+    print 'line fit DS C' ,  Cab
     print 'median Delta Sigma' , np.median(list_new)
 
+    ar,br,Cabr = fitting.get_line_fit(list_m200/1e14,list_radius,np.ones_like(list_new))
+    armin,brmin,Cabr = fitting.get_line_fit(list_m200/1e14,list_r_min,np.ones_like(list_new))
+    armax,brmax,Cabr = fitting.get_line_fit(list_m200/1e14,list_r_max,np.ones_like(list_new))
+    print 'line fit R a' ,  ar
+    print 'line fit R b' ,  br
+    print 'line fit R C' ,  Cabr
+    print 'median Delta Sigma' , np.median(list_new)
+
+
     # pl.plot(list_m200,list_old,'r.')
+    pl.figure()
     pl.plot(list_m200/1e14,list_new,'g.')
     pl.plot(list_m200/1e14,b*list_m200/1e14+a)
+    pl.plot(list_m200/1e14,bmin*list_m200/1e14+amin)
+    pl.plot(list_m200/1e14,bmax*list_m200/1e14+amax)
     pl.xlabel('mean m200')
     pl.ylabel(r'mean \Delta\Sigma')
+    # pl.plot(list_m200,list_pro,'b.')
+
+    pl.figure()
+    pl.plot(list_m200/1e14,list_radius,'g.')
+    pl.plot(list_m200/1e14,br*list_m200/1e14+ar)
+    pl.plot(list_m200/1e14,brmin*list_m200/1e14+armin)
+    pl.plot(list_m200/1e14,brmax*list_m200/1e14+armax)
+    pl.xlabel('mean m200')
+    pl.ylabel(r'mean radius')
     # pl.plot(list_m200,list_pro,'b.')
     pl.show()
 
@@ -600,6 +652,7 @@ def figure_fields():
 
 def figure_random():
 
+    config['use_random_halos'] = True
     import filaments_analyse
     filaments_analyse.config=config
     filaments_analyse.args=args
@@ -637,13 +690,17 @@ def figure_random():
 
     current_id = 0
 
-    dic=tabletools.loadPickle('random.pp2')
-    sum_pdf = dic['sum_pdf']
-    grid_dict = dic['grid_dict']
-    list_prod_2D = dic['list_prod_2D']    
+    use_pickle=False
+
+    if use_pickle:
+        dic=tabletools.loadPickle('random.pp2')
+        sum_pdf = dic['sum_pdf']
+        grid_dict = dic['grid_dict']
+        list_prod_2D = dic['list_prod_2D']    
 
     for ir in range(32):
-        break
+
+        if use_pickle: break
 
         ids = []
 
@@ -654,7 +711,7 @@ def figure_random():
                 ids.append(current_id)
             current_id+=1
 
-        # prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids , plots=False)
+        prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids , plots=False)
 
 
         print 'boot % 3d used %d pairs, current_id %d' % (ir,n_pairs_used,current_id)
@@ -671,10 +728,10 @@ def figure_random():
         # pl.show()
 
 
-
-    # sum_pdf = np.zeros_like(prod_pdf)
-    # for lp2D in list_prod_2D: sum_pdf += lp2D
-    # sum_pdf = sum_pdf / np.sum(sum_pdf.flatten())
+    if not use_pickle:
+        sum_pdf = np.zeros_like(prod_pdf)
+        for lp2D in list_prod_2D: sum_pdf += lp2D
+        sum_pdf = sum_pdf / np.sum(sum_pdf.flatten())
 
     contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(sum_pdf,list_sigmas=[1,2])
 
@@ -685,7 +742,7 @@ def figure_random():
             # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
             # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
             # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
-            xlabel=r'$ D^{f} = \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{200}^{\mathrm{halos}}  $'
+            xlabel=r'$ D^{f} = \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{R200}^{\mathrm{halos}}  $'
             ylabel=r'$ R^{f} = R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
 
     # normal plot
@@ -694,13 +751,13 @@ def figure_random():
     pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='y')
      
     # paper plots in ugly colormap
-    pl.figure()
-    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='b')
+    pl.figure(figsize=(8,6))
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='b',linewidths=3)
     fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
     for l,s in zip( cp.levels, strs ): fmt[l] = s
     manual_locations = [(1.1,0.5),(1.5,0.5)]
-    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=12, manual=manual_locations)
+    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=20, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,cmap=pl.cm.YlOrRd)
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
@@ -709,18 +766,20 @@ def figure_random():
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
-    pl.xlabel(xlabel,fontsize=20)
-    pl.ylabel(ylabel,fontsize=20)
+    pl.xlabel(xlabel,fontsize=28)
+    pl.ylabel(ylabel,fontsize=28)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
     # pl.plot(max_kappa0,max_radius,'b+',markersize=20,lw=50)
     pl.axis('tight')
     pl.yticks([1,2,3,4])
     # pl.ylim([0,3])
     pl.ylim([0,4])
-    pl.xticks([0.0,0.25,0.5,1.,2])
+    pl.xticks([0.0,0.5,1.,1.5,2])
+    pl.tick_params(axis='both', which='major', labelsize=20)
     # pl.xlim([0,0.8])
-    pl.xlim([0,1])
-    pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
+    # pl.xlim([0,1])
+    pl.subplots_adjust(bottom=0.16,left=0.12,top=0.95)
+
 
 
     # pl.figure()
@@ -788,7 +847,7 @@ def figure_contours():
             # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
             # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
             # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
-            xlabel=r'$ D^{f} =  \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{200}^{\mathrm{halos}}  $'
+            xlabel=r'$ D^{f} =  \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{R200}^{\mathrm{halos}}  $'
             ylabel=r'$ R^{f} =  R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
 
     
@@ -818,6 +877,9 @@ def figure_contours():
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
+
+
+
     pl.xlabel(xlabel,fontsize=38)
     pl.ylabel(ylabel,fontsize=38)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
@@ -826,11 +888,23 @@ def figure_contours():
     pl.axis('tight')
     pl.yticks([1,2,3,4])
     # pl.ylim([0,3])
-    pl.ylim([0,4])
     pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
-    pl.xlim([0,2])
+    xmin,xmax = 0,2
+    ymin,ymax = 0,4
+    pl.xlim([xmin,xmax])
+    pl.ylim([ymin,ymax])
     pl.tick_params(axis='both', which='major', labelsize=22)
+
+    # m1 = 0.0878
+    # m2 = 0.0878
+    # ax2 = pl.gca().twiny()
+    # ax2.plot([xmin*m1,xmax*m1],[-1,-1] ,'r')
+    # ax2.set_xticks([0.05,0.1,0.15])
+    # # ax2.xscale('log')
+    # ax2.tick_params(axis='both', which='major', labelsize=22)
+    # ax2.set_xlabel(r'$\Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} \ \  \mathrm{M_{\odot} \ Mpc^{-2} h} \ \  \mathrm{for} \ \ \mathrm{M_{200}^{halos}}=10^{14} \ \ \mathrm{M_{\odot}/h}$',fontsize=38)
+
     pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
 
     # plot 1d - just kappa0

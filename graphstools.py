@@ -87,10 +87,10 @@ def get_best_neighbour(pairs,halo1,halo2):
     # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
     # select_cut = ( (halo1['m200_fit'] < 1.5e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
 
+    # 47 pairs - main result
     select_cut = ( ((halo1['m200_fit'] > 1e13) | (halo2['m200_fit'] > 1e13)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 1.75) | (halo2['m200_sig'] > 1.75)) ) # 011-kappaK 48  4.65  
    
-    # main result
-    # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
+    # select_cut = ( ((halo1['m200_fit'] > 1e13) | (halo2['m200_fit'] > 1e13)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 8) & ((halo1['m200_sig'] > 1.) | (halo2['m200_sig'] > 1.)) ) # 011-kappaK 48  4.65  
     
     # random
     # select_cut = ( (halo1['m200_fit'] > 1e13) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6)  ) 
