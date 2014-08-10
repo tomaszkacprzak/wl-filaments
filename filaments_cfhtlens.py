@@ -150,6 +150,8 @@ def estimate_snr():
 
 def main():
     
+    available_actions = ['main','random']
+
     global config , args
 
     description = 'filaments_cfhtlens'
@@ -159,6 +161,7 @@ def main():
     parser.add_argument('-c', '--filename_config', default='cfhtlens.yaml',type=str, action='store', help='name of the yaml config file')
     parser.add_argument('-f', '--first', default=0,type=int, action='store', help='first pairs to process')
     parser.add_argument('-n', '--num', default=-1 ,type=int, action='store', help='last pairs to process')
+    parser.add_argument('-a', '--action', default=-1 ,type=str, action='store', help='what to do? %s' % available_actions)
     # parser.add_argument('-d', '--dry', default=False,  action='store_true', help='Dry run, dont generate data')
 
     args = parser.parse_args()
@@ -181,8 +184,10 @@ def main():
 
     logger.info('selecting halos using %s' % config['cfhtlens_select_fun'])
     filaments_tools.add_phys_dist()
-    # filaments_tools.get_pairs_topo()
-    filaments_tools.get_pairs_resampling()
+    if args.action == 'main':
+        filaments_tools.get_pairs_topo()
+    elif args.action == 'random':
+        filaments_tools.get_pairs_resampling()
 
     filaments_tools.stats_pairs()
     filaments_tools.boundary_mpc=config['boundary_mpc']

@@ -3,8 +3,8 @@ addpath(genpath('~/code/gravlens/'))
 data = load('test_nfw_data_gravlenspy.txt');
 theta_x = data(:,3);
 theta_y = data(:,4);
-M_200=2.7779e+14 
-conc=4.15184786761
+M_200=4.7779e+14 
+conc=4.28229095326
 theta_cx=15 
 theta_cy=0
 zclust= 0.257707923651

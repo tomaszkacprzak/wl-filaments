@@ -31,16 +31,15 @@ def main():
     log.setLevel(logging_level)
 
     zclust= 0.257707923651
-    M_200=2.7779e+14 
+    M_200=4.7779e+14 
     concentr = 5.72/(1.+zclust)**0.71 * (M_200 / 1e14)**(-0.081)
     theta_cx=42.6863732955 
     zsource=1
     Omega_m=0.271
-    concentr = 4.15184786761
     theta_cx=15 
     theta_cy=0
 
-    true_M200_log = np.log10(M_200)
+    true_M200 = M_200
 
     x,y = np.meshgrid(np.linspace(-30,30,100),np.linspace(-30,30,100))
     shear_u_arcmin , shear_v_arcmin = x.flatten() , y.flatten()
@@ -61,7 +60,7 @@ def main():
     fitobj.nh.theta_cy = fitobj.halo_v_arcmin 
     fitobj.nh.M_200 = M_200
 
-    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask , _ , _  =  fitobj.draw_model([true_M200_log])  
+    fitobj.shear_g1 , fitobj.shear_g2 , limit_mask , _ , _  =  fitobj.draw_model([true_M200])  
     fitobj.plot_shears(fitobj.shear_g1,fitobj.shear_g2,limit_mask,unit='arcmin',quiver_scale=1)
 
 
