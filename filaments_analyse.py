@@ -919,7 +919,6 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
             except:
                 log_prob = results_pickle
 
-            import pdb; pdb.set_trace()
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
             warnings.warn('log_prob.shape %s' % str(log_prob.shape))
@@ -1732,8 +1731,8 @@ def plotdata_all():
     # 146 33
     # 111 123
 
-    remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
-    # remove_list=[] # 011-kappaK rmcloseby
+    # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
+    remove_list=[] # 011-kappaK rmcloseby
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
     remove_interloper=[]

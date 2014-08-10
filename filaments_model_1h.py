@@ -153,7 +153,7 @@ class modelfit():
         halo_M200 = params[0]
 
         self.nh.M_200= halo_M200
-        self.nh.concentr = self.get_concentr(halo_M200,self.halo_z)
+        self.nh.update()
         self.nh.R_200 = self.nh.r_s*self.nh.concentr
 
         model_g1 , model_g2 , Delta_Sigma , Sigma_Crit, kappa  = self.nh.get_shears_with_pz_fast(self.shear_u_arcmin , self.shear_v_arcmin , self.grid_z_centers , self.prob_z, redshift_offset)

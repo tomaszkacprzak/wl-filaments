@@ -252,6 +252,7 @@ class modelfit():
         self.nh2.R_200 = self.nh2.r_s*self.nh2.concentr      
 
         if self.kappa_is_K == 'DS': # model where kappa is dependent on halo mass
+            warnings.warn('using DS')
             h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             h2_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
@@ -266,6 +267,7 @@ class modelfit():
                 log.info('p[0]=%5.4f p[1]=%5.4f p[2]=%5.4f p[3]=%5.4f kappa0=%5.4e radius=%5.4f r200_1=%5.2f r200_2=%5.2f m200_1=%5.2e m200_2=%5.2e' % ( params[0],params[1],params[2],params[3],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200,self.nh1.M_200,self.nh2.M_200 ))
 
         elif self.kappa_is_K == 'DSmean': # model where kappa is dependent on halo mass
+            warnings.warn('using DSmean')
             h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
@@ -276,10 +278,11 @@ class modelfit():
             filament_kappa0 = params[0]*DeltaSigma_at_R200 / 1e14
             filament_radius = params[1]*(self.nh1.R_200+self.nh2.R_200)/2.
             # filament_radius = params[1]
-            if self.n_model_evals % 1000==0:
+            if self.n_model_evals % 1000==log:
                 log.info('p[0]=%5.4f p[1]=%5.4f p[2]=%5.4f p[3]=%5.4f kappa0=%5.4e radius=%5.4f r200_1=%5.2f r200_2=%5.2f m200_1=%5.2e m200_2=%5.2e' % ( params[0],params[1],params[2],params[3],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200,self.nh1.M_200,self.nh2.M_200 ))
 
         elif self.kappa_is_K == 'DS-freeR': # model where kappa is dependent on halo mass
+            warnings.warn('using DS-freeR')
             h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             h2_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
@@ -294,6 +297,7 @@ class modelfit():
                 log.info('p[0]=%5.4f p[1]=%5.4f p[2]=%5.4f p[3]=%5.4f kappa0=%5.4e radius=%5.4f r200_1=%5.2f r200_2=%5.2f m200_1=%5.2e m200_2=%5.2e' % ( params[0],params[1],params[2],params[3],filament_kappa0,filament_radius,self.nh1.R_200,self.nh2.R_200,self.nh1.M_200,self.nh2.M_200 ))
 
         if self.kappa_is_K == 'DSmean-freeR': # model where kappa is dependent on halo mass
+            warnings.warn('using DSmean-freeR')
             h1_r200_arcmin = self.nh1.R_200/cosmology.get_ang_diam_dist(self.halo1_z)/np.pi*180*60
             h2_r200_arcmin = self.nh2.R_200/cosmology.get_ang_diam_dist(self.halo2_z)/np.pi*180*60
             theta1_x=self.nh1.theta_cx+h1_r200_arcmin
