@@ -888,7 +888,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
     normalisation_factor=-10000
 
     if hires:    
-        n_upsample = 20
+        n_upsample = 40
         vec_kappa0_hires = np.linspace(min(grid_kappa0[:,0]),max(grid_kappa0[:,0]),len(grid_kappa0[:,0])*n_upsample)
         # vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
         vec_radius_hires = np.linspace(min(grid_radius[0,:]),max(grid_radius[0,:]),len(grid_radius[0,:])*n_upsample)
@@ -1010,6 +1010,12 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
                     best_h1m200_index = np.argmin(np.abs(grid_h1M200-this_h1_m200/1e14))  + 1
                     best_h2m200_index = np.argmin(np.abs(grid_h2M200-this_h2_m200/1e14))  + 1
+                    if (best_h1m200_index>=len(grid_h1M200)): 
+                        best_h1m200_index = len(grid_h1M200)-1
+                        logger.warning('ipair=%d really high m200 this_h1_m200=%2.2e',nf,this_h1_m200)
+                    if (best_h2m200_index>=len(grid_h2M200)):
+                        logger.warning('ipair=%d really high m200 this_h2_m200=%2.2e',nf,this_h2_m200)
+                        best_h2m200_index = len(grid_h1M200)-1
                     print '%4d %4d %5.2f %5.2f'  % (best_h1m200_index , best_h2m200_index , grid_h1M200[best_h1m200_index] , grid_h2M200[best_h2m200_index])
                     log_prob_2D = log_prob[:,:,best_h1m200_index,best_h2m200_index]
                     if np.any(np.isinf(log_prob_2D)) | np.any(np.isnan(log_prob_2D)):
@@ -1122,6 +1128,11 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
 
     if hires:
+
+        grid_radius_hires = grid_radius_hires[:,:]
+        grid_kappa0_hires = grid_kappa0_hires[:,:]
+        logprob_kappa0_radius_hires = logprob_kappa0_radius_hires[:,:]
+        # grid_radius_hires
         grid2D_dict = { 'grid_kappa0'  : grid_kappa0_hires , 'grid_radius' : grid_radius_hires}  
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
         return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
@@ -1733,13 +1744,19 @@ def plotdata_all():
 
     # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
     # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
-    remove_list=[] # 011-kappaK rmcloseby
+    #185, 285, 
+    #186, 286
+    #45,46
+    remove_list=[186] 
+    # remove_list=[0,318]
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
+    # remove_list=[]
     remove_interloper=[]
     for ri in (remove_list+remove_interloper):
         if ri in ids: 
             ids.remove(ri)
+            print 'removed ', ri
         else:
             print 'not in pairs' , ri
     # for ri in remove_interloper:
@@ -1835,7 +1852,7 @@ def plotdata_all():
     
     pl.figure()
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
-    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.get_cmap('Blues'))
     pl.axhline(max_radius,color='r')
     pl.axvline(max_kappa0,color='r')
     pl.xlabel(xlabel)

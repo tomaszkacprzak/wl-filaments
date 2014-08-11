@@ -890,8 +890,8 @@ def figure_contours():
     # pl.ylim([0,3])
     pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
-    xmin,xmax = 0,2
-    ymin,ymax = 0,4
+    xmin,xmax = 0,1.2
+    ymin,ymax = 0,3
     pl.xlim([xmin,xmax])
     pl.ylim([ymin,ymax])
     pl.tick_params(axis='both', which='major', labelsize=22)
@@ -934,7 +934,7 @@ def figure_contours():
     pl.xlabel(xlabel,fontsize=38)
     pl.yticks([])
     pl.xticks([0,0.5,1,1.5,2.0])
-    pl.xlim([0,2.])
+    pl.xlim([0,1.2])
     pl.ylim([0,0.013])
     pl.tick_params(axis='both', which='major', labelsize=22)
     pl.legend(ncol=2,prop={'size':21},mode='expand')
@@ -956,6 +956,7 @@ def figure_contours():
     pl.xlabel(ylabel,fontsize=38)
     pl.yticks([])
     pl.xticks([0,1,2,3,4])
+    pl.xlim([0,3])
     pl.ylim([0,0.0175])
     pl.legend(ncol=2)
     pl.tick_params(axis='both', which='major', labelsize=22)

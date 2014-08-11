@@ -644,8 +644,12 @@ def get_pairs_null1(filename_halos='halos_bcc.fits',filename_pairs_exclude='pair
 def get_pairs_resampling():
 
     halos = tabletools.loadTable(config['filename_halos'])
-    list_conn1 = range(0,len(halos),2)
-    list_conn2 = range(1,len(halos),2)
+    if len(halos) % 2 == 0:
+        list_conn1 = range(0,len(halos),2)
+        list_conn2 = range(1,len(halos),2)
+    else:
+        list_conn1 = range(0,len(halos)-1,2)
+        list_conn2 = range(1,len(halos),2)
 
     ih1 = halos[list_conn1]['id']
     ih2 = halos[list_conn2]['id']

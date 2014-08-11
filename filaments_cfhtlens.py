@@ -182,7 +182,6 @@ def main():
     filename_pairs = config['filename_pairs']
     filename_shears = config['filename_shears']
 
-    logger.info('selecting halos using %s' % config['cfhtlens_select_fun'])
     filaments_tools.add_phys_dist()
     if args.action == 'main':
         filaments_tools.get_pairs_topo()

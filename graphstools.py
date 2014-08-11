@@ -88,7 +88,13 @@ def get_best_neighbour(pairs,halo1,halo2):
     # select_cut = ( (halo1['m200_fit'] < 1.5e14) & (halo2['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 6) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
 
     # 47 pairs - main result
-    select_cut = ( ((halo1['m200_fit'] > 1e13) | (halo2['m200_fit'] > 1e13)) & (Dtot < 20) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 7) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) # 011-kappaK 48  4.65  
+    # select_cut = ( ((halo1['m200_fit'] > 1e13) | (halo2['m200_fit'] > 1e13)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 1.75) | (halo2['m200_sig'] > 1.75)) ) # 011-kappaK 48  4.65  
+
+    # new fix
+    # select_cut = ( ((halo1['m200_fit'] > 1.e13) | (halo2['m200_fit'] > 1.e13)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 2.2) | (halo2['m200_sig'] > 2.2)) ) 
+    # select_cut = ( ((halo1['m200_fit'] > 1.5e14) | (halo2['m200_fit'] > 1.5e14)) & (Dtot < 15) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 1.5) | (halo2['m200_sig'] > 1.5)) ) 
+    # select_cut = ( ((halo1['m200_fit'] > 1.5e14) | (halo2['m200_fit'] > 1.5e14)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) 
+    select_cut = ( ((halo1['m200_fit'] > 2.5e14) | (halo2['m200_fit'] > 2.5e14)) & (halo2['m200_fit'] > 1e13) & (halo1['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 1.) & (halo2['m200_sig'] > 1.)) ) 
     select_list = np.nonzero(select_cut)[0].tolist()
     return select_list
    
@@ -107,8 +113,9 @@ def get_best_neighbour(pairs,halo1,halo2):
         select = ((pairs['ih1'] == vp['ih1']) | (pairs['ih2'] == vp['ih1'])) & select_cut
         d =np.sqrt(pairs[select]['Dxy']**2 + pairs[select]['Dlos']**2)**(1/2.)
         # d = 1/pairs[select]['Dlos']
-        q =  halo2[select]['m200_fit']/1e14/d
-        # q =  d
+        # q =  (halo2[select]['m200_fit'])/1e14/d
+        q =  (halo2[select]['m200_fit'])/1e14
+        # q =  1./d
 
         dist1 = cosmology.get_angular_separation(vp['ra1'],vp['dec1'],pairs[select_list]['ra1'],pairs[select_list]['dec1'],unit='deg')
         dist2 = cosmology.get_angular_separation(vp['ra1'],vp['dec1'],pairs[select_list]['ra2'],pairs[select_list]['dec2'],unit='deg')
