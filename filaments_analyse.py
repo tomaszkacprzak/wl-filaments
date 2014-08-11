@@ -1732,8 +1732,8 @@ def plotdata_all():
     # 111 123
 
     # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
-    remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
-    # remove_list=[] # 011-kappaK rmcloseby
+    # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
+    remove_list=[] # 011-kappaK rmcloseby
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 
     remove_interloper=[]
