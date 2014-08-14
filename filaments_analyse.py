@@ -819,8 +819,8 @@ def apply_prior(log_prob,grid_h1M200,grid_h2M200,ids=None):
     if args.halo_removal == 'prior':  y = np.log(norm3/np.sum(norm3))      
     if args.halo_removal == 'flat':   y=x*0-1
 
-    min_m200_h1 = 0.5
-    min_m200_h2 = 0.5
+    min_m200_h1 = 1
+    min_m200_h2 = 1
     max_m200_h1 = 10
     max_m200_h2 = 10
     y1 = y.copy()
@@ -896,6 +896,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
         logprob_kappa0_radius_hires = np.zeros([ len(vec_kappa0_hires) , len(vec_radius_hires) ])+66
         logprob_kappa0_hires = np.zeros([ len(vec_kappa0_hires) ])+66
 
+    total_normalisation = 0
     for nf in range(id_file_first,id_file_last):
 
         if nf in ids:
@@ -1058,6 +1059,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
 
                 elif use_default:
 
+                    total_normalisation += log_prob.max()
                     pdf_prob = np.exp(log_prob - log_prob.max()) 
                     pdf_prob_2D = np.sum(pdf_prob,axis=(2,3))
                     log_prob_2D = np.log(pdf_prob_2D)
@@ -1133,7 +1135,7 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
         grid_kappa0_hires = grid_kappa0_hires[:,:]
         logprob_kappa0_radius_hires = logprob_kappa0_radius_hires[:,:]
         # grid_radius_hires
-        grid2D_dict = { 'grid_kappa0'  : grid_kappa0_hires , 'grid_radius' : grid_radius_hires}  
+        grid2D_dict = { 'grid_kappa0'  : grid_kappa0_hires , 'grid_radius' : grid_radius_hires , 'total_normalisation' : total_normalisation}  
         prod2D_pdf , prod2D_log_pdf , _ , _ = mathstools.get_normalisation(logprob_kappa0_radius_hires)  
         return prod2D_pdf, grid2D_dict, list_ids_used, n_usable_results
     else:
@@ -1746,8 +1748,12 @@ def plotdata_all():
     # remove_list=[317,40,288,426,134,275,60,71,228,21,118,37,146,111] # 011-kappaK rmcloseby
     #185, 285, 
     #186, 286
-    #45,46
+    #44,43
+    #34,33
+    #18,301
+    #28,27
     remove_list=[186] 
+    # remove_list=[186,44,34,301,28] 
     # remove_list=[0,318]
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby 

@@ -248,6 +248,10 @@ def fit_2hf():
             fitobj.shear_n_gals = shears_info['n_gals']
             fitobj.inv_sq_sigma_g = fitobj.shear_w
             logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
+        elif type(config['sigma_method'])==float:
+            fitobj.shear_n_gals = shears_info['n_gals']
+            fitobj.inv_sq_sigma_g =  fitobj.shear_n_gals / (config['sigma_method']**2)
+            logger.info('using constant sigma_g per pixel: sigma_e=%2.5f, mean(sigma_gp)=%2.5f  mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , config['sigma_method'], np.mean(1./np.sqrt(np.mean(fitobj.inv_sq_sigma_g))), np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
                     
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]

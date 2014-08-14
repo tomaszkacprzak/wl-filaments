@@ -70,12 +70,12 @@ def figure_density():
     print h1g1*Sigma_crit
 
     param0_old = 0.4
-    param1 = 1
+    param1 = 1.5
     param1_min = 0.75
-    param1_max = 3.
-    param0 = 0.9
-    param0_min = 0.5
-    param0_max = 1.5
+    param1_max = 2.
+    param0 = 0.5
+    param0_min = 0.3
+    param0_max = 7.5
     param0_prop = 1.5
 
     list_new = []
@@ -97,7 +97,7 @@ def figure_density():
         nh1 = nfw.NfwHalo()
         nh1.z_cluster= halo1['z'][ip]
         nh1.M_200    = halo1['m200_fit'][ip]
-        nh1.concentr = nh1.get_concentr()
+        nh1.update()
         nh1.set_mean_inv_sigma_crit(grid_z_centers,prob_z,nh1.z_cluster)
         nh1.R_200 = nh1.r_s*nh1.concentr      
         nh1.theta_cx = vp['u1_arcmin']
@@ -122,11 +122,11 @@ def figure_density():
         
         DeltaSigma_at_R200 = (np.abs(h1_DeltaSigma[0])+np.abs(h2_DeltaSigma[0]))/2.
         filament_kappa0 = param0 * DeltaSigma_at_R200 / 1e14
-        filament_radius = param1 * (nh1.R_200+nh2.R_200)/2.
+        filament_radius = param1 
         filament_kappa0_min = param0_min * DeltaSigma_at_R200 / 1e14
         filament_kappa0_max = param0_max * DeltaSigma_at_R200 / 1e14
-        filament_radius_min = param1_min * (nh1.R_200+nh2.R_200)/2.
-        filament_radius_max = param1_max * (nh1.R_200+nh2.R_200)/2.
+        filament_radius_min = param1_min 
+        filament_radius_max = param1_max 
 
         DeltaSigma_at_R200_bug = (np.abs(h2g1[0]*h2_Sigma_crit)+np.abs(h1g1[0]*h1_Sigma_crit))/2.
         filament_kappa0_old = param0_old * DeltaSigma_at_R200_bug / 1e14
@@ -136,9 +136,9 @@ def figure_density():
         radius_grid = np.linspace(-3,3,20000)
         dr = radius_grid[1]-radius_grid[0]
         Dtot = np.sqrt(vp['Dxy']**2+vp['Dlos']**2)
-        filament_mass_mid = np.sum(param0     * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1     * (nh1.R_200+nh2.R_200)/2. )**2) )* (Dtot-3) * 1e14
-        filament_mass_min = np.sum(param0_min * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1_min * (nh1.R_200+nh2.R_200)/2. )**2) )* (Dtot-3) * 1e14
-        filament_mass_max = np.sum(param0_max * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1_max * (nh1.R_200+nh2.R_200)/2. )**2) )* (Dtot-3) * 1e14
+        filament_mass_mid = np.sum(param0     * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1)**2) )* (Dtot-3) * 1e14
+        filament_mass_min = np.sum(param0_min * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1_min)**2) )* (Dtot-3) * 1e14
+        filament_mass_max = np.sum(param0_max * DeltaSigma_at_R200 / 1e14 * dr / (1+ radius_grid**2/(param1_max)**2) )* (Dtot-3) * 1e14
 
         print '% 4d M1=%2.2e M2=%2.2e Mmid=%2.2e DS200=%2.2e kappa0=%2.3f kappa0_bug=%2.3f radius=%2.2f Dtot=%2.2f' % (ip,nh1.M_200,nh2.M_200, (nh1.M_200+nh2.M_200 )/2. ,DeltaSigma_at_R200,filament_kappa0,filament_kappa0_old,filament_radius, Dtot)
         print '---- DSmid=%2.2e kappa0=%2.2f' % ((h1_DeltaSigmam[0]+h2_DeltaSigmam[0]),filament_kappa0)
@@ -146,6 +146,7 @@ def figure_density():
         print '---- %5.3f %5.3e %5.3e %5.3f' % (h2g1[0], h2_DeltaSigma[0], h2_Sigma_crit, h2_kappa[0])
         print '---- change: %2.2f' % (filament_kappa0_old/filament_kappa0)
         print '---- mass: %2.2e +/- %2.2e %2.2e' % (filament_mass_mid,filament_mass_max,filament_mass_min)
+        print '---- kappa0: %2.2e +/- %2.2e %2.2e' % (filament_kappa0,filament_kappa0_max,filament_kappa0_min)
 
 
 
@@ -376,8 +377,8 @@ def figure_model():
     fitobj.boost = fitobj.Dtot/pairs_table[id_pair]['Dxy']
     fitobj.use_boost = config['use_boost']
 
-    param_radius = 0.75
-    param_kappa0 = 0.278
+    param_radius = 1.5
+    param_kappa0 = 0.5
     param_masses = 3
     shear_model_g1 , shear_model_g2 , limit_mask , model_DeltaSigma, model_kappa = fitobj.draw_model([param_kappa0, param_radius, param_masses, param_masses])
 
@@ -403,9 +404,18 @@ def figure_model():
     # pl.figure(figsize=(27.3/3.,10/3.))
     pl.figure(figsize=(28/3.,10/3.))
     pl.subplots_adjust(bottom=0.15)
+    n_levels=8
 
+    # cmap = pl.get_cmap('PuBu')
+    # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    # pcm = pl.contourf(shear_u_mpc,shear_v_mpc,model_DeltaSigma,levels=[0.5e13,1e13,2e13,1e15,2e15],cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    cmap = pl.get_cmap('Greys')
+    pcm = pl.contourf(shear_u_mpc,shear_v_mpc,np.log10(model_DeltaSigma),levels=np.linspace(12.,13.7,n_levels),cmap=cmap,extend='both')
+    # pcm.cmap.set_over('black')
+    # pcm.cmap.set_under('black')
     cmap = pl.get_cmap('Blues')
-    pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_DeltaSigma,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    pcm = pl.contourf(shear_u_mpc,shear_v_mpc,model_DeltaSigma,levels=np.logspace(12.,13.7,n_levels),cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
+    pl.contour(shear_u_mpc,shear_v_mpc,model_DeltaSigma,levels=np.logspace(12.,13.7,n_levels),colors='k',lw=2,zorder=1)
     # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap,norm=pl.matplotlib.colors.LogNorm())
     # pcm = pl.pcolormesh(shear_u_mpc,shear_v_mpc,model_kappa,cmap=cmap)
 
@@ -422,7 +432,7 @@ def figure_model():
     unit='Mpc'
 
     line_width=0.003
-    quiver_scale = 1.2
+    quiver_scale = 0.7
     nuse = 4
    
     shear_u_mpc = shear_u_mpc[::nuse,::nuse]
@@ -434,8 +444,8 @@ def figure_model():
 
 
     hc = 8.42
-    rad = 1.1 # mpc
-    mask = (np.sqrt((shear_u_mpc-hc)**2 + shear_v_mpc**2) > rad) * (np.sqrt((shear_u_mpc+hc)**2 + shear_v_mpc**2) > rad) 
+    rad = 1.5 # mpc
+    mask = (np.sqrt((shear_u_mpc-hc)**2 + shear_v_mpc**2) >  (rad + 0.2)) * (np.sqrt((shear_u_mpc+hc)**2 + shear_v_mpc**2) > (rad + 0.2)) 
     shear_u_mpc = shear_u_mpc[mask]
     shear_v_mpc = shear_v_mpc[mask]
     shear_model_g1 = shear_model_g1[mask]
@@ -444,9 +454,9 @@ def figure_model():
     ephi = ephi[mask]
     
 
-    pos=hc*1.015-np.pi/4.
-    pl.plot([-pos,pos],[ param_radius, param_radius],c='k')
-    pl.plot([-pos,pos],[-param_radius,-param_radius],c='k')
+    pos=hc*1.1-np.pi/4.
+    #pl.plot([-pos,pos],[ param_radius, param_radius],c='k')
+    #pl.plot([-pos,pos],[-param_radius,-param_radius],c='k')
 
     import matplotlib
     nz = pl.matplotlib.colors.Normalize()
@@ -459,10 +469,11 @@ def figure_model():
 
     # pl.gca().add_patch(matplotlib.patches.Rectangle((5.5,2.3),5,10,color='w'))
     # qk = pl.quiverkey(quiv, 0.72, 0.8, 0.005, r'$g=0.005$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':20})
-    pl.gca().add_patch(matplotlib.patches.Rectangle((-2.5,-3.7),5,1.1,facecolor='white', edgecolor='black'))
-    pl.gca().add_patch(matplotlib.patches.Circle((-hc,0),1,edgecolor='k',facecolor='none',lw=1))
-    pl.gca().add_patch(matplotlib.patches.Circle(( hc,0),1,edgecolor='k',facecolor='none',lw=1))
-    qk = pl.quiverkey(quiv, 0.475, 0.22, 0.01, r'$g=0.01$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':14})
+    pl.gca().add_patch(matplotlib.patches.Rectangle((7.5,-3.7),4.5,1.1,facecolor='white', edgecolor='black',zorder=2))
+    #pl.gca().add_patch(matplotlib.patches.Circle((-hc,0),rad,edgecolor='k',facecolor='none',lw=1))
+    #pl.gca().add_patch(matplotlib.patches.Circle(( hc,0),rad,edgecolor='k',facecolor='none',lw=1))
+    qk = pl.quiverkey(quiv, 0.775, 0.22, 0.005, r'$g=0.005$', labelpos='E', coordinates='figure', fontproperties={'weight': 'bold' , 'size':16},zorder=3)
+    qk.set_zorder(3)
 
     pl.xlabel(unit)
     pl.ylabel(unit)
@@ -477,16 +488,19 @@ def figure_model():
     
     cbaxes = pl.gcf().add_axes([0.91, 0.2, 0.02, 0.63]) 
     # cbar = pl.colorbar(pcm,cax=cbaxes, orientation='horizontal',ticks=[1e13,1e14,1e15])
-    cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
+    # cbar = pl.colorbar(pcm,cax=cbaxes, ticks=[1e13,1e14,1e15])
+    cbar = pl.colorbar(pcm,cax=cbaxes)
+    cbar.set_ticks( np.append(np.linspace(1e12,1e13,10),np.linspace(1e13,1e14,10)) )
+    # cbar.set_clim([model_DeltaSigma.flatten().min(),2.25e13])
     # cbar = pl.colorbar(pcm,cax=cbaxes)
-    pl.figtext(0.935,0.2,r'$\Delta\Sigma$')
+    pl.figtext(0.935,0.8,r'$\Delta\Sigma$')
 
     print 'fitobj.nh2.R_200' , fitobj.nh2.R_200
 
-    # import pdb; pdb.set_trace()
     # print fitobj.nh2.r_200
     pl.show()
 
+    import pdb; pdb.set_trace()
 
 def figure_fields():
 
@@ -497,6 +511,8 @@ def figure_fields():
     box_w3 = [329.5,336,-2,5.5]
     box_w4 = [131.5,137.5,-6.5,-0.5]
 
+    pairs_all = pairs.copy()
+    pairs_all = pairs_all[pairs_all['Dxy']<30]
     select = pairs['analysis']==1
     pairs=pairs[select]
     halo1=halo1[select]
@@ -538,6 +554,9 @@ def figure_fields():
     # ax1.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d', vmin=minz, vmax=maxz)
     # ax1.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s', vmin=minz, vmax=maxz)
     ax1.text(box_w1[1]-0.2,box_w1[2]+0.2,'W1',fontsize=20)
+    for i in range(len(pairs_all)): 
+        ax1.plot([pairs_all['ra1'][i],pairs_all['ra2'][i]],[pairs_all['dec1'][i],pairs_all['dec2'][i]],c='#989898' ,lw=4,zorder=0)
+        
     for i in range(len(pairs)): 
         ax1.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r',lw=4,zorder=1)
         # ax1.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
@@ -564,6 +583,9 @@ def figure_fields():
     # ax2.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d',vmin=minz, vmax=maxz)
     # ax2.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
     ax2.text(box_w2[1]-0.2,box_w2[2]+0.2,'W3',fontsize=20)
+    for i in range(len(pairs_all)): 
+        ax2.plot([pairs_all['ra1'][i],pairs_all['ra2'][i]],[pairs_all['dec1'][i],pairs_all['dec2'][i]],c='#989898' ,lw=4,zorder=0)
+    
     for i in range(len(pairs)): 
         ax2.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r',lw=4,zorder=1)
         # ax2.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
@@ -591,6 +613,9 @@ def figure_fields():
     ax3.text(box_w3[1]-0.2,box_w3[2]+0.2,'W4',fontsize=20)
     # ax3.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d',vmin=minz, vmax=maxz)
     # ax3.scatter(halos['ra'],halos['dec'],s=50,c=halos['z'],marker='s',vmin=minz, vmax=maxz)
+    for i in range(len(pairs_all)): 
+        ax3.plot([pairs_all['ra1'][i],pairs_all['ra2'][i]],[pairs_all['dec1'][i],pairs_all['dec2'][i]],c='#989898' ,lw=4,zorder=0)
+    
     for i in range(len(pairs)): 
         ax3.plot([pairs['ra1'][i],pairs['ra2'][i]],[pairs['dec1'][i],pairs['dec2'][i]],c='r',lw=4,zorder=1)
         # ax3.text(pairs['ra1'][i],pairs['dec1'][i],'%d'%pairs['ih1'][i],fontsize=10)
@@ -684,48 +709,81 @@ def figure_random():
     args.first=0
     args.num=-1
 
-    n_pairs_use = 47
+    n_pairs_use = 19*40
 
     list_prod_2D = []
 
-    current_id = 0
-
     use_pickle=False
 
+    ids_used = []
+    current_id = 0
+
+    filename_pickle_nulltest = args.filename_config.replace('.yaml','.nulltest.pp2')
     if use_pickle:
-        dic=tabletools.loadPickle('random.pp2')
+        dic=tabletools.loadPickle(filename_pickle)
         sum_pdf = dic['sum_pdf']
         grid_dict = dic['grid_dict']
-        list_prod_2D = dic['list_prod_2D']    
+        list_prod_2D = dic['list_prod_2D']
 
-    for ir in range(32):
+    list_nsig1 = []    
+    list_nsig2 = []    
+
+    for ir in range(1):
 
         if use_pickle: break
+
+        print 'boot % 3d  ------------- ' % (ir)
 
         ids = []
 
         while len(ids) < n_pairs_use:
 
-            filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, current_id, current_id+1 , name_data)
-            if os.path.isfile(filename_pickle):
-                ids.append(current_id)
-            current_id+=1
+            # id_try = np.random.choice(1280)
+            id_try = current_id
+            if id_try not in ids_used:
 
+                filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, id_try, id_try+1 , name_data)
+                if os.path.isfile(filename_pickle):
+                    ids.append(id_try)
+                    ids_used.append(id_try)
+                current_id+=1
+
+        print ids
         prod_pdf, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids , plots=False)
 
+        max0, max1 = np.unravel_index(prod_pdf.argmax(), prod_pdf.shape)
+        id_radius=max1
+        at_radius=grid_dict['grid_radius'][0,id_radius]
+        print '--- using radius=' , at_radius
+        kappa_at_radius=prod_pdf[:,id_radius].copy()
+        kappa_at_radius/=np.sum(kappa_at_radius)
+        kappa_grid = grid_dict['grid_kappa0'][:,id_radius]
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(kappa_grid,kappa_at_radius)
+        print '--- %2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+        list_nsig1.append( max_par/err_lo )
 
-        print 'boot % 3d used %d pairs, current_id %d' % (ir,n_pairs_used,current_id)
+        id_kappa0=max0
+        at_kappa0=grid_dict['grid_kappa0'][id_kappa0,0]
+        print '--- using kappa0=' , at_kappa0
+        radius_at_kappa=prod_pdf[id_kappa0,:].copy()
+        radius_at_kappa/=np.sum(radius_at_kappa)
+        radius_grid = grid_dict['grid_radius'][id_kappa0,:]
+        max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(radius_grid,radius_at_kappa)
+        print '--- %2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
+        list_nsig2.append( max_par/err_lo )
+
+
 
         list_prod_2D.append(prod_pdf)
 
 
-        # pl.figure()
+        pl.figure()
         # cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
-        # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
-        # pl.axis('tight')
+        pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+        pl.axis('tight')
         # pl.xlim([-0.1,0.2])
-        # pl.axvline(0,color='r')
-        # pl.show()
+        pl.axvline(0,color='r')
+        pl.show()
 
 
     if not use_pickle:
@@ -733,24 +791,32 @@ def figure_random():
         for lp2D in list_prod_2D: sum_pdf += lp2D
         sum_pdf = sum_pdf / np.sum(sum_pdf.flatten())
 
+    ent=[]
+    for lp2D in list_prod_2D:
+        ent_this= -(np.sum(lp2D.flatten() * np.log(lp2D.flatten())))/len(lp2D.flatten())
+        ent.append(ent_this)
+        print ent_this
+    print 'mean ent', np.mean(np.array(ent))
+
     contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(sum_pdf,list_sigmas=[1,2])
 
 
-    xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc}^{-2} h$'
-    ylabel=r'radius $\mathrm{Mpc}/h$'
+    xlabel=r'$\Delta\Sigma$  $10^{14} \mathrm{M}_{\odot} \mathrm{Mpc^{-2} h}$'
+    ylabel=r'R_{\mathrm{scale}} \ \ Mpc/h$'
     if config['kappa_is_K']:
             # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
             # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
             # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
-            xlabel=r'$ D^{f} = \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{R200}^{\mathrm{halos}}  $'
-            ylabel=r'$ R^{f} = R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
+            xlabel=r'$ D_{f} = \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{R200}^{\mathrm{halos}}  $'
+            ylabel=r'$R_{\mathrm{scale}} \ \ \mathrm{Mpc/h}$'
+
 
     # normal plot
     pl.figure()
     pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf)
     pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='y')
      
-    # paper plots in ugly colormap
+    # # paper plots in ugly colormap
     pl.figure(figsize=(8,6))
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='b',linewidths=3)
     fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
@@ -777,7 +843,7 @@ def figure_random():
     pl.xticks([0.0,0.5,1.,1.5,2])
     pl.tick_params(axis='both', which='major', labelsize=20)
     # pl.xlim([0,0.8])
-    # pl.xlim([0,1])
+    pl.xlim([0,1.2])
     pl.subplots_adjust(bottom=0.16,left=0.12,top=0.95)
 
 
@@ -790,7 +856,7 @@ def figure_random():
     pl.show()
 
     dic={'sum_pdf':sum_pdf,'grid_dict':grid_dict,'list_prod_2D':list_prod_2D}
-    tabletools.savePickle('random.pp2',dic)
+    tabletools.savePickle(filename_pickle_nulltest,dic)
 
     import pdb; pdb.set_trace()
 
@@ -847,8 +913,9 @@ def figure_contours():
             # xlabel=r' $\Delta\Sigma^{face-on}$ /   $ \mathrm{mean}(\Delta\Sigma_{200})}$ '
             # xlabel=r'$\frac{ \Delta\Sigma_{\mathrm{face-on}}^{\mathrm{fil}} }{ 0.5 (\Delta\Sigma_{200}^{\mathrm{halo1}}+\Delta\Sigma_{200}^{\mathrm{halo2}} )/2}$'
             # ylabel=r'$\frac{ R_{c}^{\mathrm{fil}} }{ (R_{200}^{\mathrm{halo1}}+R_{200}^{\mathrm{halo2}} )/2}$'
-            xlabel=r'$ D^{f} =  \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{R200}^{\mathrm{halos}}  $'
-            ylabel=r'$ R^{f} =  R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
+            xlabel=r'$ D_{f} =  \Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} /  \Delta\Sigma_{R200}^{\mathrm{halos}}  $'
+            # ylabel=r'$ R^{f} =  R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
+            ylabel=r'$ R_{\mathrm{scale}} \ \ \ \mathrm{Mpc/h}$'
 
     
     pl.figure()
@@ -891,7 +958,7 @@ def figure_contours():
     pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
     xmin,xmax = 0,1.2
-    ymin,ymax = 0,3
+    ymin,ymax = 0,4
     pl.xlim([xmin,xmax])
     pl.ylim([ymin,ymax])
     pl.tick_params(axis='both', which='major', labelsize=22)
@@ -927,15 +994,16 @@ def figure_contours():
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(kappa_grid,kappa_at_radius)
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
 
+
     pl.figure(figsize=(8,6))
-    pl.plot(kappa_grid,kappa_at_radius,'b-',label=r'$R^{f}$=%2.2f'%at_radius,lw=4)
-    pl.plot(kappa_grid,prob_kappa0,'b--',label=r'$R^{f}$ marginalised',lw=4)
+    pl.plot(kappa_grid,kappa_at_radius,'b-',label=r'$R_{s}$=%2.2f'%at_radius,lw=4)
+    pl.plot(kappa_grid,prob_kappa0,'b--',label=r'$R_{s}$ marginalised',lw=4)
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_radius,n_pairs_used))
     pl.xlabel(xlabel,fontsize=38)
     pl.yticks([])
     pl.xticks([0,0.5,1,1.5,2.0])
     pl.xlim([0,1.2])
-    pl.ylim([0,0.013])
+    pl.ylim([0,0.007])
     pl.tick_params(axis='both', which='major', labelsize=22)
     pl.legend(ncol=2,prop={'size':21},mode='expand')
     pl.subplots_adjust(bottom=0.2)
@@ -950,20 +1018,31 @@ def figure_contours():
     max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(radius_grid,radius_at_kappa)
     print '%2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
 
+    log_max_model = np.log(prod_pdf[max0,max1])
+    log_max_null = np.log(prod_pdf[0,0])
+    D = 2*(log_max_model - log_max_null)
+    LRT_pval = 1. - scipy.stats.chi2.cdf(D, 2)
+    print 'LRT_pval' , LRT_pval
+    print 'ppf', scipy.stats.norm.ppf(LRT_pval, loc=0, scale=1)
+
+
     pl.figure(figsize=(8,6))
-    pl.plot(radius_grid,radius_at_kappa,'b-',label=r'$D^{f}$=%2.2f'%at_kappa0,lw=4)
-    pl.plot(radius_grid,prob_radius,'b--',label=r'$D^{f}$ marginalised',lw=4)
+    pl.plot(radius_grid,radius_at_kappa,'b-',label=r'$D_{f}$=%2.2f'%at_kappa0,lw=4)
+    pl.plot(radius_grid,prob_radius,'b--',label=r'$D_{f}$ marginalised',lw=4)
     pl.xlabel(ylabel,fontsize=38)
     pl.yticks([])
     pl.xticks([0,1,2,3,4])
-    pl.xlim([0,3])
-    pl.ylim([0,0.0175])
+    pl.xlim([0,4])
+    pl.ylim([0,0.007])
     pl.legend(ncol=2)
     pl.tick_params(axis='both', which='major', labelsize=22)
     pl.legend(ncol=2,prop={'size':21},mode='expand')
     pl.subplots_adjust(bottom=0.2)
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_kappa0,n_pairs_used))
     pl.show()
+
+    total_normalisation = grid_dict['total_normalisation']
+    print 'enthropy' , -(np.sum(prod_pdf.flatten() * np.log(prod_pdf.flatten())))/len(prod_pdf.flatten())
 
     import pdb; pdb.set_trace()
 
@@ -1034,12 +1113,12 @@ def figure_prior():
 
     pl.figure(figsize=(8,6))
     pl.plot(x,norm3,lw=4)
-    pl.xlabel(r'$M_{200} \ \ \mathrm{M}_{\odot}$',fontsize=30)
+    pl.xlabel(r'$M_{200} \ \ \mathrm{M_{\odot} / h}$',fontsize=30)
     # pl.xticks([1e14,2e14,3e14,4e14,5e14,6e14,7e14,8e14],[r'1^{'])
     # pl.xticks([1,2,3,4,5,6,7,8])
     pl.yticks([])
-    pl.xlim([1e13,8e14])
-    pl.ylim([0,0.18])
+    pl.xlim([1e14,1e15])
+    pl.ylim([0,0.065])
     pl.xscale('log')
     pl.fill_between(x, 0, norm3,alpha=0.2)
     pl.tick_params(axis='both', which='major', labelsize=22)
