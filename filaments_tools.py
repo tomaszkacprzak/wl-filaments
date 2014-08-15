@@ -11,7 +11,7 @@ cospars = cosmology.cosmoparams()
 dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','m200_h1_fit','m200_h2_fit','area_arcmin2','n_eff','nu','nv','analysis','eyeball_class'] ,
                 'formats' : ['i8']*4 + ['f8']*25 + ['i4']*4 }
 
-dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight','n_gals'] , 'formats' : ['f8']*10 + ['i8']*1 }
+dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight',,'weight_sq','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
 dtype_shears_single = { 'names' : ['ra_deg','dec_deg','u_mpc','v_mpc','g1','g2', 'g1_orig','g2_orig','scinv','z'] , 'formats' : ['f4']*10 }
 dtype_shears_minimal = { 'names' : ['ra_deg','dec_deg','g1_orig','g2_orig','z'] , 'formats' : ['f4']*5 }
 
@@ -311,6 +311,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             hist_scinv, _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=1./sc )
             hist_m , _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=(1+shear_bias_m_stamp) * shear_weight_stamp )
             hist_w , _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_weight_stamp)
+            hist_w_sq , _, _ = np.histogram2d( x=shear_u_stamp_mpc, y=shear_v_stamp_mpc , bins=(grid_u_mpc,grid_v_mpc) , weights=shear_weight_stamp**2)
 
             mean_g1 = hist_g1  / hist_m
             mean_g2 = hist_g2  / hist_m
@@ -325,6 +326,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             mean_g1sc[hist_n == 0] = 0
             mean_g2sc[hist_n == 0] = 0
             hist_w[hist_n == 0] = 0
+            hist_w_sq[hist_n == 0] = 0
             hist_m[hist_n == 0] = 0
 
             select = np.isclose(hist_m,0)
@@ -333,6 +335,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             mean_g1sc[select] = 0
             mean_g2sc[select] = 0
             hist_w[select] = 0
+            hist_w_sq[select] = 0
             hist_m[select] = 0
 
             u_mid_mpc,v_mid_mpc = plotstools.get_bins_centers(grid_u_mpc) , plotstools.get_bins_centers(grid_v_mpc)
@@ -352,6 +355,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             binned_n = hist_n.flatten('F')
             binned_scinv = hist_scinv.flatten('F')
             binned_w = hist_w.flatten('F')
+            binned_w_sq = hist_w.flatten('F')
 
             u_mpc = binned_u_mpc[:,None]
             v_mpc = binned_v_mpc[:,None]
@@ -366,6 +370,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
 
             mean_scinv = binned_scinv[:,None]
             weight = binned_w[:,None]
+            weight_sq = binned_w_sq[:,None]
             n_gals = binned_n[:,None] # set all rows to 1
             # scinv = scinv[:,None]
             # z = lenscat_stamp['z'][:,None]
@@ -384,8 +389,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             # plot_pair(halo1_u_rot_mpc , halo1_v_rot_mpc , halo2_u_rot_mpc , halo2_v_rot_mpc , shear_u_stamp_mpc, shear_v_stamp_mpc, shear_g1_stamp, shear_g2_stamp , close=False,nuse = 10,quiver_scale=2)
             # pl.show()
 
-            # dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight','n_gals'] , 'formats' : ['f8']*10 + ['i8']*1 }
-            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,g1,g2,mean_scinv,g1sc,g2sc,weight,n_gals],axis=1)
+            pairs_shear = np.concatenate([u_mpc,v_mpc,u_arcmin,v_arcmin,g1,g2,mean_scinv,g1sc,g2sc,weight,weight_sq,n_gals],axis=1)
             pairs_shear = tabletools.array2recarray(pairs_shear,dtype_shears_stacked)        
 
             pairs_shear_full = None

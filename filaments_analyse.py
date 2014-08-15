@@ -919,6 +919,10 @@ def get_prob_prod_gridsearch_2D(ids,plots=False,hires=True,hires_marg=False,norm
                 log_prob_2D = results_pickle['log_post_2D']
             except:
                 log_prob = results_pickle
+        
+            fudge = 1.
+            log_prob *= fudge
+            warnings.warn('adjusting noise_std by %2.2f'%fudge)
 
             # marginal kappa-radius
             # log_prob = results_pickle*214.524/2.577
@@ -1752,7 +1756,25 @@ def plotdata_all():
     #34,33
     #18,301
     #28,27
-    remove_list=[186] 
+
+    # main remove list for 19 pairs
+    # remove_list=[186] 
+    # halo sharing ones : 
+    remove_list=[]
+
+    # remove list for longer pairs which include short ones
+    # 137,35,287 114,457, 216,1   
+    # halo sharing ones : 20,19 21,22 35,286 44,43 104,105 14 1 6,7 71 18,301 27,28 34,33
+    # remove_list=[186,137,287,114,216,229]     
+    # remove_list=[186,137,287,114,216,229,19,21,35,43,105,14,1,7,71,301,27,34]     
+
+    # remove list for longer pairs which > 8mpc
+    remove_list=[229,35,287]
+    # halo sharing ones : 20,19 21,22 35,286 44,43 104,105 14 1 6,7 71 18,301 27,28 34,33
+    # remove_list=[186,137,287,114,216,229]     
+    # remove_list=[186,137,287,114,216,229,19,21,35,43,105,14,1,7,71,301,27,34]     
+
+
     # remove_list=[186,44,34,301,28] 
     # remove_list=[0,318]
     # remove_list=[317,283,288,426,145,275,318,176,228,254,236,180,146,123] # 011-kappaK rmcloseby -- rm smaller
@@ -1794,7 +1816,6 @@ def plotdata_all():
 
     # random
     # ids= np.random.permutation(1024)
-
 
     print len(ids)
     # prod_pdf, grid_dict, n_pairs_used = get_prob_prod_gridsearch(ids)
@@ -1936,9 +1957,10 @@ def plotdata_all():
     # pl.title('CFHTLens + BOSS-DR10, radius=%2.2f, using %d pairs' % (at_kappa0,n_pairs_used))
     pl.xlabel(xlabel)
 
-    print 'median Dsky'    , np.median(pairs[ids]['Dxy'])
-    print 'median m200 h1' , np.median(pairs[ids]['m200_h1_fit'])
-    print 'median m200 h2' , np.median(pairs[ids]['m200_h2_fit'])
+    print 'mean Dsky'    , np.mean(pairs[ids]['Dxy'])
+    print 'mean Dtot'    , np.mean( np.sqrt(pairs[ids]['Dxy']**2+pairs[ids]['Dlos']**2)  )
+    print 'mean m200 h1' , np.mean(pairs[ids]['m200_h1_fit'])
+    print 'mean m200 h2' , np.mean(pairs[ids]['m200_h2_fit'])
     print 'median z' , np.median(pairs[ids]['z'])
 
     pl.show()

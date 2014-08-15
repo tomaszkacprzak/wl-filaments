@@ -917,6 +917,10 @@ def figure_contours():
             # ylabel=r'$ R^{f} =  R_{\mathrm{scale}}^{\mathrm{filament}} /  R_{200}^{\mathrm{halos}} $'
             ylabel=r'$ R_{\mathrm{scale}} \ \ \ \mathrm{Mpc/h}$'
 
+    # ==============================================================================
+    # 2D plot for thesis
+    # ==============================================================================
+
     
     pl.figure()
     cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
@@ -974,7 +978,72 @@ def figure_contours():
 
     pl.subplots_adjust(bottom=0.12,left=0.1,top=0.95)
 
+    pl.figure()
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
+    pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+    pl.axhline(max_radius,color='r')
+    pl.axvline(max_kappa0,color='r')
+    pl.xlabel(xlabel,fontsize=24)
+    pl.ylabel(ylabel,fontsize=24)
+    # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    pl.axis('tight')
+
+
+    # ==============================================================================
+    # 2D plot for paper
+    # ==============================================================================
+
+    # paper plots in ugly colormap
+    pl.figure(figsize=(8,6))
+    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='b',linewidths=3)
+    fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
+    # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
+    for l,s in zip( cp.levels, strs ): fmt[l] = s
+    manual_locations = [(1.1,0.5),(1.5,0.5)]
+    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=24, manual=manual_locations)
+    # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
+    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
+    # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
+
+
+
+    pl.xlabel(xlabel,fontsize=38)
+    pl.ylabel(ylabel,fontsize=38)
+    # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
+    # pl.plot(max_kappa0,max_radius,'b+',markersize=20,lw=50)
+    pl.scatter(max_kappa0,max_radius,200,c='b',marker='+')
+    pl.axis('tight')
+    pl.yticks([1,2,3,4])
+    # pl.ylim([0,3])
+    pl.xticks([0.0,0.5,1.,1.5,2.0])
+    # pl.xlim([0,0.8])
+    xmin,xmax = 0,1.2
+    ymin,ymax = 0,4
+    pl.xlim([xmin,xmax])
+    pl.ylim([ymin,ymax])
+    pl.tick_params(axis='both', which='major', labelsize=22)
+
+    # m1 = 0.0878
+    # m2 = 0.0878
+    # ax2 = pl.gca().twiny()
+    # ax2.plot([xmin*m1,xmax*m1],[-1,-1] ,'r')
+    # ax2.set_xticks([0.05,0.1,0.15])
+    # # ax2.xscale('log')
+    # ax2.tick_params(axis='both', which='major', labelsize=22)
+    # ax2.set_xlabel(r'$\Delta\Sigma_{\mathrm{peak}}^{\mathrm{filament}} \ \  \mathrm{M_{\odot} \ Mpc^{-2} h} \ \  \mathrm{for} \ \ \mathrm{M_{200}^{halos}}=10^{14} \ \ \mathrm{M_{\odot}/h}$',fontsize=38)
+
+    pl.subplots_adjust(bottom=0.2,left=0.15,top=0.95)
+
+    
+    # ===================================================================================
     # plot 1d - just kappa0
+    # ===================================================================================
+
     prob_kappa0 = np.sum(prod_pdf,axis=1)
     prob_radius = np.sum(prod_pdf,axis=0)
     grid_kappa0 = grid_dict['grid_kappa0'][:,0] 
