@@ -178,19 +178,20 @@ def main():
     config = yaml.load(open(args.filename_config))
     filaments_tools.config = config
 
-    filename_halos=config['filename_halos']
-    filename_pairs = config['filename_pairs']
+    filename_halos  = config['filename_halos']
+    filename_pairs  = config['filename_pairs']
     filename_shears = config['filename_shears']
 
     filaments_tools.add_phys_dist()
-    if args.action == 'main':
+    if args.action == 'get_pairs':
         filaments_tools.get_pairs_topo()
-    elif args.action == 'random':
+        filaments_tools.stats_pairs()
+    elif args.action == 'get_random_pairs':
         filaments_tools.get_pairs_resampling()
-
-    filaments_tools.stats_pairs()
-    filaments_tools.boundary_mpc=config['boundary_mpc']
-    filaments_tools.get_shears_for_pairs(function_shears_for_single_pair=get_shears_for_single_pair,id_first=args.first,num=args.num)
+        filaments_tools.stats_pairs()
+    elif args.action == 'get_stamps':
+        filaments_tools.boundary_mpc=config['boundary_mpc']
+        filaments_tools.get_shears_for_pairs(function_shears_for_single_pair=get_shears_for_single_pair,id_first=args.first,num=args.num)
 
     logger.info(time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()))
 

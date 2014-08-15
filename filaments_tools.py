@@ -11,7 +11,7 @@ cospars = cosmology.cosmoparams()
 dtype_pairs = { 'names'   : ['ipair','ih1','ih2','n_gal','DA','Dlos','Dxy','ra_mid','dec_mid','z', 'ra1','dec1','ra2','dec2','u1_mpc','v1_mpc' , 'u2_mpc','v2_mpc' ,'u1_arcmin','v1_arcmin', 'u2_arcmin','v2_arcmin', 'R_pair','drloss','dz','m200_h1_fit','m200_h2_fit','area_arcmin2','n_eff','nu','nv','analysis','eyeball_class'] ,
                 'formats' : ['i8']*4 + ['f8']*25 + ['i4']*4 }
 
-dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight',,'weight_sq','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
+dtype_shears_stacked = { 'names' : ['u_mpc','v_mpc','u_arcmin','v_arcmin','g1','g2','mean_scinv', 'g1sc','g2sc','weight','weight_sq','n_gals'] , 'formats' : ['f8']*11 + ['i8']*1 }
 dtype_shears_single = { 'names' : ['ra_deg','dec_deg','u_mpc','v_mpc','g1','g2', 'g1_orig','g2_orig','scinv','z'] , 'formats' : ['f4']*10 }
 dtype_shears_minimal = { 'names' : ['ra_deg','dec_deg','g1_orig','g2_orig','z'] , 'formats' : ['f4']*5 }
 
@@ -355,7 +355,7 @@ def create_filament_stamp(halo1_ra_deg,halo1_de_deg,halo2_ra_deg,halo2_de_deg,sh
             binned_n = hist_n.flatten('F')
             binned_scinv = hist_scinv.flatten('F')
             binned_w = hist_w.flatten('F')
-            binned_w_sq = hist_w.flatten('F')
+            binned_w_sq = hist_w_sq.flatten('F')
 
             u_mpc = binned_u_mpc[:,None]
             v_mpc = binned_v_mpc[:,None]
