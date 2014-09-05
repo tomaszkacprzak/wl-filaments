@@ -1760,7 +1760,8 @@ def plotdata_all():
     # main remove list for 19 pairs
     remove_list=[186] 
     # halo sharing ones : 
-    # remove_list=[]
+    # 43,44 34,33 27,28 18,301
+    # remove_list=[186,43,34,27,18]
 
     # remove list for longer pairs which include short ones
     # 137,35,287 114,457, 216,1   
@@ -1769,7 +1770,8 @@ def plotdata_all():
     # remove_list=[186,137,287,114,216,229,19,21,35,43,105,14,1,7,71,301,27,34]     
 
     # remove list for longer pairs which > 8mpc
-    # remove_list=[229,35,287]
+    # remove list: 35,287,459 365,114,457,427 1,216
+    # remove_list=[287,43,114,427,216,457]
     # halo sharing ones : 20,19 21,22 35,286 44,43 104,105 14 1 6,7 71 18,301 27,28 34,33
     # remove_list=[186,137,287,114,216,229]     
     # remove_list=[186,137,287,114,216,229,19,21,35,43,105,14,1,7,71,301,27,34]     

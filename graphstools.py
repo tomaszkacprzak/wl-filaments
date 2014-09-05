@@ -93,17 +93,17 @@ def get_best_neighbour(pairs,halo1,halo2):
     # new fix
     # select_cut = ( ((halo1['m200_fit'] > 1.e13) | (halo2['m200_fit'] > 1.e13)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 2.2) | (halo2['m200_sig'] > 2.2)) ) 
     # select_cut = ( ((halo1['m200_fit'] > 1.5e14) | (halo2['m200_fit'] > 1.5e14)) & (Dtot < 15) & (Dtot > 5) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 1.5) | (halo2['m200_sig'] > 1.5)) ) 
-    # select_cut = ( ((halo1['m200_fit'] > 1.5e14) | (halo2['m200_fit'] > 1.5e14)) & (Dtot < 15) & (Dtot > 6) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 5) & ((halo1['m200_sig'] > 2.) | (halo2['m200_sig'] > 2.)) ) 
+    # select_cut =  ( ( (halo1['m200_fit']+halo2['m200_fit'])/.2 > 2.5e14 ) & (Dtot < 12) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 1.) | (halo2['m200_sig'] > 1.)) ) 
 
     # 19 pairs
-    # select_cut = ( ((halo1['m200_fit'] > 2.5e14) | (halo2['m200_fit'] > 2.5e14)) & (halo2['m200_fit'] > 1e13) & (halo1['m200_fit'] > 1e13) & (Dtot < 12) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 1.) & (halo2['m200_sig'] > 1.)) ) 
+    select_cut = ( ((halo1['m200_fit'] > 2.5e14) | (halo2['m200_fit'] > 2.5e14)) & (halo2['m200_fit'] > 5e13) & (halo1['m200_fit'] > 5e13) & (Dtot < 12) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 1.) & (halo2['m200_sig'] > 1.)) ) 
 
     # best 5
-    select_cut = ( ((halo1['m200_fit'] > 2.e14) | (halo2['m200_fit'] > 2.e14)) & (halo2['m200_fit'] > 1.9e14) & (halo1['m200_fit'] > 1.9e14) & (Dtot < 13) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 0.) & (halo2['m200_sig'] > 0.)) ) 
+    # select_cut = ( ((halo1['m200_fit'] > 1.9e14) | (halo2['m200_fit'] > 1.9e14)) & (halo2['m200_fit'] > 1.9e14) & (halo1['m200_fit'] > 1.9e14) & (Dtot < 13) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 0.) & (halo2['m200_sig'] > 0.)) ) 
 
     # large Rpair
-    # select_cut = ( ((halo1['m200_fit'] > 2.e14) | (halo2['m200_fit'] > 2.e14)) & (halo2['m200_fit'] > 1.9e14) & (halo1['m200_fit'] > 1.9e14) & (Dtot < 13) & (Dtot > 4) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 0.) & (halo2['m200_sig'] > 0.)) ) 
-    # select_cut = ( ((halo1['m200_fit'] > 2.5e14) | (halo2['m200_fit'] > 2.5e14)) & (halo2['m200_fit'] > 1e13) & (halo1['m200_fit'] > 1e13) & (Dtot < 20) & (Dtot > 8) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 8) & ((halo1['m200_sig'] > 1.) & (halo2['m200_sig'] > 1.)) ) 
+    # select_cut = ( ((halo1['m200_fit'] > 2.e14) | (halo2['m200_fit'] > 2.e14)) & (halo2['m200_fit'] > 1e13) & (halo1['m200_fit'] > 1e13) & (Dtot < 22) & (Dtot > 10) & (pairs['Dlos'] > 0) & (pairs['Dxy'] > 4) & ((halo1['m200_sig'] > 1.) & (halo2['m200_sig'] > 1.)) ) 
+    
     select_list = np.nonzero(select_cut)[0].tolist()
     return select_list
    
