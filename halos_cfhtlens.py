@@ -228,7 +228,8 @@ def select_halos_LRG():
     elif 'ra' in shearcat.dtype.names:
         ra_field = 'ra'
         de_field = 'dec'
-        
+    
+    shearcat = shearcat[[ra_field,de_field,'z']]
     cfhtlens_coords = np.concatenate([shearcat[ra_field][:,None],shearcat[de_field][:,None]],axis=1)
 
     logger.info('getting BT')
