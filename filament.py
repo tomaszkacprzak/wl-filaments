@@ -44,6 +44,7 @@ class filament:
         length = (np.abs(u1_mpc) + np.abs(u2_mpc))/2.
 
         sig = 0.25 # mpc
+        # sig = 0.0001
 
         # amplitude = kappa0 /  (radius_mpc * np.pi)  # use total mass 
         amplitude = kappa0
