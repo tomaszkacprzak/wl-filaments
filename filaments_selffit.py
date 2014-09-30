@@ -330,6 +330,13 @@ def get_clone():
             fitobj.shear_n_gals = shears_info['n_gals']
             fitobj.inv_sq_sigma_g = fitobj.shear_w
             logger.info('using different sigma_g per pixel mean(inv_sq_sigma_g)=%2.5f len(inv_sq_sigma_g)=%d' , np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g))
+        elif type(config['sigma_method'])==float:
+            fitobj.shear_n_gals = shears_info['n_gals']
+            fitobj.inv_sq_sigma_g =  shears_info['weight']**2 / ( shears_info['weight_sq'] * config['sigma_method']**2  )
+            # remove infs
+            fitobj.inv_sq_sigma_g[shears_info['weight_sq']<1e-8]=0
+            logger.info('using constant sigma_g per pixel: sigma_e=%2.5f, mean(sigma_gp)=%2.5f  n_zeros=%d len(inv_sq_sigma_g)=%d n_nan=%d n_inf=%d' , config['sigma_method'], len(np.nonzero(shears_info['weight_sq']<1e-8)[0]),  np.mean(fitobj.inv_sq_sigma_g) , len(fitobj.inv_sq_sigma_g) , len( np.nonzero(np.isnan(fitobj.inv_sq_sigma_g))[0] ) , len( np.nonzero(np.isinf(fitobj.inv_sq_sigma_g))[0] ) )
+
                     
         fitobj.halo1_u_arcmin =  pairs_table['u1_arcmin'][id_pair_in_catalog]
         fitobj.halo1_v_arcmin =  pairs_table['v1_arcmin'][id_pair_in_catalog]
@@ -392,11 +399,14 @@ def get_clone():
             pl.close()
             logger.info('saved %s',filename_fig)
 
-        sig = np.sqrt(1./shears_info['weight'])
+        sig = np.sqrt(1./ fitobj.inv_sq_sigma_g )
         select = np.isnan(sig) | np.isinf(sig)
         sig[select] = 0.
         noise_g1 = np.random.randn(len(shears_info['g1']))*sig
         noise_g2 = np.random.randn(len(shears_info['g2']))*sig
+
+        neff = shears_info['weight']**2 /  shears_info['weight_sq'] 
+        neff = neff[~select]
 
         fitobj.shear_g1 =  shear_model_g1 + noise_g1
         fitobj.shear_g2 =  shear_model_g2 + noise_g2
@@ -404,11 +414,9 @@ def get_clone():
         shears_info['g1'] = fitobj.shear_g1
         shears_info['g2'] = fitobj.shear_g2
 
-
-
         tabletools.savePickle(filename_shears_mock,shears_info,append=True)
 
-        logger.info('noise sig=%2.2f std_g1=%2.2f std_g2=%2.2f',np.mean(sig[~select]),np.std(noise_g1[~select]), np.std(noise_g2[~select]))
+        logger.info('noise mean_n_gal=%2.2f mean_n_eff=%2.2f sig=%2.2f std_g1=%2.2f std_g2=%2.2f',np.mean(fitobj.shear_n_gals),np.mean(neff),np.mean(sig[~select]),np.std(noise_g1[~select]), np.std(noise_g2[~select]))
 
     pairs_table_clone['ipair']=np.arange(len(pairs_table_clone))
     tabletools.saveTable(filename_pairs.replace('.fits','.clone.fits'),pairs_table_clone)
