@@ -709,26 +709,29 @@ def figure_random():
     args.first=0
     args.num=-1
 
-    n_pairs_use = 19*40
+    n_set = 19
+    n_reps = 32
+    n_pairs_use = n_set*n_reps
 
     list_prod_2D = []
 
-    use_pickle=False
+    use_pickle=args.use_pickle
 
     ids_used = []
     current_id = 0
 
     filename_pickle_nulltest = args.filename_config.replace('.yaml','.nulltest.pp2')
     if use_pickle:
-        dic=tabletools.loadPickle(filename_pickle)
+        dic=tabletools.loadPickle(filename_pickle_nulltest)
         sum_pdf = dic['sum_pdf']
         grid_dict = dic['grid_dict']
         list_prod_2D = dic['list_prod_2D']
+        prod_pdf_all = dic['prod_pdf_all']
 
     list_nsig1 = []    
     list_nsig2 = []    
 
-    for ir in range(1):
+    for ir in range(n_reps):
 
         if use_pickle: break
 
@@ -736,7 +739,7 @@ def figure_random():
 
         ids = []
 
-        while len(ids) < n_pairs_use:
+        while len(ids) < n_set:
 
             # id_try = np.random.choice(1280)
             id_try = current_id
@@ -746,6 +749,8 @@ def figure_random():
                 if os.path.isfile(filename_pickle):
                     ids.append(id_try)
                     ids_used.append(id_try)
+                else:
+                    print 'file not found: %s' % filename_pickle
                 current_id+=1
 
         print ids
@@ -772,18 +777,48 @@ def figure_random():
         print '--- %2.3f +/- %2.3f %2.3f n_sigma=%2.2f' % (max_par , err_hi , err_lo, max_par/err_lo)
         list_nsig2.append( max_par/err_lo )
 
-
-
         list_prod_2D.append(prod_pdf)
 
 
         pl.figure()
-        # cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='y')
         pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf)
+        contour_levels , contour_sigmas = mathstools.get_sigma_contours_levels(prod_pdf,list_sigmas=[1,2])
+        pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=contour_levels,colors='r',lw=3)
         pl.axis('tight')
-        # pl.xlim([-0.1,0.2])
-        pl.axvline(0,color='r')
-        pl.show()
+        filename_fig = 'figs/%s.%02d.png' % (args.filename_config.replace('.yaml',''),ir)
+        pl.savefig(filename_fig)
+        # pl.show()
+        print 'saved %s' % filename_fig
+
+
+    current_id = 0
+    ids_used=[]
+    for ir in range(1):
+
+        if use_pickle: break
+
+        print 'boot % 3d  ------------- ' % (ir)
+
+        ids = []
+
+        while len(ids) < n_pairs_use:
+            print current_id
+
+            # id_try = np.random.choice(1280)
+            id_try = current_id
+            if id_try not in ids_used:
+
+                filename_pickle = '%s/results.prob.%04d.%04d.%s.pp2'  % (args.results_dir, id_try, id_try+1 , name_data)
+                if os.path.isfile(filename_pickle):
+                    ids.append(id_try)
+                    ids_used.append(id_try)
+                else:
+                    print 'file not found: %s' % filename_pickle
+                current_id+=1
+
+        print ids
+        prod_pdf_all, grid_dict, list_ids_used , n_pairs_used = filaments_analyse.get_prob_prod_gridsearch_2D(ids , plots=False)
+
 
 
     if not use_pickle:
@@ -818,33 +853,37 @@ def figure_random():
      
     # # paper plots in ugly colormap
     pl.figure(figsize=(8,6))
-    cp = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='b',linewidths=3)
+    cp1 = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels,colors='b',linewidths=3)
+    cp2 = pl.contour(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf_all,levels=contour_levels,colors='b',linewidths=3,linestyles='dashed')
     fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
-    for l,s in zip( cp.levels, strs ): fmt[l] = s
-    manual_locations = [(1.1,0.5),(1.5,0.5)]
-    pl.clabel(cp, cp.levels, fmt=fmt , fontsize=20, manual=manual_locations)
+    for l,s in zip( cp1.levels, strs ): fmt[l] = s
+    manual_locations = [(0.0,1),(0.34,1.26)]
+    pl.clabel(cp1, cp1.levels, fmt=fmt , fontsize=20, manual=manual_locations)
+    for l,s in zip( cp1.levels, strs ): fmt[l] = s
+    manual_locations = [(0.0,1),(0.1,0.26)]
+    pl.clabel(cp2, cp2.levels, fmt=fmt , fontsize=20, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,cmap=pl.cm.YlOrRd)
-    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
-    cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
+    cp1 = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
+    cp1 = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[1],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[2],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[3],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[4],1], alpha=0.2 ,  colors=['b'])
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=[contour_levels[0],contour_levels[2]], alpha=0.25 ,  cmap=pl.cm.Blues)
     # cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],sum_pdf,levels=contour_levels, alpha=0.25 ,  cmap=pl.cm.bone)
-    pl.xlabel(xlabel,fontsize=28)
-    pl.ylabel(ylabel,fontsize=28)
+    pl.xlabel(xlabel,fontsize=28,labelpad=5)
+    pl.ylabel(ylabel,fontsize=28,labelpad=1)
     # pl.title('CFHTLens + BOSS-DR10, using %d halo pairs' % n_pairs_used)
     # pl.plot(max_kappa0,max_radius,'b+',markersize=20,lw=50)
     pl.axis('tight')
-    pl.yticks([1,2,3,4])
+    pl.yticks([0.5,1,1.5,2])
     # pl.ylim([0,3])
-    pl.ylim([0,4])
-    pl.xticks([0.0,0.5,1.,1.5,2])
+    pl.ylim([0,2])
+    pl.xticks([0.0,0.125,0.25,0.375,0.5])
     pl.tick_params(axis='both', which='major', labelsize=20)
     # pl.xlim([0,0.8])
-    pl.xlim([0,1.2])
-    pl.subplots_adjust(bottom=0.16,left=0.12,top=0.95)
+    pl.xlim([0,0.5])
+    pl.subplots_adjust(bottom=0.18,left=0.15,top=0.95)
 
 
 
@@ -855,7 +894,7 @@ def figure_random():
     #     list_prod_2D[ir].argmax(axis=)
     pl.show()
 
-    dic={'sum_pdf':sum_pdf,'grid_dict':grid_dict,'list_prod_2D':list_prod_2D}
+    dic={'sum_pdf':sum_pdf,'grid_dict':grid_dict,'list_prod_2D':list_prod_2D,'prod_pdf_all':prod_pdf_all}
     tabletools.savePickle(filename_pickle_nulltest,dic)
 
     import pdb; pdb.set_trace()
@@ -938,7 +977,7 @@ def figure_contours():
     fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
     for l,s in zip( cp.levels, strs ): fmt[l] = s
-    manual_locations = [(1.1,0.5),(1.5,0.5)]
+    manual_locations = [(0.5,2.2),(0.75,2.0)]
     pl.clabel(cp, cp.levels, fmt=fmt , fontsize=24, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
@@ -962,7 +1001,7 @@ def figure_contours():
     pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
     xmin,xmax = 0,1.2
-    ymin,ymax = 0,4
+    ymin,ymax = 0,4.5
     pl.xlim([xmin,xmax])
     pl.ylim([ymin,ymax])
     pl.tick_params(axis='both', which='major', labelsize=22)
@@ -999,7 +1038,7 @@ def figure_contours():
     fmt = {}; strs = [ r'$68\%$', r'$95\%$'] ; 
     # fmt = {}; strs = [ '', '', r'$99\%$'] ; 
     for l,s in zip( cp.levels, strs ): fmt[l] = s
-    manual_locations = [(1.1,0.5),(1.5,0.5)]
+    manual_locations = [(0.5,2.2),(0.75,2.0)]
     pl.clabel(cp, cp.levels, fmt=fmt , fontsize=24, manual=manual_locations)
     # pl.pcolormesh(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,cmap=pl.cm.YlOrRd)
     cp = pl.contourf(grid_dict['grid_kappa0'],grid_dict['grid_radius'],prod_pdf,levels=[contour_levels[0],1], alpha=0.2 ,  colors=['b'])
@@ -1023,7 +1062,7 @@ def figure_contours():
     pl.xticks([0.0,0.5,1.,1.5,2.0])
     # pl.xlim([0,0.8])
     xmin,xmax = 0,1.2
-    ymin,ymax = 0,4
+    ymin,ymax = 0,4.5
     pl.xlim([xmin,xmax])
     pl.ylim([ymin,ymax])
     pl.tick_params(axis='both', which='major', labelsize=22)
@@ -1072,7 +1111,7 @@ def figure_contours():
     pl.yticks([])
     pl.xticks([0,0.5,1,1.5,2.0])
     pl.xlim([0,1.2])
-    pl.ylim([0,0.007])
+    pl.ylim([0,0.008])
     pl.tick_params(axis='both', which='major', labelsize=22)
     pl.legend(ncol=2,prop={'size':21},mode='expand')
     pl.subplots_adjust(bottom=0.2)
@@ -1101,8 +1140,8 @@ def figure_contours():
     pl.xlabel(ylabel,fontsize=38)
     pl.yticks([])
     pl.xticks([0,1,2,3,4])
-    pl.xlim([0,4])
-    pl.ylim([0,0.007])
+    pl.xlim([0,4.5])
+    pl.ylim([0,0.006])
     pl.legend(ncol=2)
     pl.tick_params(axis='both', which='major', labelsize=22)
     pl.legend(ncol=2,prop={'size':21},mode='expand')
@@ -1212,6 +1251,7 @@ def main():
     parser.add_argument('-a','--actions', nargs='+', action='store', help='which actions to run, available: %s' % str(valid_actions) )
     parser.add_argument('-rd','--results_dir', action='store', help='where results files are' , default='results/' )
     parser.add_argument('-hr','--halo_removal', action='store', default='prior', choices=('flat','prior','ml','exp' , 'default'), help='which halo removal method to use' )
+    parser.add_argument('--use_pickle', action='store_true', default=False,  help='if to use existing pickle to make plots' )
 
     global args
 
