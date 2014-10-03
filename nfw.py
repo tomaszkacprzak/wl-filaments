@@ -196,11 +196,18 @@ class NfwHalo:
         prob_z_limit /= sum(prob_z_limit)
         self.mean_inv_sigma_crit = sum(prob_z_limit / sigma_crit)
 
-    def get_concentr(self):
+    def get_concentr(self,method="Duffy"):
 
         # Duffy et al 2008 from King and Mead 2011
         # concentr = 5.72/(1.+z)**0.71 * (M / 1e14 * cosmology.cospars.h)**(-0.081)
-        concentr = 5.72/(1.+self.z_cluster)**0.71 * (np.abs(self.M_200) / 1e14)**(-0.081)
+        if method=="Duffy":
+            concentr = 5.72/(1.+self.z_cluster)**0.71 * (np.abs(self.M_200) / 1e14)**(-0.081)
+        elif method=="Dutton":
+            b = -0.101 + 0.026*self.z_cluster
+            a = 0.520 + (0.905 - 0.520) * np.exp(-0.617 * self.z_cluster**1.21 )
+            log10c = a + b*np.log10(np.abs(self.M_200)/10**12)
+            concentr = 10**log10c
+            # Dutton Maccio 2014 - Cold dark matter haloes in the Planck era -- evolution of structural parameters for Einasto and NFW profiles
 
         return concentr
 

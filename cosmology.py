@@ -28,6 +28,8 @@ class cosmoparams:
         self.H_0__h_over_s = self.H_0 * 1e3 / self.Mpc_to_m  # h/s
         self.rho_crit = 3 * self.H_0__h_over_s**2 / (8 *np.pi * self.G) /self.M_solar *self.Mpc_to_m**3; # h^2 M_solar / Mpc^-3
         print 'cosmology: rho_crit', self.rho_crit
+        print 'cosmology: Omega_m', self.Omega_m
+        print 'cosmology: Omega_Lambda', self.Omega_Lambda
         # G = 6.672e-8;
         # C = 29979245800;
         # Pc = 3.0857e18;

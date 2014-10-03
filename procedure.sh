@@ -1,8 +1,8 @@
 # measure BOSS galaxies in CFHTLens
-python ~/code/wl-filaments/halos_cfhtlens.py -c test.yaml -f 0 -n 10 -a select_lrgs
+python ~/code/wl-filaments/halos_cfhtlens.py -c test.yaml -f 0 -n 10 -a select_lrgs > log.halos_cfhtlens.select_lrgs.txt
 
 # measure halos and stack
-python ~/code/wl-filaments/halos_cfhtlens.py -c test.yaml -f 0 -n 100 -a fit_halos > run_measure_halos.log
+python ~/code/wl-filaments/halos_cfhtlens.py -c test.yaml -f 0 -n 100 -a fit_halos > log.halos_cfhtlens.fit_halos.txt
 
 # select filaments
 python ~/code/wl-filaments/filaments_cfhtlens.py -c test.yaml -a get_pairs
