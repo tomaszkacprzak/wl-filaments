@@ -24,7 +24,7 @@ class NfwHalo:
         self.redshift_offset = 0.2
         self.mean_inv_sigma_crit = None
         self.z_source = None
-
+        
         self.update()
 
 
@@ -32,7 +32,7 @@ class NfwHalo:
     def update(self):
 
         # get concentration
-        self.concentr = self.get_concentr()
+        self.concentr = self.get_concentr(method="Dutton")
 
         # cosmological critical density at redshift of the lens
         self.rho_crit_z_cluster = cosmoparams.rho_crit * (cosmoparams.Omega_m *(1+self.z_cluster)**3 + (1-cosmoparams.Omega_m))     
