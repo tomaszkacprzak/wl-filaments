@@ -69,6 +69,7 @@ class NfwHalo:
 
         self.update()
 
+
         # that may have been pre-calculated earlier
         if self.mean_inv_sigma_crit == None:
             
@@ -90,7 +91,7 @@ class NfwHalo:
 
         # initialise arrays so they come out the right shape at the end
         kappa = np.zeros(x.shape);
-        mod_gamma = np.zeros(x.shape);
+        mod_gamma = np.zeros(x.shape,dtype=np.complex64);
 
 
 
@@ -105,16 +106,14 @@ class NfwHalo:
         select = x > 1.
         kappa[select] = 2. * self.r_s * self.rho_s / Sigma_crit / (x[select]**2 -1) * (1. - 2. / np.lib.scimath.sqrt(x[select]**2 -1) * np.arctan(np.lib.scimath.sqrt( (x[select]-1.) / (1.+x[select]) )) )
         
-
         # mod_mod_gamma(select) = real (r_s * rho_s / Sigma_crit * ( 4./x(select).^2 .* log(x(select)/2) - 2./(x(select).^2-1) +  4* atanh(sqrt((1-x(select))./(1+x(select)))) .* (2 - 3*x(select).^2)  ./ ( x(select).^2 .* (1-x(select).^2).^1.5 ) ) );
-        
-        mod_gamma[select] = (self.r_s * self.rho_s / Sigma_crit * ( 4./(x[select]**2) * np.log(x[select]/2.) - 2./(x[select]**2 - 1.) + 4.*np.arctanh(np.lib.scimath.sqrt( (1.-x[select])/(1.+x[select]))) * (2. - 3. * x[select]**2) / ( x[select]**2 * np.lib.scimath.power(1.-x[select]**2,1.5) ) ) )
+                
+        mod_gamma[select] = self.r_s * self.rho_s / Sigma_crit * ( 4./(x[select]**2) * np.log(x[select]/2.) - 2./(x[select]**2 - 1.) + 4.*np.arctanh(np.lib.scimath.sqrt( (1.-x[select])/(1.+x[select]))) * (2. - 3. * x[select]**2) / ( x[select]**2 * np.lib.scimath.power(1.-x[select]**2,1.5) ) ) 
         mod_gamma[select] = mod_gamma[select].real
      
         return (mod_gamma,kappa,Sigma_crit)
 
     def get_shears(self,theta_x,theta_y,z_source):
-
 
         # x position of each point on grid, relative to center
         dtheta_x=theta_x-self.theta_cx; 
