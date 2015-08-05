@@ -461,8 +461,10 @@ def fit_halos():
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='index',dtype='i4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_fit',dtype='f4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_sig',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_sig_new',dtype='f4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errhi',dtype='f4')
     halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='m200_errlo',dtype='f4')
+    halos = tabletools.ensureColumn(rec=halos,arr=range(len(halos)),name='n_gals',dtype='f4')
     n_halos = len(halos)
     logger.info('halos %d' , len(halos))
 
@@ -470,7 +472,7 @@ def fit_halos():
     id_last = args.first + args.num
    
     box_size=30 # arcmin
-    pixel_size=0.5
+    pixel_size=0.2
     vec_u_arcmin, vec_v_arcmin = np.arange(-box_size/2.,box_size/2.+1e-9,pixel_size), np.arange(-box_size/2.,box_size/2.+1e-9,pixel_size)
     grid_u_arcmin, grid_v_arcmin = np.meshgrid( vec_u_arcmin  , vec_v_arcmin ,indexing='ij')
     vec_u_rad , vec_v_rad   = cosmology.arcmin_to_rad(vec_u_arcmin,vec_v_arcmin)
@@ -489,6 +491,9 @@ def fit_halos():
     logger.info('running on %d - %d',id_first,id_last)
     iall = 0
     for ih in range(id_first, id_last):
+
+        logger.info('----------- halo %d' % ih)
+
         iall+=1
 
         ihalo = halos['index'][ih]
@@ -609,35 +614,54 @@ def fit_halos():
         fitobj.parameters[0]['n_grid'] = config['M200']['n_grid']
 
         log_post , grid_M200 = fitobj.run_gridsearch()
-        ml_m200 = grid_M200[np.argmax(log_post)]
+        ix_max = np.argmax(log_post)
+        ml_m200 = grid_M200[ix_max]
+        ml_loglike = np.max(log_post)
+        zero_loglike = log_post[0]
         prob_post = mathstools.normalise(log_post)
         max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_M200,prob_post)
+
+        sigma = np.sqrt(np.abs((ml_m200-grid_M200)**2/(ml_loglike - log_post)/2.))
+
         n_sig = max_par/err_lo
+        n_sig_new = ml_m200/sigma[np.isfinite(sigma)]
+        if ix_max!=0:
+            sigma = np.mean(sigma[np.isfinite(sigma)][:ix_max])
+            n_sig_new = ml_m200/sigma
+        else:
+            sigma = 0
+            n_sig_new = 0
 
         halos['m200_fit'][ih]=ml_m200
         halos['m200_sig'][ih]= n_sig
         halos['m200_errhi'][ih]= err_hi
         halos['m200_errlo'][ih]= err_lo        
+        halos['m200_sig_new'][ih]= n_sig_new        
+        halos['n_gals'][ih] = len(shear_g1_stamp) 
         n_eff_this=float(len(shear_weight_stamp))/(box_size**2)
         n_gals_this = len(shear_g1_stamp)
         n_invalid_this = n_invalid
 
-        titlestr = '%5d n_gals=%d n_invalid=%d n_eff=%2.2f m200_fit=%2.2e +/- %2.2e %2.2e n_sig=%2.2f' % (ihalo,len(shear_g1_stamp),n_invalid,float(len(shear_weight_stamp))/(box_size**2),ml_m200,err_hi,err_lo,n_sig)
+        titlestr = '%5d ra=%2.2f de=%2.2f n_gals=%d n_invalid=%d n_eff=%2.2f m200_fit=%2.2e +/- %2.2e %2.2e n_sig=%2.2f n_sig_new=%2.2f' % (ihalo,halos[ih]['ra'],halos[ih]['dec'],len(shear_g1_stamp),n_invalid,float(len(shear_weight_stamp))/(box_size**2),ml_m200,err_hi,err_lo,n_sig,n_sig_new)
         logger.info(titlestr)
 
         if args.legion:
             filename_halos_part = os.path.basename(filename_halos).replace('.fits','.%04d.pp2' % ih)
-            line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih]])
-            res={'ml' : line, 'log_post' : log_post, 'grid_M200' : grid_M200 }
+            line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih],halos['m200_sig_new'][ih]])
+            res={'ml' : line, 'log_post' : log_post }
             tabletools.savePickle(filename_halos_part,res)
             continue
 
         pyfits.writeto(filename_halos,halos,clobber=True)
         logger.info('saved %s' , filename_halos)
 
-        if iall<100:
+        if iall<10000:
             pl.figure()
-            pl.plot(grid_M200,prob_post)
+            pl.plot(grid_M200,prob_post,'.-')
+            pl.axvline(ml_m200-err_lo)
+            pl.axvline(ml_m200+err_hi)
+            pl.axvline(ml_m200-sigma,c='r')
+            pl.axvline(ml_m200)
             pl.title(titlestr,fontsize=8)
             filename_fig = 'figs/halofit.%05d.png' % ih
             pl.savefig(filename_fig)
@@ -662,7 +686,7 @@ def fit_halos():
     logger.info('finished fitting %d individual halos',args.num)
 
     if args.legion:
-	return 
+	   return 
     
     pl.figure()
     pl.hist(halos['m200_fit'],bins=50)
