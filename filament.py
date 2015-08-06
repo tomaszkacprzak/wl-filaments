@@ -43,7 +43,7 @@ class filament:
 
         length = (np.abs(u1_mpc) + np.abs(u2_mpc))/2.
 
-        sig = 0.25 # mpc
+        # sig = 0.25 # mpc
         # sig = 0.0001
 
         # amplitude = kappa0 /  (radius_mpc * np.pi)  # use total mass 
@@ -51,8 +51,17 @@ class filament:
 
         truncation_radius = truncation * radius_mpc
         r = np.abs(shear_v_mpc)
+        s = ((np.abs(shear_u_mpc)-length)>0)*(np.abs(shear_u_mpc)-length)
+
         # dens = kappa0 / (1. + (r / radius_mpc)**2 )
-        dens = amplitude / (1. + np.exp( (np.abs(shear_u_mpc)-length) /sig) + (r/radius_mpc)**2) 
+
+        # old equation
+        # dens = amplitude / (1. + np.exp( (np.abs(shear_u_mpc)-length) /sig) + (r/radius_mpc)**2) 
+
+        # new equation
+        dens = amplitude / (1. + (r/radius_mpc)**2 + (s/radius_mpc)**2 ) 
+
+
         #dens = (amplitude / (1. + (r/radius_mpc)**2) )  * np.cos(np.pi*r/truncation_radius/2)**2
         #dens[r>truncation_radius]=0.
         dens *=  self.scale_dens
@@ -63,6 +72,7 @@ class filament:
         # select = np.abs(shear_u_mpc) > np.abs(u1_mpc)
         # dens[select] *= 0.
 
+        import pdb; pdb.set_trace()
 
         return dens
 
