@@ -72,7 +72,6 @@ class filament:
         # select = np.abs(shear_u_mpc) > np.abs(u1_mpc)
         # dens[select] *= 0.
 
-        import pdb; pdb.set_trace()
 
         return dens
 
