@@ -9,7 +9,7 @@ print 'using matplotlib backend' , pl.get_backend()
 # import matplotlib as mpl;
 # from matplotlib import figure;
 pl.rcParams['image.interpolation'] = 'nearest' ; 
-import scipy.interpolate as interp
+import scipy.interpolate as interpl; import tktools as tt
 from sklearn.neighbors import BallTree as BallTree
 import cPickle as pickle
 import filaments_model_1h
@@ -513,7 +513,7 @@ def figure_fields():
 
     pairs_all = pairs.copy()
     pairs_all = pairs_all[pairs_all['Dxy']<30]
-    select = pairs['analysis']==1
+    select = pairs['analysis']==0
     pairs=pairs[select]
     halo1=halo1[select]
     halo2=halo2[select]
@@ -547,8 +547,8 @@ def figure_fields():
     fig.text(0.5, 0.04, 'RA', ha='center', va='center' , fontsize=24)
     fig.text(0.03, 0.5, 'Dec', ha='center', va='center', rotation='vertical', fontsize=24)
 
-    minz=0.3
-    maxz=0.45
+    minz=0.2
+    maxz=1
     halo_size = 100
 
     # ax1.scatter(cluscat_durret['ra'],cluscat_durret['de'],s=50,marker='d', vmin=minz, vmax=maxz)
@@ -662,7 +662,7 @@ def figure_fields():
     cbar_ax = fig.add_axes([0.9, 0.175, 0.015, 0.7])
     cbar=fig.colorbar(cax,cax=cbar_ax)
     cbar.ax.tick_params(labelsize=20) 
-    cbar.set_ticks([0.3,0.35,0.4,0.45])
+    # cbar.set_ticks([0.3,0.35,0.4,0.45])
     # cbar.set_ticklabels([0.3,0.35,0.4])
     pl.figtext(0.93,0.52,'z',fontsize=22)
     # fig.suptitle('%d pairs - class %d' % (n_pairs_used, classif))
@@ -1268,7 +1268,7 @@ def main():
     config = yaml.load(open(args.filename_config))
 
     global halos ,filename_halos_cfhtlens ,filename_cluscat ,filename_fields ,bossdr10 ,pairs ,halo1 ,halo2 ,cluscat ,fieldscat ,filename_cluscat_durret ,cluscat_durret
-    halos = tabletools.loadTable(config['filename_halos'])
+    halos = tt.load(config['filename_halos'])
     filename_halos_cfhtlens = os.environ['HOME'] + '/data/CFHTLens/CFHTLens_DR10_LRG/BOSSDR10LRG.fits'
     filename_cluscat = os.environ['HOME'] + '/data/CFHTLens/ClusterZ/clustersz.fits'
     filename_fields =  os.environ['HOME'] + '/data/CFHTLens/field_catalog.fits'

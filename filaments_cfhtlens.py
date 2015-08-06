@@ -151,8 +151,8 @@ def add_nfw_to_random_points():
     
     import filaments_model_2hf, filament, nfw
 
-    halo1 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos1.fits'))
-    halo2 = tabletools.loadTable(config['filename_pairs'].replace('.fits','.halos2.fits'))
+    halo1 = tt.load(config['filename_pairs'].replace('.fits','.halos1.fits'))
+    halo2 = tt.load(config['filename_pairs'].replace('.fits','.halos2.fits'))
     pairs_table = tabletools.loadTable(config['filename_pairs'])
     filename_shears_nfw = config['filename_shears'].replace('.pp2','.nfw.pp2')
 
@@ -306,7 +306,8 @@ def main():
 
     filaments_tools.add_phys_dist()
     if args.action == 'get_pairs':
-        filaments_tools.get_pairs_topo()
+        # filaments_tools.get_pairs_topo()
+        filaments_tools.get_pairs_central()
         filaments_tools.stats_pairs()
     elif args.action == 'get_random_pairs':
         filaments_tools.get_pairs_resampling()

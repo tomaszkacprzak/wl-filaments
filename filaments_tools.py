@@ -1,6 +1,5 @@
 import pyfits, os, yaml, argparse, sys, logging , cosmology , plotstools , tabletools, matplotlib
-import numpy as np
-import pylab as pl
+import numpy as np; import pylab as pl; import tktools as tt
 import scipy.interpolate as interp
 from sklearn.neighbors import BallTree as BallTree
 import warnings; warnings.simplefilter('once')
@@ -708,7 +707,7 @@ def get_pairs_resampling():
 def get_pairs_topo():
 
     
-    halos_all = tabletools.loadTable(config['filename_halos'])
+    halos_all = tt.load(config['filename_halos'])
     halos = halos_all.copy()
 
     # select on M
@@ -923,6 +922,112 @@ def get_pairs_new():
     import pdb; pdb.set_trace()
 
 
+def get_pairs_central():
+
+    halos_all = tt.load(config['filename_halos'])
+    halos = halos_all.copy()
+
+    # select on M
+    range_M = map(float,config['range_M'])
+    select = (halos['m200_fit'] > range_M[0]) * (halos['m200_fit'] < range_M[1])
+    halos=halos[select]
+
+    # sort on m200
+    halos=halos[halos['m200_fit'].argsort()[::-1]]
+
+    max_angle = config['max_angle']
+    max_dx = config['max_dx']
+
+    x,y,z = cosmology.spherical_to_cartesian_with_redshift(halos['ra'],halos['dec'],halos['z'])
+    box_coords = np.concatenate( [x[:,None],y[:,None],z[:,None]] , axis=1)
+    BT = BallTree(box_coords, leaf_size=5)
+    list_conn1 = np.array([],dtype=np.int32)
+    list_conn2 = np.array([],dtype=np.int32)
+    list_dist  = np.array([],dtype=np.float32)
+    list_pairs = []
+    for ih,vh in enumerate(halos):
+       
+        # list_conn1=np.append(list_conn1,i1)
+        # list_conn2=np.append(list_conn2,i2)
+        n_connections=20
+        this_coords = box_coords[ih,:][:,None].T
+        bt_dx,bt_id = BT.query(this_coords,k=n_connections)
+        i1 = ih
+        all_id = bt_id[0,1:]
+        all_dx = bt_dx[0,1:]
+        for ic,vc in enumerate(all_id):
+            
+
+                ra1_rad, de1_rad = tt.to_radians(halos['ra'][ih],unit='deg'), tt.to_radians(halos['dec'][ih],unit='deg')
+                ra2_rad, de2_rad = tt.to_radians(halos['ra'][vc],unit='deg'), tt.to_radians(halos['dec'][vc],unit='deg')
+                
+                d_ang = tt.get_angular_separation(ra1_rad,de1_rad,ra2_rad,de2_rad, unit='rad')
+                d_xy  = (halos['DA'][ih] + halos['DA'][vc])/2. * d_ang
+                d_los = cosmology.get_ang_diam_dist( halos['z'][ih] , halos['z'][vc] )            
+                d_tot = np.sqrt(d_xy**2+d_los**2)
+
+                if (d_xy>5) & (d_tot<15) & (np.log10(halos[ih]['m200_fit'])>14) & (np.log10(halos[vc]['m200_fit'])>14):
+                    pair = list(np.sort([ih, vc]))
+                    if pair not in list_pairs:
+                    # if True:
+                        list_pairs.append( pair )
+                        print ih, vc, np.log10(halos[ih]['m200_fit']), np.log10(halos[vc]['m200_fit']), d_xy, d_los 
+                        list_dist=np.append(list_dist,d_tot)
+                    else:
+                        print 'exists', ih, vc, np.log10(halos[ih]['m200_fit']), np.log10(halos[vc]['m200_fit']), d_xy, d_los 
+
+    list_conn1 = np.array(list_pairs)[:,0]
+    list_conn2 = np.array(list_pairs)[:,1]
+
+    ih1 = halos[list_conn1]['id']
+    ih2 = halos[list_conn2]['id']
+    vh1 = halos_all[ih1]
+    vh2 = halos_all[ih2]
+
+    halo1_ra_rad , halo1_de_rad = cosmology.deg_to_rad(  vh1['ra'] ,  vh1['dec']  )
+    halo2_ra_rad , halo2_de_rad = cosmology.deg_to_rad(  vh2['ra'] ,  vh2['dec']  )
+
+    d_xy  = (vh1['DA'] + vh2['DA'])/2. * cosmology.get_angular_separation(halo1_ra_rad , halo1_de_rad , halo2_ra_rad , halo2_de_rad)
+    d_los = cosmology.get_ang_diam_dist( vh1['z'] , vh2['z'] )
+
+    logger.info('neighbour selected min/max d_xy  (%2.2f,%2.2f)'  % (min(d_xy), max(d_xy)) )
+    logger.info('neighbour selected min/max d_los (%2.2f,%2.2f)'  % (min(d_los), max(d_los)) )
+
+    ra_mid  = (vh1['ra']  + vh2['ra'] )/2.
+    dec_mid = (vh1['dec'] + vh2['dec'])/2.
+    z = (vh1['z'] + vh2['z'])/2.
+    R_pair = d_xy
+    drloss = d_los
+    dz=  np.abs(vh1['z'] - vh2['z'])
+    n_gal = dz*0 
+ 
+    ipair = np.arange(len(ih1))
+    pairs_table = np.zeros(len(ipair),dtype=dtype_pairs)
+    pairs_table['ipair'] = ipair
+    pairs_table['ih1'] = ih1
+    pairs_table['ih2'] = ih2
+    pairs_table['n_gal'] = 0
+    pairs_table['DA'] = list_dist
+    pairs_table['Dlos'] = d_los
+    pairs_table['Dxy'] = d_xy
+    pairs_table['R_pair'] = d_xy
+    pairs_table['ra_mid'] = ra_mid
+    pairs_table['dec_mid'] = dec_mid
+    pairs_table['z'] = z
+    pairs_table['ra1'] = vh1['ra']
+    pairs_table['dec1'] = vh1['dec']
+    pairs_table['ra2'] = vh2['ra']
+    pairs_table['dec2'] = vh2['dec']
+
+    for ip in range(len(pairs_table)):
+        pairs_table['m200_h1_fit'][ip] = vh1['m200_fit'][ip]
+        pairs_table['m200_h2_fit'][ip] = vh2['m200_fit'][ip]
+        print 'halos: % 5d\t% 5d mass= %2.2e %2.2e dx=% 6.2f' % (pairs_table['ih1'][ip],pairs_table['ih2'][ip],pairs_table['m200_h1_fit'][ip],pairs_table['m200_h2_fit'][ip],pairs_table['DA'][ip])
+
+    tabletools.saveTable(config['filename_pairs'],pairs_table)   
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos1.fits'), vh1)    
+    tabletools.saveTable(config['filename_pairs'].replace('.fits','.halos2.fits'), vh2)    
+
 
 
 
@@ -1072,7 +1177,7 @@ def add_phys_dist():
 
     filename_halos = config['filename_halos']
 
-    big_catalog = tabletools.loadTable(filename_halos,log=logger)
+    big_catalog = tt.load(filename_halos,logger=logger)
 
     logger.info('getting cartesian coords')
     # box_coords = cosmology.get_euclidian_coords(big_catalog['ra'],big_catalog['dec'],big_catalog['z'])
@@ -1085,7 +1190,7 @@ def add_phys_dist():
     big_catalog=tabletools.ensureColumn(rec=big_catalog, name='DA',    arr=DA, dtype='f8')
   
     logger.info('number of halos %d', len(big_catalog))
-    tabletools.saveTable(filename_halos,big_catalog)
+    tt.save(filename_halos,big_catalog,clobber=True)
     logger.info('wrote %s' % filename_halos)
 
 def get_shears_for_pairs(function_shears_for_single_pair,id_first=0, num=-1):

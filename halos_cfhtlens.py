@@ -6,6 +6,7 @@ if 'DISPLAY' not in os.environ:
 import os, yaml, argparse, sys, logging , pyfits, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats, time
 import numpy as np
 import pylab as pl
+import tktools as tt
 print 'using matplotlib backend' , pl.get_backend()
 # import matplotlib as mpl;
 # from matplotlib import figure;
@@ -81,12 +82,143 @@ def select_halos():
     logger.info('saved %s' , filename_fig)
 
 
-def select_halos_LRGSCLUS():
+def select_halos_BOSSRD12_3DMF():
 
     range_z=map(float,config['range_z'])
     range_M=map(float,config['range_M'])
     filename_halos=config['filename_halos']
 
+    import pyfits
+    import tktools as tt
+    import numpy as np
+    import pylab as pl
+    import numpy.lib.recfunctions as rf
+    w1=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W1.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w2=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W2.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w3=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W3.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w4=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W4.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w1=rf.append_fields(base=w1,names='field',data=['w1']*len(w1),usemask=False)
+    w2=rf.append_fields(base=w2,names='field',data=['w2']*len(w2),usemask=False)
+    w3=rf.append_fields(base=w3,names='field',data=['w3']*len(w3),usemask=False)
+    w4=rf.append_fields(base=w4,names='field',data=['w4']*len(w4),usemask=False)
+
+    w1=rf.append_fields(base=w1,names='id_3DMF',data=range(0,                      len(w1)),usemask=False)
+    w2=rf.append_fields(base=w2,names='id_3DMF',data=range(len(w1),                len(w1)+len(w2)),usemask=False)
+    w3=rf.append_fields(base=w3,names='id_3DMF',data=range(len(w1)+len(w2),        len(w1)+len(w2)+len(w3)),usemask=False)
+    w4=rf.append_fields(base=w4,names='id_3DMF',data=range(len(w1)+len(w2)+len(w3),len(w1)+len(w2)+len(w3)+len(w4)),usemask=False)
+
+    wa=rf.stack_arrays([w1,w2,w3,w4])
+    # rf.append_fields(base=wa,names='id_3DMF',data=range(len(wa)),usemask=False)
+
+    # halos=pyfits.getdata('/Users/tomek/data/CFHTLens/dr12_spec_gals_tomasz.kacprzak.fit',1)
+    prob = tt.load("halos_lrgsdr12.prob.fits")
+    halos= np.array(pyfits.getdata('halos_lrgsdr12.sig.fits',1))
+    halos = rf.rec_drop_fields(halos,'index')
+    halos = rf.rename_fields(halos,{'id':'id_halo'})
+    select = (halos['z'] > range_z[0]) & (halos['z'] < range_z[1]) & (halos['m200_fit'] > range_M[0]) & (halos['m200_fit'] < range_M[1]) & (halos['m200_sig_new'] > 2) 
+
+    print halos['z']
+    sources = tt.load('/Users/tomek/data/CFHTLens/CFHTLens_2014-04-07.fits')
+    print len(halos)
+
+    iw=0
+    list_matched_catalogs = []
+    n_usable = 0
+    for wo in [w1,w2,w3,w4]:
+
+        iw+=1
+
+        select = wo['sig']>3.5
+        wos = wo[select]
+
+        wox, woy = tt.get_gnomonic_projection(wos['ra'], wos['de'] , np.mean(wos['ra']) , np.mean(wos['de']), unit='deg')
+        hox, hoy = tt.get_gnomonic_projection(halos['ra'], halos['dec'] , np.mean(wos['ra']) , np.mean(wos['de']), unit='deg')
+        sx, sy = tt.get_gnomonic_projection(sources['ra'], sources['dec'] , np.mean(wos['ra']) , np.mean(wos['de']), unit='deg')
+
+
+        wov = np.concatenate([wox[:,None],woy[:,None]],axis=1)
+        hov = np.concatenate([hox[:,None],hoy[:,None]],axis=1)
+
+        hs = halos
+
+        from sklearn.neighbors import BallTree
+        BT=BallTree(hov, leaf_size=5)
+        bt_dx,bt_id = BT.query(wov,k=10)
+        select = (np.abs(hs['z'][bt_id] - wos['z'][:,None]) < 0.1) & ( np.sqrt((hox[bt_id] - wox[:,None])**2 + (hoy[bt_id] - woy[:,None])**2) < 1/60.)
+
+        pl.figure(iw)
+        pl.scatter(wox*60,woy*60,c=wos['z'],s=100,lw=0,marker='s',cmap='Reds')
+        pl.clim([0.2,1.])
+        pl.scatter(hox*60,hoy*60,c=hs['z'],s=100,lw=0,marker='o',cmap='Reds')
+        pl.clim([0.2,1.])
+        pl.colorbar()
+        pl.xlim([wox.min()*60,wox.max()*60])
+        pl.ylim([woy.min()*60,woy.max()*60])
+
+        list_matches = np.ones(len(wov),dtype=np.int64)*-1
+        for i in range(len(wov)):
+            if i % 1000 == 0:
+                print i, len(wov)
+            candidates = bt_id[i][select[i]]
+            if len(candidates)>0:
+                candidates
+                match = candidates[0]
+                if match not in list_matches:
+                    list_matches[i]=match
+                else:
+                    print 'match already exists', match
+
+            for j in range(len(bt_id[i])):
+                if select[i,j]:
+                    pl.plot( [wox[i]*60,hox[bt_id[i][j]]*60],[woy[i]*60,hoy[bt_id[i][j]]*60], c='r' )
+
+        select_matches = list_matches!=-1
+        match_h = hs[list_matches[select_matches]]
+        match_w = wos[select_matches]
+
+        import numpy.lib.recfunctions as rf
+        match_w_renamed = rf.rename_fields(match_w,{'ra':'ra_cluster','de':'de_cluster','z':'z_cluster','sig':'sig_cluster'})
+        match_h_renamed = rf.rename_fields(match_h,{'ra':'ra_lrg','dec':'de_lrg','z':'z_lrg'})[['ra_lrg','de_lrg','z_lrg','m200_fit','m200_sig_new','m200_sig','specobjid','m200_errhi','m200_errlo','id_halo']]
+        print len(match_w_renamed), len(match_h_renamed)
+        matched_catalogs = rf.merge_arrays([match_w_renamed,match_h_renamed],flatten=True,usemask=False)
+        print 'unique', len(np.unique(matched_catalogs['id_halo'])),len((matched_catalogs['id_halo']))
+        print 'unique', len(np.unique(matched_catalogs['id_3DMF'])),len((matched_catalogs['id_3DMF']))
+        list_matched_catalogs.append(matched_catalogs)
+
+        n_usable += len(matched_catalogs)
+
+    matched_catalogs = rf.stack_arrays(list_matched_catalogs,usemask=False)
+
+    print 'n_usable',n_usable
+    print len(matched_catalogs)
+    print matched_catalogs.dtype.names
+    print len(np.unique(matched_catalogs['id_halo'])),len((matched_catalogs['id_halo']))
+    print len(np.unique(matched_catalogs['id_3DMF'])),len((matched_catalogs['id_3DMF']))
+
+    for i in np.unique(matched_catalogs['id_3DMF']):
+        if np.sum(matched_catalogs['id_3DMF']==i)>1:
+            print i,  np.sum(matched_catalogs['id_3DMF']==i), np.nonzero(matched_catalogs['id_3DMF']==i)
+            break
+
+    matched_catalogs=rf.append_fields(base=matched_catalogs,names='ra',data=matched_catalogs['ra_lrg'],usemask=False)
+    matched_catalogs=rf.append_fields(base=matched_catalogs,names='de',data=matched_catalogs['de_lrg'],usemask=False)
+    matched_catalogs=rf.append_fields(base=matched_catalogs,names='dec',data=matched_catalogs['de_lrg'],usemask=False)
+    matched_catalogs=rf.append_fields(base=matched_catalogs,names='z',data=matched_catalogs['z_lrg'],usemask=False)
+    matched_catalogs=rf.append_fields(base=matched_catalogs,names='id',data=range(len(matched_catalogs)),usemask=False)
+
+    pl.show()
+
+    tt.save(filename_halos,matched_catalogs,clobber=True)
+
+    import pdb; pdb.set_trace()
+
+
+
+def select_halos_LRGSCLUS():
+
+    range_z=map(float,config['range_z'])
+    range_M=map(float,config['range_M'])
+    filename_halos=config['filename_halos']
 
     import os
     import numpy as np
@@ -646,7 +778,7 @@ def fit_halos():
         logger.info(titlestr)
 
         if args.legion:
-            filename_halos_part = os.path.basename(filename_halos).replace('.fits','.%04d.pp2' % ih)
+            filename_halos_part = os.path.join('outputs/',os.path.basename(filename_halos).replace('.fits','.%05d.pp2' % ih))
             line=np.array([ih,n_eff_this,n_gals_this,n_invalid_this,halos['m200_fit'][ih],halos['m200_sig'][ih],halos['m200_errhi'][ih],halos['m200_errlo'][ih],halos['m200_sig_new'][ih]])
             res={'ml' : line, 'log_post' : log_post }
             tabletools.savePickle(filename_halos_part,res)
@@ -655,7 +787,8 @@ def fit_halos():
         pyfits.writeto(filename_halos,halos,clobber=True)
         logger.info('saved %s' , filename_halos)
 
-        if iall<10000:
+        plots = False
+        if plots:
             pl.figure()
             pl.plot(grid_M200,prob_post,'.-')
             pl.axvline(ml_m200-err_lo)
@@ -995,8 +1128,6 @@ def add_closest_cluster():
     pl.show()
 
     import pdb; pdb.set_trace()
-
-
 
 
 def main():

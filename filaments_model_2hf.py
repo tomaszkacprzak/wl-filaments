@@ -379,7 +379,6 @@ class modelfit():
 
         model_g1 , model_g2, limit_mask , _ , _ = self.draw_model(theta)
 
-
         likelihood = self.log_likelihood(model_g1,model_g2,limit_mask)
         prior = self.log_prior(theta)
         if not np.isfinite(prior):

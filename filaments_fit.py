@@ -6,6 +6,7 @@ if 'DISPLAY' not in os.environ:
 import os, yaml, argparse, sys, logging , pyfits, tabletools, cosmology, filaments_tools, plotstools, mathstools, scipy, scipy.stats, time
 import numpy as np
 import pylab as pl
+import tktools as tt
 print 'using matplotlib backend' , pl.get_backend()
 # import matplotlib as mpl;
 # from matplotlib import figure;
@@ -115,9 +116,9 @@ def fit_2hf():
     filename_halo2 =  config['filename_pairs'].replace('.fits' , '.halos2.fits') # pairs_bcc.halos2.fits'
     filename_shears = config['filename_shears']                                  # args.filename_shears 
 
-    pairs_table = tabletools.loadTable(filename_pairs)
-    halo1_table = tabletools.loadTable(filename_halo1)
-    halo2_table = tabletools.loadTable(filename_halo2)
+    pairs_table = tt.load(filename_pairs)
+    halo1_table = tt.load(filename_halo1)
+    halo2_table = tt.load(filename_halo2)
 
     if args.first == -1: 
         id_pair_first = 0 ; 
@@ -181,16 +182,16 @@ def fit_2hf():
         if config['mode']=='selftest':
             id_pair_in_catalog = 0
             if '.fits' in filename_shears:
-                shears_info = tabletools.loadTable(filename_shears,hdu=1)
+                shears_info = tt.load(filename_shears,hdu=1)
             elif '.pp2' in filename_shears:
-                shears_info = tabletools.loadPickle(filename_shears,pos=0)
+                shears_info = np.array(tabletools.loadPickle(filename_shears,pos=0))
             logger.info('selftest mode - using HDU=1 and adding noise')
         else:
             id_pair_in_catalog = id_pair
             if '.fits' in filename_shears:
-                shears_info = tabletools.loadTable(filename_shears,hdu=id_shear+1)
+                shears_info = tt.load(filename_shears,hdu=id_shear+1)
             elif '.pp2' in filename_shears:
-                shears_info = tabletools.loadPickle(filename_shears,pos=id_shear)
+                shears_info = np.array(tabletools.loadPickle(filename_shears,pos=id_shear))
 
         logger.info('using %d shears' , len(shears_info) )
 
@@ -262,7 +263,7 @@ def fit_2hf():
         fitobj.halo1_u_mpc =  pairs_table['u1_mpc'][id_pair_in_catalog]
         fitobj.halo1_v_mpc =  pairs_table['v1_mpc'][id_pair_in_catalog]
         fitobj.halo1_z =  pairs_table['z'][id_pair_in_catalog]
-        fitobj.halo1_M200 = (10**halo1_table['m200'][id_pair_in_catalog])/1e14
+        fitobj.halo1_M200 = (10**halo1_table['m200_fit'][id_pair_in_catalog])/1e14
         # fitobj.halo1_conc = halo1_conc
 
         fitobj.halo2_u_arcmin =  pairs_table['u2_arcmin'][id_pair_in_catalog]
@@ -270,7 +271,7 @@ def fit_2hf():
         fitobj.halo2_u_mpc =  pairs_table['u2_mpc'][id_pair_in_catalog]
         fitobj.halo2_v_mpc =  pairs_table['v2_mpc'][id_pair_in_catalog]
         fitobj.halo2_z =  pairs_table['z'][id_pair_in_catalog]
-        fitobj.halo2_M200 = (10**halo2_table['m200'][id_pair_in_catalog])/1e14
+        fitobj.halo2_M200 = (10**halo2_table['m200_fit'][id_pair_in_catalog])/1e14
         # fitobj.halo2_conc = halo2_conc
 
         fitobj.parameters[0]['box']['min'] = config['kappa0']['box']['min']
