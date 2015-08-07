@@ -188,10 +188,12 @@ def fit_2hf():
             logger.info('selftest mode - using HDU=1 and adding noise')
         else:
             id_pair_in_catalog = id_pair
-            if '.fits' in filename_shears:
-                shears_info = tt.load(filename_shears,hdu=id_shear+1)
-            elif '.pp2' in filename_shears:
-                shears_info = np.array(tabletools.loadPickle(filename_shears,pos=id_shear))
+            filename_shears_this = filename_shears.replace('.fits','.pair%05d.fits'%id_pair).replace('.pp2','.pair%05d.pp2'%id_pair).replace('.cpickle','.pair%05d.cpickle'%id_pair)
+            shears_info =  tt.load(filename_shears_this)
+            # if '.fits' in filename_shears:
+            #     shears_info = tt.load(filename_shears,hdu=id_shear+1)
+            # elif '.pp2' in filename_shears:
+            #     shears_info = np.array(tabletools.loadPickle(filename_shears,pos=id_shear))
 
         logger.info('using %d shears' , len(shears_info) )
 

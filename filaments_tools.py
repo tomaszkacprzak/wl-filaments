@@ -1218,8 +1218,6 @@ def get_shears_for_pairs(function_shears_for_single_pair,id_first=0, num=-1):
 
         vpair = halo_pairs[ipair]
 
-
-
         # filename_current_pair = filename_shears.replace('.fits', '.%04d.fits' % (ipair))
         filename_current_pair = filename_shears.split('.')
         filename_current_pair[-1]='%04d.fits' % (ipair)
@@ -1256,10 +1254,12 @@ def get_shears_for_pairs(function_shears_for_single_pair,id_first=0, num=-1):
             halo_pairs['area_arcmin2'][ipair] = area
             halo_pairs['n_eff'][ipair] = float(n_gals_total)/area
 
-            if '.fits' in filename_shears:
-                tabletools.saveTable(filename_shears,pair_shears,append=True)          
-            elif '.pp2' in filename_shears:
-                tabletools.savePickle(filename_shears,pair_shears,append=True)          
+            filename_shears_this = filename_shears.replace('.fits','.pair%05d.fits'%ipair).replace('.pp2','.pair%05d.pp2'%ipair).replace('.cpickle','.pair%05d.cpickle'%ipair)
+            tt.save(filename_shears_this,np.array(pair_shears),clobber=True)
+            # if '.fits' in filename_shears:
+                # tabletools.saveTable(filename_shears,pair_shears,append=True)          
+            # elif '.pp2' in filename_shears:
+            # tabletools.savePickle(filename_shears,pair_shears,append=True)          
 
             if config['save_pairs_plots']:
 
