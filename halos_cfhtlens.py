@@ -1369,10 +1369,10 @@ def remove_halo_shear():
     import numpy as np
     import pylab as pl
     import numpy.lib.recfunctions as rf
-    w1=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W1.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
-    w2=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W2.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
-    w3=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W3.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
-    w4=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W4.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w1=tt.load(config['filename_cfhtlens_3dmf'] % 1,dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w2=tt.load(config['filename_cfhtlens_3dmf'] % 2,dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w3=tt.load(config['filename_cfhtlens_3dmf'] % 3,dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w4=tt.load(config['filename_cfhtlens_3dmf'] % 4,dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
     w1=rf.append_fields(base=w1,names='field',data=['w1']*len(w1),usemask=False)
     w2=rf.append_fields(base=w2,names='field',data=['w2']*len(w2),usemask=False)
     w3=rf.append_fields(base=w3,names='field',data=['w3']*len(w3),usemask=False)
