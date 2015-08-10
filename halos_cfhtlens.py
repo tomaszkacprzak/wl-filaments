@@ -777,20 +777,32 @@ def fit_halo(halo_ra,halo_de,halo_z,shear_catalog):
     # fitobj.halo_v_arcmin = halo_de*60
 
     # maybe a prior should be implemented here
-    model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([m200_expectation])
-    halo_measurement['be_model_g1'] = model_g1.real
-    halo_measurement['be_model_g2'] = model_g2.real
+    # model_g1 = np.zeros([len(fitobj.shear_u_arcmin),len(prob_post)])
+    # model_g2 = np.zeros([len(fitobj.shear_u_arcmin),len(prob_post)])
+    # for ie, ve in enumerate(grid_M200):
+    #     mg1 , mg2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([ve])
+    # model_g1[:,ie] = mg1
+    # model_g2[:,ie] = mg2 
+
+    # import pdb; pdb.set_trace()
+    
+    # model_g1_be = np.sum(model_g1.real*prob_post,axis=1)
+    # model_g2_be = np.sum(model_g2.real*prob_post,axis=1)
+
+    model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([m200_expectation])    
+    halo_measurement['be_model_g1'] = model_g1
+    halo_measurement['be_model_g2'] = model_g2
 
     model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([ml_m200])
     halo_measurement['ml_model_g1'] = model_g1.real
     halo_measurement['ml_model_g2'] = model_g2.real
 
     # pl.figure()
-    # pl.scatter(fitobj.shear_u_arcmin,fitobj.shear_v_arcmin,c=model_g1.real,s=20,lw=0)
+    # pl.scatter(fitobj.shear_u_arcmin,fitobj.shear_v_arcmin,c=model_g1,s=20,lw=0)
     # pl.clim([-0.05,0.05])
     # pl.colorbar()
     # pl.figure()
-    # pl.scatter(fitobj.shear_u_arcmin,fitobj.shear_v_arcmin,c=model_g2.real,s=20,lw=0)
+    # pl.scatter(fitobj.shear_u_arcmin,fitobj.shear_v_arcmin,c=model_g2,s=20,lw=0)
     # pl.clim([-0.05,0.05])
     # pl.colorbar()
     # pl.show()
@@ -1399,8 +1411,8 @@ def remove_halo_shear():
         wa[si]['m200_errhi'] = halo_measurement['m200_errhi']
         wa[si]['m200_errlo'] = halo_measurement['m200_errlo']
 
-        halo_g1 = halo_measurement['ml_model_g1']
-        halo_g2 = halo_measurement['ml_model_g2']
+        halo_g1 = halo_measurement['be_model_g1']
+        halo_g2 = halo_measurement['be_model_g2']
         halo_ra = sources[halo_measurement['shear_index']]['ra']
         halo_de = sources[halo_measurement['shear_index']]['dec']
 
@@ -1422,8 +1434,14 @@ def remove_halo_shear():
         # import pdb; pdb.set_trace()
         # pl.plot(halo_measurement['grid_M200'],halo_measurement['prob_post'])
 
-        sources_g1[halo_measurement['shear_index']] -= halo_g1.real
-        sources_g2[halo_measurement['shear_index']] -= halo_g2.real
+        if halo_measurement['m200_expectation']>1e13:
+
+            sources_g1[halo_measurement['shear_index']] -= halo_g1.real
+            sources_g2[halo_measurement['shear_index']] -= halo_g2.real
+
+        else:
+
+            logger.info('not subtracting halo shear')
 
     logger.info('std(e1-e1_removedhalos)=%2.10f'% np.std(sources['e1']-sources_g1,ddof=1))
     logger.info('std(e2-e2_removedhalos)=%2.10f'% np.std(sources['e2']-sources_g2,ddof=1))
