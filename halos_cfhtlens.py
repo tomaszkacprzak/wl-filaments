@@ -1385,7 +1385,7 @@ def remove_halo_shear():
 
     list_dicts = []
 
-    for si,sv in enumerate(wa_sorted[:3]):
+    for si,sv in enumerate(wa_sorted):
 
         logger.info('=============== halo %5d/%5d sig=%2.2f' % (si,len(wa_sorted),sv['sig']) )
 
