@@ -586,6 +586,223 @@ def randomise_halos2():
 
     import pdb; pdb.set_trace()
 
+# import line_profiler
+# @profile
+def fit_halo(halo_ra,halo_de,halo_z,shear_catalog):
+
+    if 'e1corr' in shear_catalog.dtype.names:       
+        shear_g1 , shear_g2 = shear_catalog['e1corr'] , -shear_catalog['e2corr']
+        shear_ra_deg , shear_de_deg , shear_z = shear_catalog['ALPHA_J2000'] , shear_catalog['DELTA_J2000'] ,  shear_catalog['Z_B']
+    else:
+        shear_g1 , shear_g2 = shear_catalog['e1'] , -(shear_catalog['e2']  - shear_catalog['c2'])
+        shear_ra_deg , shear_de_deg , shear_z = shear_catalog['ra'] , shear_catalog['dec'] ,  shear_catalog['z']
+
+    shear_index = np.arange(0,len(shear_g1),dtype=np.int64)
+
+    box_size=20 # arcmin
+    redshift_offset = 0.2
+
+    
+    select = (np.sqrt(((shear_ra_deg - halo_ra)**2 + (shear_de_deg - halo_de)**2)) < 3*box_size/60.) & (shear_z > (halo_z + redshift_offset))
+
+    shear_g1 = shear_g1[select]
+    shear_g2 = shear_g2[select]
+    shear_ra_deg = shear_ra_deg[select]
+    shear_de_deg = shear_de_deg[select]
+    shear_z = shear_z[select]
+    shear_index = shear_index[select]
+
+    shear_bias_m = shear_catalog['m']
+    shear_weight = shear_catalog['weight']
+
+    halo_ra_rad , halo_de_rad = cosmology.deg_to_rad(halo_ra,halo_de)
+    shear_ra_rad , shear_de_rad = cosmology.deg_to_rad(shear_ra_deg, shear_de_deg)
+
+    # get tangent plane projection        
+    shear_u_rad, shear_v_rad = cosmology.get_gnomonic_projection(shear_ra_rad , shear_de_rad , halo_ra_rad , halo_de_rad)
+    shear_g1_proj , shear_g2_proj = cosmology.get_gnomonic_projection_shear(shear_ra_rad , shear_de_rad , halo_ra_rad , halo_de_rad, shear_g1,shear_g2)       
+
+    pixel_size=0.2
+    vec_u_arcmin, vec_v_arcmin = np.arange(-box_size/2.,box_size/2.+1e-9,pixel_size), np.arange(-box_size/2.,box_size/2.+1e-9,pixel_size)
+    grid_u_arcmin, grid_v_arcmin = np.meshgrid( vec_u_arcmin  , vec_v_arcmin ,indexing='ij')
+    vec_u_rad , vec_v_rad   = cosmology.arcmin_to_rad(vec_u_arcmin,vec_v_arcmin)
+
+
+    dtheta_x , dtheta_y = cosmology.arcmin_to_rad(box_size/2.,box_size/2.)
+    select = ( np.abs( shear_u_rad ) < np.abs(dtheta_x)) * (np.abs(shear_v_rad) < np.abs(dtheta_y)) * (shear_z > (halo_z + redshift_offset))
+
+    shear_u_stamp_rad  = shear_u_rad[select]
+    shear_v_stamp_rad  = shear_v_rad[select]
+    shear_g1_stamp = shear_g1_proj[select]
+    shear_g2_stamp = shear_g2_proj[select]
+    shear_g1_orig = shear_g1[select]
+    shear_g2_orig = shear_g2[select]
+    shear_z_stamp = shear_z[select]
+    shear_bias_m_stamp = shear_bias_m[select] 
+    shear_weight_stamp = shear_weight[select]
+    shear_index_stamp = shear_index[select]
+
+    n_invalid = len(np.nonzero(shear_weight_stamp==0)[0])
+    n_total = len(shear_weight_stamp)
+
+    hist_g1, _, _    = np.histogram2d( x=shear_u_stamp_rad, y=shear_v_stamp_rad , bins=(vec_u_rad,vec_v_rad) , weights=shear_g1_stamp * shear_weight_stamp)
+    hist_g2, _, _    = np.histogram2d( x=shear_u_stamp_rad, y=shear_v_stamp_rad , bins=(vec_u_rad,vec_v_rad) , weights=shear_g2_stamp * shear_weight_stamp)
+    hist_n,  _, _    = np.histogram2d( x=shear_u_stamp_rad, y=shear_v_stamp_rad , bins=(vec_u_rad,vec_v_rad) )
+    hist_m , _, _    = np.histogram2d( x=shear_u_stamp_rad, y=shear_v_stamp_rad , bins=(vec_u_rad,vec_v_rad) , weights=(1+shear_bias_m_stamp) * shear_weight_stamp )
+    hist_w , _, _    = np.histogram2d( x=shear_u_stamp_rad, y=shear_v_stamp_rad , bins=(vec_u_rad,vec_v_rad) , weights=shear_weight_stamp)
+    mean_g1 = hist_g1  / hist_m
+    mean_g2 = hist_g2  / hist_m
+
+    # in case we divided by zero
+    hist_w[hist_n == 0] = 0
+    hist_m[hist_n == 0] = 0
+    hist_g1[hist_n == 0] = 0
+    hist_g2[hist_n == 0] = 0
+    mean_g1[hist_n == 0] = 0
+    mean_g2[hist_n == 0] = 0
+
+    select = np.isclose(hist_m,0)
+    hist_w[select] = 0
+    hist_m[select] = 0
+    hist_g1[select] = 0
+    hist_g2[select] = 0
+    mean_g1[select] = 0
+    mean_g2[select] = 0
+
+    u_mid_arcmin, v_mid_arcmin = vec_u_arcmin[1:] - pixel_size/2. , vec_v_arcmin[1:] - pixel_size/2.
+    grid_2d_u_arcmin , grid_2d_v_arcmin = np.meshgrid(u_mid_arcmin,v_mid_arcmin,indexing='ij')
+
+    binned_u_arcmin = grid_2d_u_arcmin.flatten('F')
+    binned_v_arcmin = grid_2d_v_arcmin.flatten('F')
+    binned_g1 = mean_g1.flatten('F')
+    binned_g2 = mean_g2.flatten('F')
+    binned_n = hist_n.flatten('F')
+    binned_w = hist_w.flatten('F')
+
+    halo_shear = np.empty(len(binned_g1),dtype=dtype_halostamp)
+    halo_shear['u_arcmin'] = binned_u_arcmin
+    halo_shear['v_arcmin'] = binned_v_arcmin
+    halo_shear['g1'] = binned_g1
+    halo_shear['g2'] = binned_g2
+    halo_shear['weight'] = binned_w
+    halo_shear['n_gals'] = binned_n
+    halo_shear['hist_g1'] = hist_g1.flatten('F')
+    halo_shear['hist_g2'] = hist_g2.flatten('F')
+    halo_shear['hist_m'] = hist_m.flatten('F')
+
+    import filaments_model_1h
+    fitobj = filaments_model_1h.modelfit()
+    fitobj.shear_u_arcmin =  halo_shear['u_arcmin']
+    fitobj.shear_v_arcmin =  halo_shear['v_arcmin']
+    fitobj.halo_u_arcmin = 0.
+    fitobj.halo_v_arcmin = 0.
+    fitobj.shear_g1 =  halo_shear['g1']
+    fitobj.shear_g2 =  halo_shear['g2']
+    fitobj.shear_w =  halo_shear['weight']
+    fitobj.halo_z = halo_z
+    fitobj.get_bcc_pz(config['filename_pz'])
+    fitobj.set_shear_sigma()
+    fitobj.save_all_models=False
+
+    fitobj.parameters[0]['box']['min'] = float(config['M200']['box']['min'])
+    fitobj.parameters[0]['box']['max'] = float(config['M200']['box']['max'])
+    fitobj.parameters[0]['n_grid'] = config['M200']['n_grid']
+
+    log_post , grid_M200 = fitobj.run_gridsearch()
+    ix_max = np.argmax(log_post)
+    ml_m200 = grid_M200[ix_max]
+    ml_loglike = np.max(log_post)
+    zero_loglike = log_post[0]
+    prob_post = mathstools.normalise(log_post)
+    max_par , err_hi , err_lo = mathstools.estimate_confidence_interval(grid_M200,prob_post)
+    dm200 = grid_M200[1]-grid_M200[0]
+
+    sigma = np.sqrt(np.abs((ml_m200-grid_M200)**2/(ml_loglike - log_post)/2.))
+
+    n_sig = max_par/err_lo
+    n_sig_new = ml_m200/sigma[np.isfinite(sigma)]
+    if ix_max!=0:
+        sigma = np.mean(sigma[np.isfinite(sigma)][:ix_max])
+        n_sig_new = ml_m200/sigma
+    else:
+        sigma = 0
+        n_sig_new = 0
+
+    m200_expectation = np.sum(grid_M200*prob_post)
+
+    halo_measurement = {}
+    halo_measurement['m200_fit']= ml_m200
+    halo_measurement['m200_sig']= n_sig
+    halo_measurement['m200_errhi']= err_hi
+    halo_measurement['m200_errlo']= err_lo        
+    halo_measurement['m200_sig_new']= n_sig_new        
+    halo_measurement['n_gals'] = len(shear_g1_stamp) 
+    halo_measurement['log_post'] = log_post
+    halo_measurement['prob_post'] = prob_post
+    halo_measurement['m200_expectation'] = m200_expectation
+    halo_measurement['ra']= halo_ra
+    halo_measurement['de']= halo_de
+    halo_measurement['z'] = halo_z
+    halo_measurement['grid_M200'] = grid_M200
+
+    n_eff_this=float(len(shear_weight_stamp))/(box_size**2)
+    n_gals_this = len(shear_g1_stamp)
+    n_invalid_this = n_invalid
+
+    titlestr = 'ra=%2.2f de=%2.2f n_gals=%d n_invalid=%d n_eff=%2.2f m200_fit=%2.2e +/- %2.2e %2.2e n_sig=%2.2f n_sig_new=%2.2f m200_expectation=%2.2e' % (halo_measurement['ra'],halo_measurement['de'],len(shear_g1_stamp),n_invalid,float(len(shear_weight_stamp))/(box_size**2),ml_m200,err_hi,err_lo,n_sig,n_sig_new,m200_expectation)
+    logger.info(titlestr)
+
+    gi = shear_g1_stamp+1j*shear_g2_stamp
+    angle = np.angle(shear_u_stamp_rad+1j*shear_v_stamp_rad)
+    dist = np.sqrt(shear_u_stamp_rad**2 + shear_v_stamp_rad**2)
+    gt=-gi*np.exp(-1j*angle*2) 
+    gt_err = shear_weight_stamp * (1+shear_bias_m_stamp)
+    halo_measurement['stacked_tangential_profile'] = np.array([dist,gt,gt_err]).T
+
+    g1 = shear_g1_stamp.real
+    g2 = shear_g2_stamp.real
+    u = shear_u_stamp_rad
+    v = shear_v_stamp_rad
+    w = shear_weight_stamp * (1+shear_bias_m_stamp)
+
+    halo_measurement['stacked_halo_shear'] = np.array([u,v,g1,g2,w]).T
+    
+    # get the best fitting model
+
+    halo_measurement['shear_index'] = shear_index_stamp
+
+    fitobj.shear_u_arcmin = shear_u_stamp_rad / np.pi * 180. * 60
+    fitobj.shear_v_arcmin = shear_v_stamp_rad / np.pi * 180. * 60
+    # fitobj.halo_u_arcmin = halo_ra*60
+    # fitobj.halo_v_arcmin = halo_de*60
+
+    # maybe a prior should be implemented here
+    model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([m200_expectation])
+    halo_measurement['be_model_g1'] = model_g1.real
+    halo_measurement['be_model_g2'] = model_g2.real
+
+    model_g1 , model_g2 , limit_mask , Delta_Sigma , kappa = fitobj.draw_model([ml_m200])
+    halo_measurement['ml_model_g1'] = model_g1.real
+    halo_measurement['ml_model_g2'] = model_g2.real
+
+    # pl.figure()
+    # pl.scatter(fitobj.shear_u_arcmin,fitobj.shear_v_arcmin,c=model_g1.real,s=20,lw=0)
+    # pl.clim([-0.05,0.05])
+    # pl.colorbar()
+    # pl.figure()
+    # pl.scatter(fitobj.shear_u_arcmin,fitobj.shear_v_arcmin,c=model_g2.real,s=20,lw=0)
+    # pl.clim([-0.05,0.05])
+    # pl.colorbar()
+    # pl.show()
+
+
+  
+    return halo_measurement
+
+
+
+
+
 def fit_halos():
     
     filename_halos = config['filename_halos']
@@ -1129,10 +1346,111 @@ def add_closest_cluster():
 
     import pdb; pdb.set_trace()
 
+def remove_halo_shear():
+
+    range_z=map(float,config['range_z'])
+    range_M=map(float,config['range_M'])
+    filename_halos=config['filename_halos']
+
+    import pyfits
+    import tktools as tt
+    import numpy as np
+    import pylab as pl
+    import numpy.lib.recfunctions as rf
+    w1=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W1.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w2=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W2.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w3=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W3.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w4=tt.load('/Users/tomek/data/CFHTLens/cfhtlens_3DMF_clusters/cfhtlens_3DMF_clusters_W4.cat',dtype={'names':['ra','de','z','sig'],'formats':['f8']*4})
+    w1=rf.append_fields(base=w1,names='field',data=['w1']*len(w1),usemask=False)
+    w2=rf.append_fields(base=w2,names='field',data=['w2']*len(w2),usemask=False)
+    w3=rf.append_fields(base=w3,names='field',data=['w3']*len(w3),usemask=False)
+    w4=rf.append_fields(base=w4,names='field',data=['w4']*len(w4),usemask=False)
+
+    w1=rf.append_fields(base=w1,names='id_3DMF',data=range(0,                      len(w1)),usemask=False)
+    w2=rf.append_fields(base=w2,names='id_3DMF',data=range(len(w1),                len(w1)+len(w2)),usemask=False)
+    w3=rf.append_fields(base=w3,names='id_3DMF',data=range(len(w1)+len(w2),        len(w1)+len(w2)+len(w3)),usemask=False)
+    w4=rf.append_fields(base=w4,names='id_3DMF',data=range(len(w1)+len(w2)+len(w3),len(w1)+len(w2)+len(w3)+len(w4)),usemask=False)
+    wa=rf.stack_arrays([w1,w2,w3,w4],usemask=False)
+
+    # 'stacked_tangential_profile', 'de', 'm200_fit', 'prob_post', 'm200_sig_new', 'm200_expectation', 'n_gals', 'm200_errlo', 'ra', 'm200_sig', 'stacked_halo_shear', 'grid_M200', 'log_post', 'z', 'm200_errhi'
+    wa=rf.append_fields(base=wa,names=['m200_fit', 'm200_sig_new', 'm200_expectation', 'n_gals', 'm200_errlo', 'm200_sig', 'm200_errhi'],data=[np.zeros(len(wa))]*7,usemask=False)
+
+
+    wa_sorted = np.sort(wa,order='sig')[::-1]
+
+    filename_sources = config['filename_cfhtlens_shears']
+    sources = tt.load(filename_sources)
+    sources_g1 = sources['e1'].copy()
+    sources_g2 = sources['e2'].copy()
+
+    list_dicts = []
+
+    for si,sv in enumerate(wa_sorted[:3]):
+
+        logger.info('=============== halo %5d/%5d sig=%2.2f' % (si,len(wa_sorted),sv['sig']) )
+
+        halo_measurement = fit_halo(sv['ra'],sv['de'],sv['z'],sources)
+
+        wa[si]['m200_fit'] = halo_measurement['m200_fit']
+        wa[si]['m200_expectation'] = halo_measurement['m200_expectation']
+        wa[si]['m200_sig'] = halo_measurement['m200_sig']
+        wa[si]['m200_sig_new'] = halo_measurement['m200_sig_new']
+        wa[si]['n_gals'] = halo_measurement['n_gals']
+        wa[si]['m200_errhi'] = halo_measurement['m200_errhi']
+        wa[si]['m200_errlo'] = halo_measurement['m200_errlo']
+
+        halo_g1 = halo_measurement['ml_model_g1']
+        halo_g2 = halo_measurement['ml_model_g2']
+        halo_ra = sources[halo_measurement['shear_index']]['ra']
+        halo_de = sources[halo_measurement['shear_index']]['dec']
+
+        list_dicts.append(halo_measurement)
+
+        # pl.figure()
+        # pl.scatter(halo_ra,halo_de,c=halo_g1.real,s=20,lw=0)
+        # pl.clim([-0.05,0.05])
+        # pl.colorbar()
+        # pl.figure()
+        # pl.scatter(halo_ra,halo_de,c=halo_g2.real,s=20,lw=0)
+        # pl.clim([-0.05,0.05])
+        # pl.colorbar()
+        # pl.figure()
+        # pl.plot(halo_measurement['grid_M200'],halo_measurement['prob_post'])
+        # pl.show()
+
+
+        # import pdb; pdb.set_trace()
+        # pl.plot(halo_measurement['grid_M200'],halo_measurement['prob_post'])
+
+        sources_g1[halo_measurement['shear_index']] -= halo_g1.real
+        sources_g2[halo_measurement['shear_index']] -= halo_g2.real
+
+    logger.info('std(e1-e1_removedhalos)=%2.10f'% np.std(sources['e1']-sources_g1,ddof=1))
+    logger.info('std(e2-e2_removedhalos)=%2.10f'% np.std(sources['e2']-sources_g2,ddof=1))
+    
+    sources['e1']=sources_g1
+    sources['e2']=sources_g2
+
+    filename_halos_fit = filename_halos.replace('.cpickle','.fit.cpickle')
+    tt.save(filename_halos_fit,wa,clobber=True)
+        
+    filename_halos_models = filename_halos.replace('.cpickle','.models.cpickle')
+    tt.save(filename_halos_models,halo_measurement,clobber=True)
+
+    filename_lenscat_halosremoved = os.path.basename(filename_sources).replace('.fits','.removedhalos.cpickle')
+    tt.save(filename_lenscat_halosremoved,sources,clobber=True)
+
+    import pdb; pdb.set_trace()
+
+
+
+
+    pass
+
 
 def main():
 
-    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster','randomise_halos','randomise_halos2']
+    valid_actions = ['select_lrgs','fit_halos','merge_legion','add_closest_cluster','randomise_halos','randomise_halos2','remove_halo_shear']
 
     description = 'halo_stamps'
     parser = argparse.ArgumentParser(description=description, add_help=True)
